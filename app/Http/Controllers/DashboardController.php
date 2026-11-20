@@ -14,11 +14,14 @@ class DashboardController extends Controller
     public function index(Request $request): View
     {
         $workspace = new Workspace($request->session());
+        $currentUser = CurrentUser::get();
 
         return view('dashboard', [
+            'currentUser' => $currentUser,
             'favorites' => $workspace->favorites(),
             'otherModules' => $workspace->otherModules(),
             'actions' => $workspace->actions(),
+            'customActions' => $currentUser->actions()->where('show_on_home', true)->get(),
             'mentions' => $workspace->openMentions(),
             'handledMentions' => $workspace->handledMentionCount(),
         ]);

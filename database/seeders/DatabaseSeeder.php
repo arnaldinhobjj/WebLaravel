@@ -24,9 +24,34 @@ class DatabaseSeeder extends Seeder
         ])->mapWithKeys(fn ($person) => [
             $person[0] => User::factory()->create([
                 'name' => $person[0],
+                'username' => str($person[0])->lower()->replace(' ', '.')->toString(),
                 'email' => str($person[0])->lower()->replace(' ', '.').'@fortvale.test',
                 'job_title' => $person[1],
             ]),
+        ]);
+
+        $people['Alex Morgan']->actions()->createMany([
+            [
+                'name' => 'My urgent tickets',
+                'description' => 'Urgent tickets assigned to me',
+                'type' => 'link',
+                'url' => '/ticket?assignee=me&priority=urgent',
+            ],
+            [
+                'name' => 'Report a camera fault',
+                'description' => 'Start a CCTV ticket with the usual questions',
+                'type' => 'ticket',
+                'ticket_subject' => 'Camera fault',
+                'ticket_category' => 'cctv',
+                'ticket_priority' => 'high',
+                'ticket_description' => "Camera number:\nLocation:\nWhen did it stop working?",
+            ],
+            [
+                'name' => 'Waiting on others',
+                'description' => 'Tickets waiting on someone else',
+                'type' => 'link',
+                'url' => '/ticket?status=waiting',
+            ],
         ]);
 
         // [id, subject, category, priority, status, requester, assignee, days ago, description, comments]

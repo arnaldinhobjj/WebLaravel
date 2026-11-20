@@ -35,22 +35,61 @@
     syncSidebarButtons();
     window.matchMedia('(max-width: 899px)').addEventListener('change', syncSidebarButtons);
 
-    // Theme: system, light or dark, remembered per browser.
-    const applyTheme = (choice) => {
-        if (choice === 'light' || choice === 'dark') root.dataset.theme = choice;
-        else delete root.dataset.theme;
-        document.querySelectorAll('[data-theme-choice]').forEach((button) => {
-            button.setAttribute('aria-checked', String(button.dataset.themeChoice === choice));
+    // Carousels: previous/next buttons page through a horizontally scrolling row.
+    document.querySelectorAll('[data-carousel]').forEach((carousel) => {
+        const track = carousel.querySelector('[data-carousel-track]');
+        const controls = carousel.querySelector('[data-carousel-controls]');
+        const prev = carousel.querySelector('[data-carousel-prev]');
+        const next = carousel.querySelector('[data-carousel-next]');
+        if (!track || !prev || !next) return;
+
+        const update = () => {
+            const maxScroll = track.scrollWidth - track.clientWidth;
+            const canPrev = track.scrollLeft > 2;
+            const canNext = track.scrollLeft < maxScroll - 2;
+            prev.disabled = !canPrev;
+            next.disabled = !canNext;
+            controls.hidden = maxScroll <= 2;
+            carousel.classList.toggle('can-prev', canPrev);
+            carousel.classList.toggle('can-next', canNext);
+        };
+
+        const page = (direction) => {
+            const visible = [...track.children].filter((item) => !item.hidden);
+            const step = visible.length > 1 ? visible[1].offsetLeft - visible[0].offsetLeft : track.clientWidth;
+            const perPage = Math.max(1, Math.floor(track.clientWidth / step));
+            track.scrollBy({ left: direction * perPage * step, behavior: 'smooth' });
+        };
+
+        prev.addEventListener('click', () => page(-1));
+        next.addEventListener('click', () => page(1));
+        track.addEventListener('scroll', update, { passive: true });
+        track.addEventListener('keydown', (event) => {
+            if (event.target.closest('input, textarea, select')) return;
+            if (event.key === 'ArrowRight') { event.preventDefault(); page(1); }
+            if (event.key === 'ArrowLeft') { event.preventDefault(); page(-1); }
         });
-    };
-    let savedTheme = 'system';
-    try { savedTheme = localStorage.getItem('fv.theme') || 'system'; } catch (e) {}
-    applyTheme(savedTheme);
-    document.querySelectorAll('[data-theme-choice]').forEach((button) => {
-        button.addEventListener('click', () => {
-            const choice = button.dataset.themeChoice;
-            try { localStorage.setItem('fv.theme', choice); } catch (e) {}
-            applyTheme(choice);
+        new ResizeObserver(update).observe(track);
+        carousel.addEventListener('carousel:update', update);
+        update();
+    });
+
+    // Action form: show only the fields for the chosen type.
+    document.querySelectorAll('[data-action-form]').forEach((form) => {
+        const sync = () => {
+            const chosen = form.querySelector('[data-type-choice]:checked')?.value;
+            form.querySelectorAll('[data-type-fields]').forEach((group) => {
+                group.hidden = group.dataset.typeFields !== chosen;
+            });
+        };
+        form.querySelectorAll('[data-type-choice]').forEach((radio) => radio.addEventListener('change', sync));
+        sync();
+    });
+
+    // Ask before destructive submits.
+    document.querySelectorAll('form[data-confirm]').forEach((form) => {
+        form.addEventListener('submit', (event) => {
+            if (!window.confirm(form.dataset.confirm)) event.preventDefault();
         });
     });
 
@@ -126,7 +165,8 @@
                 });
                 const empty = section.querySelector('[data-search-empty]');
                 if (empty) empty.hidden = !(query && items.length && visible === 0);
-                section.querySelectorAll('.tile-add').forEach((el) => { el.hidden = Boolean(query); });
+                section.querySelectorAll('.tile-add, .action-new').forEach((el) => { el.hidden = Boolean(query); });
+                section.dispatchEvent(new Event('carousel:update'));
             });
         });
     }

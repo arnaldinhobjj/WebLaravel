@@ -13,11 +13,16 @@ A Laravel 13 app that recreates the Fort Vale home screen sketch (a window with 
   - create tickets with a subject, category, priority, assignee and description;
   - a ticket page with a timeline of replies and changes, a reply box that can also change the status, and controls for status, priority, assignee and category, plus *Assign to me* and *Mark resolved / Reopen*.
   - Mention ticket numbers on the home screen link to their tickets, and **Request printer support** opens a prefilled new ticket.
-- **Settings menu** – light, dark or system theme, show/hide sidebar, keyboard shortcuts, reset the home screen.
-- **Profile menu** – your tickets, tickets you opened, new ticket, and *Switch user*. There's no login: you act as one of the team members, and replies and changes are recorded under that person.
+- **Favorites and Actions carousels** – page back and forth with the arrow buttons (or the arrow keys when the row has focus).
+- **Profile menu** (the avatar) – your tickets, tickets you opened, new ticket, *My actions*, *Settings*, show/hide sidebar, and *Switch user*. There's no login: you act as one of the team members, and replies and changes are recorded under that person.
+- **Settings** (`/{username}/settings`) – name, username, email, job title, light/dark/system theme (saved per person), reset the home screen, and the keyboard shortcuts.
+- **My actions** (`/{username}/actions`) – create, edit, run and delete your own actions. An action either opens a link (a Fort Vale page such as `/ticket?priority=urgent`, or a website) or starts a ticket from a template. Actions marked *Show on the home screen* appear first in the home screen's Actions carousel.
+- Personal pages only open for the person you are acting as; someone else's `/{username}/…` page returns 403.
 - The sidebar toggle (or the `[` key) hides the sidebar completely; the choice is remembered. Other shortcuts: `Ctrl/⌘ + K` search, `N` new ticket.
 
-Tickets, people and their history are stored in the database (SQLite by default) and seeded with sample data. Home screen state (favorites, action runs, handled mentions) is kept in the session; that sample data lives in `app/Services/Workspace.php`. No Node build step is needed — styles and scripts are plain files in `public/css` and `public/js`.
+If you already ran the app before this update, run `php artisan migrate` (or `php artisan migrate:fresh --seed` to start over with sample data).
+
+Tickets, people, personal actions and their history are stored in the database (SQLite by default) and seeded with sample data. Home screen state (favorites, action runs, handled mentions) is kept in the session; that sample data lives in `app/Services/Workspace.php`. No Node build step is needed — styles and scripts are plain files in `public/css` and `public/js`.
 
 ## Getting started
 
@@ -47,9 +52,11 @@ php artisan test
 | `routes/web.php` | Routes |
 | `app/Http/Controllers/DashboardController.php` | Home screen, user switching, reset |
 | `app/Http/Controllers/TicketController.php` | Ticket list, create, view, update, reply |
-| `app/Models/Ticket.php`, `app/Models/TicketActivity.php`, `app/Enums` | Ticket data, change log, statuses and priorities |
+| `app/Http/Controllers/SettingsController.php`, `ActionController.php`, `ActionRunController.php` | Settings page and personal actions |
+| `app/Http/Middleware/EnsureCurrentUser.php` | Keeps `/{username}/…` pages to their owner |
+| `app/Models/Ticket.php`, `app/Models/TicketActivity.php`, `app/Models/Action.php`, `app/Enums` | Tickets, change log, personal actions, statuses and priorities |
 | `database/seeders/DatabaseSeeder.php` | Sample people and tickets |
-| `resources/views/tickets` | Ticket pages |
+| `resources/views/tickets`, `resources/views/settings`, `resources/views/actions` | Ticket, settings and actions pages |
 | `app/Services/Workspace.php` | Sample data and session-backed state |
 | `resources/views/dashboard.blade.php` | Home screen |
 | `resources/views/layouts`, `resources/views/partials` | Window, sidebar, title bar and menus |

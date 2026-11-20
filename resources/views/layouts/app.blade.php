@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" @if (in_array($currentUser->theme, ['light', 'dark'], true)) data-theme="{{ $currentUser->theme }}" @endif>
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -11,8 +11,6 @@
     <script>
         try {
             if (localStorage.getItem('fv.sidebar') === 'collapsed') document.documentElement.classList.add('sidebar-collapsed');
-            var theme = localStorage.getItem('fv.theme');
-            if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
         } catch (e) {}
     </script>
 </head>

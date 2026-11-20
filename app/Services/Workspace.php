@@ -58,9 +58,7 @@ class Workspace
         ['label' => 'Support center', 'route' => 'tickets.create', 'params' => ['category' => 'general']],
     ]];
 
-    public function __construct(private Session $session)
-    {
-    }
+    public function __construct(private Session $session) {}
 
     /** @return list<string> */
     public function favoriteSlugs(): array

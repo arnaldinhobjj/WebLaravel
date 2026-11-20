@@ -4,12 +4,15 @@
 
 @section('content')
     {{-- Favorites --}}
-    <section class="section" aria-labelledby="favorites-title" data-search-section>
-        <h2 class="section-title" id="favorites-title">
-            Favorites <x-icon name="star" :size="22" class="title-icon star-icon" />
-        </h2>
+    <section class="section" aria-labelledby="favorites-title" data-search-section data-carousel>
+        <div class="section-head">
+            <h2 class="section-title" id="favorites-title">
+                Favorites <x-icon name="star" :size="22" class="title-icon star-icon" />
+            </h2>
+            <x-carousel-controls label="favorites" />
+        </div>
 
-        <div class="tiles" data-scroll-row>
+        <div class="tiles carousel-track" data-carousel-track tabindex="-1">
             @foreach ($favorites as $slug => $module)
                 <article class="tile" data-search-item="{{ $module['name'] }} {{ $module['description'] }}">
                     <a href="#" class="tile-link" title="{{ $module['description'] }}">
@@ -39,12 +42,36 @@
     </section>
 
     {{-- Actions --}}
-    <section class="section" aria-labelledby="actions-title" data-search-section>
-        <h2 class="section-title" id="actions-title">
-            Actions <x-icon name="workflow" :size="30" class="title-icon" />
-        </h2>
+    <section class="section" aria-labelledby="actions-title" data-search-section data-carousel>
+        <div class="section-head">
+            <h2 class="section-title" id="actions-title">
+                Actions <x-icon name="workflow" :size="30" class="title-icon" />
+            </h2>
+            <a href="{{ route('actions.index', $currentUser) }}" class="link-btn section-link">Manage</a>
+            <x-carousel-controls label="actions" />
+        </div>
 
-        <div class="actions">
+        <div class="actions carousel-track" data-carousel-track tabindex="-1">
+            @foreach ($customActions as $customAction)
+                <form method="POST" action="{{ route('actions.custom.run', [$currentUser, $customAction]) }}" class="action action-custom"
+                      data-search-item="{{ $customAction->name }} {{ $customAction->description }}" @if ($customAction->opensExternalSite()) target="_blank" @endif>
+                    @csrf
+                    <span class="action-label" title="{{ $customAction->description }}">
+                        <x-icon :name="$customAction->type === \App\Enums\ActionType::Link ? 'link' : 'ticket'" :size="20" />
+                        <span>
+                            {{ $customAction->name }}
+                            @if ($customAction->last_run_at)
+                                <small>Last run {{ $customAction->last_run_at->diffForHumans() }}</small>
+                            @endif
+                        </span>
+                    </span>
+                    <button type="submit" class="action-run" title="Run “{{ $customAction->name }}”">
+                        <x-icon name="play" :size="24" />
+                        <span class="sr-only">Run {{ $customAction->name }}</span>
+                    </button>
+                </form>
+            @endforeach
+
             @foreach ($actions as $slug => $action)
                 <form method="POST" action="{{ route('actions.run', $slug) }}" class="action" data-search-item="{{ $action['name'] }} {{ $action['description'] }}">
                     @csrf
@@ -63,6 +90,10 @@
                     </button>
                 </form>
             @endforeach
+
+            <a href="{{ route('actions.create', $currentUser) }}" class="action action-new">
+                <x-icon name="plus" :size="18" /> New action
+            </a>
         </div>
         <p class="empty" data-search-empty hidden>No actions match your search.</p>
     </section>
