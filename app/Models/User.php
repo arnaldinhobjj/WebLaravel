@@ -39,7 +39,7 @@ class User extends Authenticatable
      */
     public static function uniqueUsernameFor(string $name): string
     {
-        $base = Str::limit(Str::slug($name, '.'), 26, '') ?: 'user';
+        $base = rtrim(Str::limit(Str::slug($name, '.'), 26, ''), '.') ?: 'user';
 
         if (in_array($base, self::RESERVED_USERNAMES, true)) {
             $base .= '.user';

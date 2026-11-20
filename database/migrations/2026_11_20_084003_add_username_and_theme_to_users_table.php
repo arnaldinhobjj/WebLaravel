@@ -16,7 +16,13 @@ return new class extends Migration
         });
 
         DB::table('users')->whereNull('username')->orderBy('id')->each(function (object $user) {
-            $base = Str::slug($user->name, '.') ?: 'user';
+            // Leave room in the 30-character column for a collision suffix.
+            $base = rtrim(Str::limit(Str::slug($user->name, '.'), 26, ''), '.') ?: 'user';
+
+            if (in_array($base, ['ticket', 'favorites', 'actions', 'mentions', 'profile', 'settings', 'up', 'storage', 'css', 'js'], true)) {
+                $base .= '.user';
+            }
+
             $username = $base;
             $suffix = 2;
 
