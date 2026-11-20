@@ -94,7 +94,9 @@ a { color: inherit; }
     transition: margin-left .2s ease;
 }
 
-.sidebar-collapsed .sidebar { margin-left: calc(-1 * var(--sidebar-w)); }
+@media (min-width: 900px) {
+    .sidebar-collapsed .sidebar { margin-left: calc(-1 * var(--sidebar-w)); }
+}
 
 .brand {
     display: flex;
