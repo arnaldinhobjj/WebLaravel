@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use App\Services\Workspace;
+use App\Support\CurrentUser;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -12,15 +14,16 @@ class DashboardController extends Controller
     public function index(Request $request): View
     {
         $workspace = new Workspace($request->session());
+        $currentUser = CurrentUser::get();
 
         return view('dashboard', [
+            'currentUser' => $currentUser,
             'favorites' => $workspace->favorites(),
             'otherModules' => $workspace->otherModules(),
             'actions' => $workspace->actions(),
+            'customActions' => $currentUser->actions()->where('show_on_home', true)->get(),
             'mentions' => $workspace->openMentions(),
             'handledMentions' => $workspace->handledMentionCount(),
-            'navigation' => Workspace::NAVIGATION,
-            'footerNavigation' => Workspace::FOOTER_NAVIGATION,
         ]);
     }
 
@@ -39,6 +42,10 @@ class DashboardController extends Controller
         abort_unless(isset(Workspace::ACTIONS[$action]), 404);
 
         (new Workspace($request->session()))->runAction($action);
+
+        if ($prefill = Workspace::ACTIONS[$action]['ticket'] ?? null) {
+            return redirect()->route('tickets.create', $prefill);
+        }
 
         return back()->with('status', '“'.Workspace::ACTIONS[$action]['name'].'” started.');
     }
@@ -66,5 +73,41 @@ class DashboardController extends Controller
         (new Workspace($request->session()))->restoreMentions();
 
         return back()->with('status', 'All mentions restored.');
+    }
+
+    public function switchUser(User $user): RedirectResponse
+    {
+        $previous = CurrentUser::get();
+        CurrentUser::switchTo($user);
+
+        return redirect()
+            ->to($this->pageAfterSwitching($previous, $user))
+            ->with('status', "You are now working as {$user->name}.");
+    }
+
+    public function resetHome(Request $request): RedirectResponse
+    {
+        $request->session()->forget(['favorites', 'action_runs', 'handled_mentions']);
+
+        return redirect()->route('dashboard')->with('status', 'Home screen reset to its defaults.');
+    }
+
+    /**
+     * Personal pages only open for their owner, so switching from one moves to
+     * the same kind of page for the new person; other pages are kept.
+     */
+    private function pageAfterSwitching(User $from, User $to): string
+    {
+        $previousUrl = url()->previous();
+        $path = '/'.ltrim((string) parse_url($previousUrl, PHP_URL_PATH), '/');
+        $personalPrefix = '/'.$from->username.'/';
+
+        if (! str_starts_with($path, $personalPrefix)) {
+            return $previousUrl;
+        }
+
+        return str_starts_with($path, $personalPrefix.'settings')
+            ? route('settings.edit', $to)
+            : route('actions.index', $to);
     }
 }

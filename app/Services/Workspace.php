@@ -26,7 +26,7 @@ class Workspace
 
     public const ACTIONS = [
         'display-sales' => ['name' => 'Display sales', 'description' => 'Open the sales report for the current period'],
-        'request-printer-support' => ['name' => 'Request printer support', 'description' => 'Create a support ticket for a printer'],
+        'request-printer-support' => ['name' => 'Request printer support', 'description' => 'Create a support ticket for a printer', 'ticket' => ['subject' => 'Printer support needed', 'category' => 'it']],
         'book-meeting-room' => ['name' => 'Book a meeting room', 'description' => 'Reserve a room in the main building'],
     ];
 
@@ -46,14 +46,19 @@ class Workspace
         ['label' => 'People', 'items' => ['Directory', 'Teams', 'Training']],
         ['label' => 'Finance', 'items' => ['Budgets', 'Purchase orders', 'Invoices']],
         ['label' => 'Reports', 'items' => ['Sales', 'Compliance', 'Exports']],
-        ['label' => 'Workspace', 'open' => true, 'items' => ['Home', 'My tasks', 'Approvals', 'Documents']],
+        ['label' => 'Workspace', 'open' => true, 'items' => [
+            ['label' => 'Home', 'route' => 'dashboard'],
+            ['label' => 'Tickets', 'route' => 'tickets.index', 'badge' => 'active_tickets'],
+            ['label' => 'My tickets', 'route' => 'tickets.index', 'params' => ['assignee' => 'me'], 'badge' => 'my_tickets'],
+            'Approvals',
+        ]],
     ];
 
-    public const FOOTER_NAVIGATION = ['label' => 'Help', 'open' => true, 'items' => ['Support center']];
+    public const FOOTER_NAVIGATION = ['label' => 'Help', 'open' => true, 'items' => [
+        ['label' => 'Support center', 'route' => 'tickets.create', 'params' => ['category' => 'general']],
+    ]];
 
-    public function __construct(private Session $session)
-    {
-    }
+    public function __construct(private Session $session) {}
 
     /** @return list<string> */
     public function favoriteSlugs(): array
@@ -103,7 +108,7 @@ class Workspace
         return true;
     }
 
-    /** @return array<string, array{name: string, description: string, last_run: ?Carbon}> */
+    /** @return array<string, array{name: string, description: string, last_run: ?Carbon, ticket?: array}> */
     public function actions(): array
     {
         $runs = $this->session->get('action_runs', []);

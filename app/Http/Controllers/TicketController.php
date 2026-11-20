@@ -1,0 +1,171 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Enums\TicketPriority;
+use App\Enums\TicketStatus;
+use App\Models\Ticket;
+use App\Models\User;
+use App\Support\CurrentUser;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\View\View;
+
+class TicketController extends Controller
+{
+    public function index(Request $request): View
+    {
+        $me = CurrentUser::get();
+        $filters = $request->only(['q', 'status', 'priority', 'category', 'assignee', 'requester', 'sort']);
+        $status = $filters['status'] ?? 'active';
+
+        $base = Ticket::query()->tap(fn (Builder $query) => $this->applyFilters($query, $filters, $me));
+
+        $counts = (clone $base)
+            ->selectRaw('status, count(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        $tickets = (clone $base)
+            ->with(['requester', 'assignee'])
+            ->withCount('comments')
+            ->when($status === 'active', fn ($q) => $q->active())
+            ->when(TicketStatus::tryFrom($status), fn ($q, $s) => $q->where('status', $s))
+            ->tap(fn (Builder $query) => $this->applySort($query, $filters['sort'] ?? 'updated'))
+            ->paginate(15)
+            ->withQueryString();
+
+        return view('tickets.index', [
+            'tickets' => $tickets,
+            'filters' => $filters,
+            'status' => $status,
+            'counts' => $counts,
+            'activeCount' => collect(TicketStatus::active())->sum(fn ($s) => $counts[$s->value] ?? 0),
+            'users' => User::orderBy('name')->get(),
+            'me' => $me,
+        ]);
+    }
+
+    public function create(Request $request): View
+    {
+        return view('tickets.create', [
+            'users' => User::orderBy('name')->get(),
+            'prefill' => $request->only(['subject', 'category', 'priority', 'description']),
+        ]);
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'subject' => ['required', 'string', 'max:160'],
+            'description' => ['required', 'string', 'max:10000'],
+            'category' => ['required', Rule::in(array_keys(Ticket::CATEGORIES))],
+            'priority' => ['required', Rule::enum(TicketPriority::class)],
+            'assignee_id' => ['nullable', 'exists:users,id'],
+        ]);
+
+        $actor = CurrentUser::get();
+        $assignee = $data['assignee_id'] ?? null;
+        unset($data['assignee_id']);
+
+        $ticket = Ticket::open($data, $actor);
+        if ($assignee) {
+            $ticket->applyChanges(['assignee_id' => (int) $assignee], $actor);
+        }
+
+        return redirect()->route('tickets.show', $ticket)->with('status', "Ticket #{$ticket->id} created.");
+    }
+
+    public function show(Ticket $ticket): View
+    {
+        $ticket->load(['requester', 'assignee', 'activities.user']);
+
+        return view('tickets.show', [
+            'ticket' => $ticket,
+            'users' => User::orderBy('name')->get(),
+            'me' => CurrentUser::get(),
+        ]);
+    }
+
+    public function update(Request $request, Ticket $ticket): RedirectResponse
+    {
+        $data = $request->validate([
+            'status' => ['sometimes', Rule::enum(TicketStatus::class)],
+            'priority' => ['sometimes', Rule::enum(TicketPriority::class)],
+            'category' => ['sometimes', Rule::in(array_keys(Ticket::CATEGORIES))],
+            'assignee_id' => ['sometimes', 'nullable', 'exists:users,id'],
+        ]);
+
+        if (array_key_exists('assignee_id', $data)) {
+            $data['assignee_id'] = $data['assignee_id'] ? (int) $data['assignee_id'] : null;
+        }
+
+        $changed = $ticket->applyChanges($data, CurrentUser::get());
+
+        return back()->with('status', $changed ? 'Ticket updated.' : 'Nothing changed.');
+    }
+
+    public function comment(Request $request, Ticket $ticket): RedirectResponse
+    {
+        $data = $request->validate([
+            'body' => ['required', 'string', 'max:10000'],
+            'status' => ['nullable', Rule::enum(TicketStatus::class)],
+        ]);
+
+        $actor = CurrentUser::get();
+        $ticket->addComment($data['body'], $actor);
+
+        if (! empty($data['status'])) {
+            $ticket->applyChanges(['status' => $data['status']], $actor);
+        }
+
+        return redirect()->to(route('tickets.show', $ticket).'#latest')->with('status', 'Reply posted.');
+    }
+
+    private function applyFilters(Builder $query, array $filters, User $me): void
+    {
+        if ($search = trim($filters['q'] ?? '')) {
+            $term = ltrim($search, '#');
+            $query->where(function (Builder $q) use ($search, $term) {
+                $q->where('subject', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
+                if (ctype_digit($term)) {
+                    $q->orWhere('id', (int) $term);
+                }
+            });
+        }
+
+        if ($priority = TicketPriority::tryFrom($filters['priority'] ?? '')) {
+            $query->where('priority', $priority);
+        }
+
+        if (isset(Ticket::CATEGORIES[$filters['category'] ?? ''])) {
+            $query->where('category', $filters['category']);
+        }
+
+        match ($filters['assignee'] ?? null) {
+            null, '' => null,
+            'me' => $query->where('assignee_id', $me->id),
+            'unassigned' => $query->whereNull('assignee_id'),
+            default => $query->where('assignee_id', (int) $filters['assignee']),
+        };
+
+        if (($filters['requester'] ?? null) === 'me') {
+            $query->where('requester_id', $me->id);
+        }
+    }
+
+    private function applySort(Builder $query, string $sort): void
+    {
+        match ($sort) {
+            'priority' => $query
+                ->orderByRaw("case priority when 'urgent' then 4 when 'high' then 3 when 'normal' then 2 else 1 end desc")
+                ->latest('updated_at'),
+            'newest' => $query->latest('created_at')->latest('id'),
+            'oldest' => $query->oldest('created_at')->oldest('id'),
+            default => $query->latest('updated_at')->latest('id'),
+        };
+    }
+}
