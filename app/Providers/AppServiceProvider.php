@@ -6,10 +6,7 @@ use App\Models\Ticket;
 use App\Models\User;
 use App\Services\Workspace;
 use App\Support\CurrentUser;
-use Illuminate\Console\Events\CommandStarting;
 use Illuminate\Pagination\Paginator;
-use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -23,8 +20,6 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Paginator::defaultView('partials.pagination');
-
-        $this->wipeTicketsDatabaseOnFreshMigrations();
 
         // Data every page's sidebar and title bar needs.
         View::composer('layouts.app', function ($view) {
@@ -41,26 +36,6 @@ class AppServiceProvider extends ServiceProvider
                 'navigation' => array_map(fn ($group) => $this->buildGroup($group, $badges), Workspace::NAVIGATION),
                 'footerNavigation' => $this->buildGroup(Workspace::FOOTER_NAVIGATION, $badges),
             ]);
-        });
-    }
-
-    /**
-     * `migrate:fresh` only wipes the default connection. Tickets can live in a
-     * second database (Oracle by default), so wipe that one as well; otherwise
-     * re-running the tickets migration fails on tables that already exist.
-     */
-    private function wipeTicketsDatabaseOnFreshMigrations(): void
-    {
-        Event::listen(function (CommandStarting $event): void {
-            if ($event->command !== 'migrate:fresh' || $event->input->getParameterOption('--database')) {
-                return;
-            }
-
-            $tickets = config('fortvale.connections.tickets');
-
-            if ($tickets && $tickets !== config('fortvale.connections.people')) {
-                Artisan::call('db:wipe', ['--database' => $tickets, '--force' => true]);
-            }
         });
     }
 

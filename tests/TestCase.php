@@ -2,8 +2,6 @@
 
 namespace Tests;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase
@@ -27,24 +25,5 @@ abstract class TestCase extends BaseTestCase
         $this->connectionsToTransact = $tickets === $default ? [$default] : [$default, $tickets];
 
         parent::setUp();
-    }
-
-    /**
-     * RefreshDatabase runs `migrate:fresh`, which only wipes the default
-     * connection. Wipe the tickets database first, once per test run, so its
-     * tables are recreated too.
-     *
-     * @return array<class-string, class-string>
-     */
-    protected function setUpTraits(): array
-    {
-        $usesRefreshDatabase = in_array(RefreshDatabase::class, class_uses_recursive(static::class), true);
-        $tickets = config('fortvale.connections.tickets');
-
-        if ($usesRefreshDatabase && ! RefreshDatabaseState::$migrated && $tickets !== config('fortvale.connections.people')) {
-            $this->app['db']->connection($tickets)->getSchemaBuilder()->dropAllTables();
-        }
-
-        return parent::setUpTraits();
     }
 }
