@@ -2,10 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class DashboardTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_home_screen_renders_all_sections(): void
     {
         $this->get('/')
@@ -51,5 +55,35 @@ class DashboardTest extends TestCase
 
         $this->post('/mentions/restore');
         $this->get('/')->assertSee('#37941');
+    }
+
+    public function test_printer_support_action_opens_a_prefilled_ticket(): void
+    {
+        $this->post('/actions/request-printer-support/run')
+            ->assertRedirect(route('tickets.create', ['subject' => 'Printer support needed', 'category' => 'it']));
+    }
+
+    public function test_title_bar_has_menus_and_no_window_controls(): void
+    {
+        $user = User::factory()->create(['name' => 'Alex Morgan', 'job_title' => 'Operations lead']);
+        User::factory()->create(['name' => 'Derek Lamar']);
+
+        $this->withSession(['acting_user_id' => $user->id])
+            ->get('/')
+            ->assertDontSee('window-controls')
+            ->assertSee('Keyboard shortcuts')
+            ->assertSee('Reset home screen')
+            ->assertSeeInOrder(['Alex Morgan', 'Operations lead', 'Assigned to me', 'Switch user', 'Derek Lamar']);
+    }
+
+    public function test_reset_home_restores_defaults(): void
+    {
+        $this->post('/favorites/nuclear');
+        $this->post('/mentions/37941/dismiss');
+
+        $this->post('/settings/reset-home')->assertRedirect('/');
+
+        $this->assertNull(session('favorites'));
+        $this->assertNull(session('handled_mentions'));
     }
 }

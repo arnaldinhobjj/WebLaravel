@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use App\Services\Workspace;
+use App\Support\CurrentUser;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -19,8 +21,6 @@ class DashboardController extends Controller
             'actions' => $workspace->actions(),
             'mentions' => $workspace->openMentions(),
             'handledMentions' => $workspace->handledMentionCount(),
-            'navigation' => Workspace::NAVIGATION,
-            'footerNavigation' => Workspace::FOOTER_NAVIGATION,
         ]);
     }
 
@@ -39,6 +39,10 @@ class DashboardController extends Controller
         abort_unless(isset(Workspace::ACTIONS[$action]), 404);
 
         (new Workspace($request->session()))->runAction($action);
+
+        if ($prefill = Workspace::ACTIONS[$action]['ticket'] ?? null) {
+            return redirect()->route('tickets.create', $prefill);
+        }
 
         return back()->with('status', '“'.Workspace::ACTIONS[$action]['name'].'” started.');
     }
@@ -66,5 +70,19 @@ class DashboardController extends Controller
         (new Workspace($request->session()))->restoreMentions();
 
         return back()->with('status', 'All mentions restored.');
+    }
+
+    public function switchUser(User $user): RedirectResponse
+    {
+        CurrentUser::switchTo($user);
+
+        return back()->with('status', "You are now working as {$user->name}.");
+    }
+
+    public function resetHome(Request $request): RedirectResponse
+    {
+        $request->session()->forget(['favorites', 'action_runs', 'handled_mentions']);
+
+        return redirect()->route('dashboard')->with('status', 'Home screen reset to its defaults.');
     }
 }

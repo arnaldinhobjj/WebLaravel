@@ -82,7 +82,7 @@
                             <time datetime="{{ $mention['received_at']->toIso8601String() }}">{{ $mention['received_at']->diffForHumans() }}</time>
                         </div>
                         <p class="mention-text">
-                            <a href="#" class="ticket">#{{ $mention['ticket'] }}</a>
+                            <a href="{{ route('tickets.show', $mention['ticket']) }}" class="ticket">#{{ $mention['ticket'] }}</a>
                             <span class="mention-message" data-message>{{ $mention['message'] }}</span>
                         </p>
                     </div>
