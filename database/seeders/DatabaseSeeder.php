@@ -99,13 +99,13 @@ class DatabaseSeeder extends Seeder
             $at = $created->copy();
             $ticket->activities()->forceCreate(['type' => 'created', 'user_id' => $people[$requester]->id, 'created_at' => $at]);
             if ($assignee) {
-                $ticket->activities()->forceCreate(['type' => 'assignee', 'user_id' => $people[$requester]->id, 'to' => $assignee, 'created_at' => $at->addMinutes(20)]);
+                $ticket->activities()->forceCreate(['type' => 'assignee', 'user_id' => $people[$requester]->id, 'to_label' => $assignee, 'created_at' => $at->addMinutes(20)]);
             }
             foreach ($comments as [$author, $body]) {
                 $ticket->activities()->forceCreate(['type' => 'comment', 'user_id' => $people[$author]->id, 'body' => $body, 'created_at' => $at->addHours(3)]);
             }
             if ($status !== 'open') {
-                $ticket->activities()->forceCreate(['type' => 'status', 'user_id' => $people[$assignee ?? $requester]->id, 'from' => 'Open', 'to' => $ticket->status->label(), 'created_at' => $at->addHour()]);
+                $ticket->activities()->forceCreate(['type' => 'status', 'user_id' => $people[$assignee ?? $requester]->id, 'from_label' => 'Open', 'to_label' => $ticket->status->label(), 'created_at' => $at->addHour()]);
             }
 
             $ticket->updated_at = $at;

@@ -28,7 +28,7 @@ class UserFactory extends Factory
 
         return [
             'name' => $name,
-            'username' => Str::slug($name, '.').'.'.fake()->unique()->numberBetween(100, 999999),
+            'username' => rtrim(Str::limit(Str::slug($name, '.'), 22, ''), '.').'.'.fake()->unique()->numberBetween(100, 999999),
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),

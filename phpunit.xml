@@ -23,9 +23,22 @@
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
-        <env name="DB_CONNECTION" value="sqlite"/>
-        <env name="DB_DATABASE" value=":memory:"/>
+        <!-- Tests use both databases, like the app: people and actions in MySQL,
+             tickets in Oracle. Start them with `docker compose up -d`. Any value
+             set in the shell environment wins over these defaults. -->
+        <env name="DB_CONNECTION" value="mysql"/>
+        <env name="DB_HOST" value="127.0.0.1"/>
+        <env name="DB_PORT" value="3306"/>
+        <env name="DB_DATABASE" value="fortvale_test"/>
+        <env name="DB_USERNAME" value="fortvale"/>
+        <env name="DB_PASSWORD" value="fortvale"/>
         <env name="DB_URL" value=""/>
+        <env name="TICKETS_DB_CONNECTION" value="oracle"/>
+        <env name="DB_ORACLE_HOST" value="127.0.0.1"/>
+        <env name="DB_ORACLE_PORT" value="1521"/>
+        <env name="DB_ORACLE_SERVICE_NAME" value="FREEPDB1"/>
+        <env name="DB_ORACLE_USERNAME" value="fortvale_test"/>
+        <env name="DB_ORACLE_PASSWORD" value="fortvale"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
