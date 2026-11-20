@@ -79,7 +79,7 @@ class TicketTest extends TestCase
         $this->post('/ticket', ['subject' => '', 'description' => '', 'category' => 'nope', 'priority' => 'whenever'])
             ->assertSessionHasErrors(['subject', 'description', 'category', 'priority']);
 
-        $this->assertDatabaseCount('tickets', 0);
+        $this->assertDatabaseCount(Ticket::class, 0);
     }
 
     public function test_the_create_form_can_be_prefilled(): void
@@ -142,5 +142,13 @@ class TicketTest extends TestCase
     public function test_unknown_ticket_returns_404(): void
     {
         $this->get('/ticket/999999')->assertNotFound();
+    }
+
+    public function test_search_ignores_letter_case(): void
+    {
+        Ticket::factory()->create(['subject' => 'Badge Reader at Loading Dock']);
+
+        $this->get('/ticket?q=badge+reader')->assertSee('Badge Reader at Loading Dock');
+        $this->get('/ticket?q=LOADING')->assertSee('Badge Reader at Loading Dock');
     }
 }

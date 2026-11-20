@@ -63,7 +63,7 @@ class TicketController extends Controller
             'description' => ['required', 'string', 'max:10000'],
             'category' => ['required', Rule::in(array_keys(Ticket::CATEGORIES))],
             'priority' => ['required', Rule::enum(TicketPriority::class)],
-            'assignee_id' => ['nullable', 'exists:users,id'],
+            'assignee_id' => ['nullable', Rule::exists(User::class, 'id')],
         ]);
 
         $actor = CurrentUser::get();
@@ -95,7 +95,7 @@ class TicketController extends Controller
             'status' => ['sometimes', Rule::enum(TicketStatus::class)],
             'priority' => ['sometimes', Rule::enum(TicketPriority::class)],
             'category' => ['sometimes', Rule::in(array_keys(Ticket::CATEGORIES))],
-            'assignee_id' => ['sometimes', 'nullable', 'exists:users,id'],
+            'assignee_id' => ['sometimes', 'nullable', Rule::exists(User::class, 'id')],
         ]);
 
         if (array_key_exists('assignee_id', $data)) {
@@ -129,8 +129,10 @@ class TicketController extends Controller
         if ($search = trim($filters['q'] ?? '')) {
             $term = ltrim($search, '#');
             $query->where(function (Builder $q) use ($search, $term) {
-                $q->where('subject', 'like', "%{$search}%")
-                    ->orWhere('description', 'like', "%{$search}%");
+                // LOWER on both sides: Oracle compares case-sensitively, MySQL doesn't.
+                $pattern = '%'.mb_strtolower($search).'%';
+                $q->whereRaw('lower(subject) like ?', [$pattern])
+                    ->orWhereRaw('lower(description) like ?', [$pattern]);
                 if (ctype_digit($term)) {
                     $q->orWhere('id', (int) $term);
                 }

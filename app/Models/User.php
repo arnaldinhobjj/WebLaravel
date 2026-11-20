@@ -27,6 +27,15 @@ class User extends Authenticatable
      */
     public const RESERVED_USERNAMES = ['ticket', 'favorites', 'actions', 'mentions', 'profile', 'settings', 'up', 'storage', 'css', 'js'];
 
+    /**
+     * Always the people connection (MySQL by default), even when loaded through
+     * a ticket: Eloquent otherwise reuses the parent model's connection.
+     */
+    public function getConnectionName(): ?string
+    {
+        return config('fortvale.connections.people');
+    }
+
     protected static function booted(): void
     {
         static::creating(function (User $user): void {
