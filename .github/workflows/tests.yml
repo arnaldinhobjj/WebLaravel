@@ -67,7 +67,8 @@ jobs:
           coverage: none
 
       - name: Check the oci8 extension is loaded
-        run: php -r 'exit(extension_loaded("oci8") ? 0 : 1);'
+        run: |
+          php -r 'exit(extension_loaded("oci8") ? 0 : 1);'
 
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
