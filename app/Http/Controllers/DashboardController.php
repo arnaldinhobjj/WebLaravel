@@ -77,9 +77,12 @@ class DashboardController extends Controller
 
     public function switchUser(User $user): RedirectResponse
     {
+        $previous = CurrentUser::get();
         CurrentUser::switchTo($user);
 
-        return back()->with('status', "You are now working as {$user->name}.");
+        return redirect()
+            ->to($this->pageAfterSwitching($previous, $user))
+            ->with('status', "You are now working as {$user->name}.");
     }
 
     public function resetHome(Request $request): RedirectResponse
@@ -87,5 +90,24 @@ class DashboardController extends Controller
         $request->session()->forget(['favorites', 'action_runs', 'handled_mentions']);
 
         return redirect()->route('dashboard')->with('status', 'Home screen reset to its defaults.');
+    }
+
+    /**
+     * Personal pages only open for their owner, so switching from one moves to
+     * the same kind of page for the new person; other pages are kept.
+     */
+    private function pageAfterSwitching(User $from, User $to): string
+    {
+        $previousUrl = url()->previous();
+        $path = '/'.ltrim((string) parse_url($previousUrl, PHP_URL_PATH), '/');
+        $personalPrefix = '/'.$from->username.'/';
+
+        if (! str_starts_with($path, $personalPrefix)) {
+            return $previousUrl;
+        }
+
+        return str_starts_with($path, $personalPrefix.'settings')
+            ? route('settings.edit', $to)
+            : route('actions.index', $to);
     }
 }

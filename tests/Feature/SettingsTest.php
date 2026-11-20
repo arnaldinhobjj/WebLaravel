@@ -111,4 +111,21 @@ class SettingsTest extends TestCase
         $this->put('/alex.morgan/settings', $this->validPayload(['theme' => 'neon']))
             ->assertSessionHasErrors('theme');
     }
+
+    public function test_switching_user_from_a_personal_page_opens_the_new_persons_page(): void
+    {
+        $derek = User::factory()->create(['username' => 'derek.lamar']);
+
+        $this->from('/alex.morgan/settings')
+            ->post(route('profile.switch', $derek))
+            ->assertRedirect('/derek.lamar/settings');
+
+        $this->from('/derek.lamar/actions/create')
+            ->post(route('profile.switch', $this->user))
+            ->assertRedirect('/alex.morgan/actions');
+
+        $this->from('/ticket?status=all')
+            ->post(route('profile.switch', $derek))
+            ->assertRedirect('/ticket?status=all');
+    }
 }
