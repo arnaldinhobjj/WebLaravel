@@ -6,7 +6,7 @@ on:
     inputs:
       room:
         description: Room
-        default: 2B
+        default: 1C
       when:
         description: When (e.g. "Thursday 14:00")
         required: true

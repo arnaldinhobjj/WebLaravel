@@ -18,6 +18,11 @@
     --shadow: 0 1px 2px rgba(20, 30, 50, .06), 0 8px 24px rgba(20, 30, 50, .08);
     --radius: 14px;
     --sidebar-w: 248px;
+    --y-key: #2456d6;
+    --y-str: #1f7a4d;
+    --y-lit: #b35900;
+    --y-expr: #8a3ffc;
+    --y-comment: #6e7781;
     color-scheme: light;
 }
 
@@ -37,6 +42,11 @@
         --success: #4cc38a;
         --danger: #ff7a7a;
         --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .35);
+        --y-key: #7aa2ff;
+        --y-str: #7ee2a8;
+        --y-lit: #ffab70;
+        --y-expr: #d2a8ff;
+        --y-comment: #8b949e;
         color-scheme: dark;
     }
 }
@@ -56,6 +66,11 @@
     --success: #4cc38a;
     --danger: #ff7a7a;
     --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .35);
+    --y-key: #7aa2ff;
+    --y-str: #7ee2a8;
+    --y-lit: #ffab70;
+    --y-expr: #d2a8ff;
+    --y-comment: #8b949e;
     color-scheme: dark;
 }
 
@@ -1092,9 +1107,22 @@ select:focus, input[type="text"]:focus, input[type="email"]:focus, textarea:focu
     font: 13.5px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
     tab-size: 2;
     color: var(--text);
-    background: var(--surface-2);
+    background: var(--surface);
 }
 .yaml-editor { min-height: 420px; padding: 14px 16px; resize: vertical; white-space: pre; overflow-wrap: normal; overflow-x: auto; }
+.yaml-code { position: relative; }
+.yaml-code .yaml-highlight {
+    position: absolute; inset: 0; margin: 0; padding: 14px 16px; border: 1px solid transparent;
+    overflow: hidden; white-space: pre; pointer-events: none;
+    font: 13.5px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; tab-size: 2; color: var(--text);
+}
+.yaml-code .yaml-editor { position: relative; display: block; color: transparent; caret-color: var(--text); background: transparent; }
+.yaml-code { background: var(--surface); border-radius: 8px; }
+.y-key { color: var(--y-key); }
+.y-str { color: var(--y-str); }
+.y-lit { color: var(--y-lit); }
+.y-expr { color: var(--y-expr); font-weight: 600; }
+.y-comment { color: var(--y-comment); font-style: italic; }
 .yaml-view { margin: 16px 0 0; padding: 18px 20px; overflow-x: auto; white-space: pre; }
 .yaml-errors-box { padding: 12px 14px; border: 1px solid var(--danger); border-radius: 10px; background: color-mix(in srgb, var(--danger) 8%, transparent); }
 .yaml-errors { margin: 6px 0 0; padding-left: 20px; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--danger); overflow-wrap: anywhere; }
