@@ -1118,3 +1118,14 @@ select:focus, input[type="text"]:focus, input[type="email"]:focus, textarea:focu
 .run-step-failed .run-step-status, .run-step-failed .run-step-output { color: var(--danger); }
 .run-step-skipped { color: var(--text-muted); }
 .run-step-output { display: block; margin-top: 2px; overflow-wrap: anywhere; }
+
+/* Clicking an action card (anywhere but its buttons) opens its YAML. */
+.action-card { position: relative; }
+.action-card-link { color: inherit; text-decoration: none; }
+.action-card-link::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
+.action-card-link:hover { color: var(--accent); }
+.action-card-link:focus-visible { outline: none; }
+.action-card:has(.action-card-link:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.action-card-foot .btn, .action-card-foot form, .action-card-foot a { position: relative; z-index: 1; }
+a.action-label { color: inherit; text-decoration: none; }
+a.action-label:hover { color: var(--accent); }

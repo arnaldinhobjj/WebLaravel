@@ -208,8 +208,11 @@ If you used the app before Oracle support, add the `DB_*` and `TICKETS_DB_CONNEC
 
 Actions work like GitHub Actions: each one is a YAML document with a `name`, what starts it (`on:`) and the `steps` it runs.
 
-- **Shared actions** are files in the [`actions/`](actions/) folder, one `.yml` per action, like `.github/workflows`. Everyone can run them; you change them in the repository.
+- **Shared actions** are files in the [`actions/`](actions/) folder, one `.yml` per action, like `.github/workflows`. Everyone can run them.
+  - Edit them in the repository, or in the browser: click the action, change the YAML and save. Saving checks the YAML first, writes the file, and refuses to overwrite a file someone else changed since you opened it.
+  - Changes made in the browser show up as changed files in git; commit them like any other change.
 - **Personal actions** are written in the browser on `/{username}/actions` and stored per person. The editor starts from a template and lists every mistake with where it is (for example `steps[1].with.url: …`).
+- **Click an action** (on the actions page or the home screen) to open its YAML; the play button runs it.
 - **Every run is recorded** with its trigger, who started it, and each step's result. Recent runs are listed on the actions page.
 
 ### Example
@@ -290,6 +293,7 @@ Values are plain text substitution; nothing in an action is ever run as code. Th
 - It refuses `localhost`, this server, the local network and cloud metadata addresses (the host name is looked up first).
 - It doesn't follow redirects, and gives up after at most 10 seconds.
 - For development against a local service you can set `FORTVALE_ACTIONS_ALLOW_PRIVATE_HOSTS=true` in `.env`; keep it off in production.
+- **Shared actions can read secrets, and anyone using the app can edit shared actions in the browser** (there's no login). Someone could therefore add a step that sends a secret to their own address. Only put secrets in `.env` on installs where everyone with access is trusted.
 
 ## Tests
 
@@ -319,7 +323,7 @@ php artisan test
 | `app/Http/Controllers/SettingsController.php` | Settings page |
 | `actions/` | Shared actions (YAML) |
 | `app/Services/Workflows/` | The actions engine: YAML parser, steps, runner, ticket-event and schedule triggers |
-| `app/Http/Controllers/ActionController.php`, `ActionRunController.php` | Actions page, YAML editor, Run button |
+| `app/Http/Controllers/ActionController.php`, `SharedActionController.php`, `ActionRunController.php` | Actions page, YAML editors (personal and shared), Run button |
 | `app/Http/Middleware/EnsureCurrentUser.php` | Keeps `/{username}/…` pages to their owner |
 | `app/Models/Ticket.php`, `app/Models/TicketActivity.php`, `app/Models/Action.php`, `app/Enums` | Tickets, change log, personal actions, statuses and priorities |
 | `config/fortvale.php`, `config/database.php` | Which database each data group uses; the MySQL and Oracle connections |

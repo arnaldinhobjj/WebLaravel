@@ -60,6 +60,26 @@ class WorkflowRepository
         return collect($this->sharedWithErrors())->filter(fn ($result): bool => $result instanceof Workflow);
     }
 
+    /**
+     * The file behind a shared action, valid or not, or null if there is none.
+     */
+    public function sharedFilePath(string $slug): ?string
+    {
+        if (! self::isValidSlug($slug)) {
+            return null;
+        }
+
+        $folder = rtrim((string) config('fortvale.actions.path'), '/');
+
+        foreach (['yml', 'yaml'] as $extension) {
+            if (is_file("{$folder}/{$slug}.{$extension}")) {
+                return "{$folder}/{$slug}.{$extension}";
+            }
+        }
+
+        return null;
+    }
+
     public function findShared(string $slug): ?Workflow
     {
         return self::isValidSlug($slug) ? $this->shared()->get($slug) : null;

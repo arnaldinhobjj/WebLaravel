@@ -4,6 +4,7 @@ use App\Http\Controllers\ActionController;
 use App\Http\Controllers\ActionRunController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\SharedActionController;
 use App\Http\Controllers\TicketController;
 use App\Http\Middleware\EnsureCurrentUser;
 use Illuminate\Support\Facades\Route;
@@ -11,9 +12,10 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
 Route::post('/favorites/{module}', [DashboardController::class, 'toggleFavorite'])->name('favorites.toggle');
-// Shared actions (actions/*.yml in the project).
+// Shared actions (actions/*.yml in the project): view and edit the YAML, run.
+Route::get('/actions/shared/{slug}', [SharedActionController::class, 'edit'])->name('actions.shared.show');
+Route::put('/actions/shared/{slug}', [SharedActionController::class, 'update'])->name('actions.shared.update');
 Route::prefix('actions/shared/{slug}')->name('actions.shared.')->controller(ActionRunController::class)->group(function () {
-    Route::get('/', 'showShared')->name('show');
     Route::get('/run', 'createShared')->name('run.form');
     Route::post('/run', 'storeShared')->name('run');
 });

@@ -30,7 +30,7 @@
                             <div class="action-card-head">
                                 <span class="action-card-icon"><x-icon name="list-checks" :size="20" /></span>
                                 <div class="action-card-title">
-                                    <h3>{{ $workflow->name }}</h3>
+                                    <h3><a href="{{ route('actions.shared.show', $slug) }}" class="action-card-link">{{ $workflow->name }}</a></h3>
                                     <p class="muted"><code>actions/{{ $slug }}.yml</code></p>
                                 </div>
                             </div>
@@ -44,7 +44,7 @@
                                 <span class="muted small">{{ count($workflow->steps) }} {{ Str::plural('step', count($workflow->steps)) }}</span>
                             </p>
                             <div class="action-card-foot">
-                                <a href="{{ route('actions.shared.show', $slug) }}" class="link-btn small">View YAML</a>
+                                <span class="muted small">Click to view or edit the YAML</span>
                                 @if ($workflow->canRunManually())
                                     @include('actions.partials.run-button', ['workflow' => $workflow, 'url' => $workflow->inputs() ? route('actions.shared.run.form', $slug) : route('actions.shared.run', $slug)])
                                 @endif
@@ -53,8 +53,8 @@
                             <div class="action-card-head">
                                 <span class="action-card-icon action-card-icon-error"><x-icon name="x" :size="20" /></span>
                                 <div class="action-card-title">
-                                    <h3><code>actions/{{ $slug }}.yml</code></h3>
-                                    <p class="muted">This file has mistakes and can't run:</p>
+                                    <h3><a href="{{ route('actions.shared.show', $slug) }}" class="action-card-link"><code>actions/{{ $slug }}.yml</code></a></h3>
+                                    <p class="muted">This file has mistakes and can't run. Click to fix it:</p>
                                 </div>
                             </div>
                             <ul class="yaml-errors">
@@ -88,7 +88,7 @@
                         <div class="action-card-head">
                             <span class="action-card-icon"><x-icon name="workflow" :size="20" /></span>
                             <div class="action-card-title">
-                                <h3>{{ $workflow->name }}</h3>
+                                <h3><a href="{{ route('actions.edit', [$user, $action]) }}" class="action-card-link">{{ $workflow->name }}</a></h3>
                                 @if ($workflow->description)
                                     <p class="muted">{{ $workflow->description }}</p>
                                 @endif

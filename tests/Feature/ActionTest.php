@@ -105,6 +105,14 @@ class ActionTest extends TestCase
         $this->assertModelMissing($action);
     }
 
+    public function test_clicking_a_personal_action_opens_its_yaml_editor(): void
+    {
+        $action = Action::factory()->for($this->user)->yaml(self::LINK_ACTION)->create();
+
+        $this->get('/alex.morgan/actions')->assertSee('href="'.route('actions.edit', [$this->user, $action]).'" class="action-card-link"', false);
+        $this->get('/')->assertSee('href="'.route('actions.edit', [$this->user, $action]).'"', false);
+    }
+
     public function test_running_an_action_follows_its_last_step_and_records_the_run(): void
     {
         $action = Action::factory()->for($this->user)->yaml(self::LINK_ACTION)->create();

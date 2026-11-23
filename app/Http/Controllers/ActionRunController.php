@@ -24,13 +24,6 @@ class ActionRunController extends Controller
         private WorkflowRunner $runner,
     ) {}
 
-    public function showShared(string $slug): View
-    {
-        $workflow = $this->sharedOrFail($slug);
-
-        return view('actions.shared', ['workflow' => $workflow, 'slug' => $slug, 'currentUser' => CurrentUser::get()]);
-    }
-
     public function createShared(string $slug): View
     {
         return $this->inputsForm($this->sharedOrFail($slug, manual: true), route('actions.shared.run', $slug));

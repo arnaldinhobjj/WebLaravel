@@ -63,10 +63,11 @@
                     @unless ($homeAction->inputs())
                         @csrf
                     @endunless
-                    <span class="action-label" title="{{ $homeAction->description }}">
+                    <a href="{{ $homeAction->isShared() ? route('actions.shared.show', str($homeAction->key)->after(':')->toString()) : route('actions.edit', [$currentUser, str($homeAction->key)->after(':')->toString()]) }}"
+                       class="action-label" title="{{ $homeAction->description ? $homeAction->description.' · ' : '' }}Open the YAML">
                         <x-icon name="{{ $homeAction->isShared() ? 'list-checks' : 'workflow' }}" :size="20" />
                         <span>{{ $homeAction->name }}</span>
-                    </span>
+                    </a>
                     <button type="submit" class="action-run" title="Run “{{ $homeAction->name }}”">
                         <x-icon name="play" :size="24" />
                         <span class="sr-only">Run {{ $homeAction->name }}</span>
