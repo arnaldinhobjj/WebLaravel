@@ -74,6 +74,35 @@
         </div>
     </form>
 
+    <form method="POST" action="{{ route('settings.password', $user) }}" class="card settings-section" aria-labelledby="password-title">
+        @csrf
+        @method('PUT')
+        <div class="settings-intro">
+            <h3 id="password-title" class="sub-title">Password</h3>
+            <p class="muted">Used to sign in with {{ $user->email }}.</p>
+        </div>
+        <div class="settings-fields">
+            <div class="field-row field-row-2">
+                <label class="field">
+                    <span>Current password</span>
+                    <input type="password" name="current_password" required autocomplete="current-password" @error('current_password', 'password') aria-invalid="true" @enderror>
+                    @error('current_password', 'password') <p class="field-error">{{ $message }}</p> @enderror
+                </label>
+                <span></span>
+                <label class="field">
+                    <span>New password</span>
+                    <input type="password" name="password" required minlength="8" autocomplete="new-password" @error('password', 'password') aria-invalid="true" @enderror>
+                    @error('password', 'password') <p class="field-error">{{ $message }}</p> @enderror
+                </label>
+                <label class="field">
+                    <span>New password again</span>
+                    <input type="password" name="password_confirmation" required autocomplete="new-password">
+                </label>
+            </div>
+            <div><button type="submit" class="btn">Change password</button></div>
+        </div>
+    </form>
+
     <section class="card settings-section" aria-labelledby="home-title">
         <div class="settings-intro">
             <h3 id="home-title" class="sub-title">Home screen</h3>

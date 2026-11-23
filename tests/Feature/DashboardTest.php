@@ -11,6 +11,13 @@ class DashboardTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->actingAs(User::factory()->create());
+    }
+
     public function test_home_screen_renders_all_sections(): void
     {
         $this->get('/')
@@ -52,15 +59,14 @@ class DashboardTest extends TestCase
     public function test_title_bar_has_only_the_profile_menu_with_settings_and_actions_links(): void
     {
         $user = User::factory()->create(['name' => 'Alex Morgan', 'username' => 'alex.morgan', 'job_title' => 'Operations lead']);
-        User::factory()->create(['name' => 'Derek Lamar']);
-
-        $this->withSession(['acting_user_id' => $user->id])
+        $this->actingAs($user)
             ->get('/')
             ->assertDontSee('title="Settings"', false)
             ->assertDontSee('title="More"', false)
             ->assertSee('href="'.route('settings.edit', $user).'"', false)
             ->assertSee('href="'.route('actions.index', $user).'"', false)
-            ->assertSeeInOrder(['Alex Morgan', 'Operations lead', 'Assigned to me', 'My actions', 'Settings', 'Switch user', 'Derek Lamar']);
+            ->assertSeeInOrder(['Alex Morgan', 'Operations lead', 'Assigned to me', 'My actions', 'Settings', 'Sign out'])
+            ->assertDontSee('Switch user');
 
         $this->assertSame(url('/alex.morgan/settings'), route('settings.edit', $user));
     }
@@ -73,7 +79,7 @@ class DashboardTest extends TestCase
         Action::factory()->for($user)->yaml($yaml('Hidden shortcut', 'false'))->create();
         Action::factory()->yaml($yaml('Someone elses action'))->create();
 
-        $this->withSession(['acting_user_id' => $user->id])
+        $this->actingAs($user)
             ->get('/')
             ->assertSee('Open urgent queue')
             ->assertDontSee('Hidden shortcut')

@@ -1,6 +1,7 @@
 {{--
     YAML editor used for personal and shared actions.
-    Expects: $formAction, $method ('POST' or 'PUT'), $yaml, $submitLabel, $cancelUrl, optional $hidden (name => value).
+    Expects: $formAction, $method ('POST' or 'PUT'), $yaml, $submitLabel, $cancelUrl, optional $hidden (name => value)
+    and $readonly (show the YAML without saving).
 --}}
 <div class="yaml-layout">
     <form method="POST" action="{{ $formAction }}" class="card yaml-form">
@@ -25,11 +26,13 @@
 
         <label class="sr-only" for="yaml">Action YAML</label>
         <textarea id="yaml" name="yaml" class="yaml-editor" rows="24" spellcheck="false" autocapitalize="off" autocomplete="off"
-                  data-yaml-editor @error('yaml') aria-invalid="true" @enderror>{{ old('yaml', $yaml) }}</textarea>
+                  data-yaml-editor @readonly($readonly ?? false) @error('yaml') aria-invalid="true" @enderror>{{ old('yaml', $yaml) }}</textarea>
 
         <div class="form-actions">
-            <a href="{{ $cancelUrl }}" class="btn">Cancel</a>
-            <button type="submit" class="btn btn-primary">{{ $submitLabel }}</button>
+            <a href="{{ $cancelUrl }}" class="btn">{{ ($readonly ?? false) ? 'Back' : 'Cancel' }}</a>
+            @unless ($readonly ?? false)
+                <button type="submit" class="btn btn-primary">{{ $submitLabel }}</button>
+            @endunless
         </div>
     </form>
 

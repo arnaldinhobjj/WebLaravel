@@ -2,6 +2,9 @@
 
 namespace Database\Seeders;
 
+use App\Enums\Permission;
+use App\Models\Department;
+use App\Models\Tag;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Services\Workflows\Workflow;
@@ -9,6 +12,7 @@ use App\Services\Workflows\WorkflowParser;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 class DatabaseSeeder extends Seeder
 {
@@ -78,6 +82,8 @@ class DatabaseSeeder extends Seeder
             ]),
         ]);
 
+        $this->seedAccess($people);
+
         $parser = app(WorkflowParser::class);
         foreach ([self::URGENT_ACTION, self::CAMERA_ACTION, self::WAITING_ACTION] as $yaml) {
             $people['Alex Morgan']->actions()->make()
@@ -142,5 +148,36 @@ class DatabaseSeeder extends Seeder
             $ticket->updated_at = $at;
             $ticket->saveQuietly();
         }
+    }
+
+    /**
+     * Departments, tags and who gets what. Seeded people sign in with the password "password".
+     *
+     * @param  Collection<string, User>  $people
+     */
+    private function seedAccess($people): void
+    {
+        $administrator = Tag::firstOrCreate(['name' => 'Administrator'], [
+            'description' => 'Every permission.',
+            'permissions' => array_column(Permission::cases(), 'value'),
+        ]);
+        $helpdesk = Tag::create(['name' => 'Helpdesk', 'description' => 'Picks up and works on every ticket.', 'permissions' => [Permission::ViewAllTickets->value]]);
+        $editors = Tag::create(['name' => 'Action editors', 'description' => 'Maintains the shared actions.', 'permissions' => [Permission::EditSharedActions->value]]);
+
+        $departments = [
+            'Operations' => [[$editors], ['Alex Morgan', 'Derek Lamar', 'Priya Natarajan']],
+            'Facilities' => [[], ['Tom Achebe', 'Helena Brandt']],
+            'IT' => [[$helpdesk], ['Sam Okafor']],
+        ];
+
+        foreach ($departments as $name => [$tags, $members]) {
+            $department = Department::create(['name' => $name]);
+            $department->tags()->attach(collect($tags)->pluck('id'));
+            foreach ($members as $member) {
+                $people[$member]->update(['department_id' => $department->id]);
+            }
+        }
+
+        $people['Alex Morgan']->tags()->syncWithoutDetaching([$administrator->id]);
     }
 }

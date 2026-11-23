@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\Permission;
 use App\Enums\TicketPriority;
 use App\Enums\TicketStatus;
 use App\Events\TicketChanged;
@@ -83,6 +84,26 @@ class Ticket extends Model
     public function scopeActive(Builder $query): void
     {
         $query->whereIn('status', array_map(fn ($s) => $s->value, TicketStatus::active()));
+    }
+
+    /**
+     * Tickets a person may see: the ones they opened or are assigned to, or
+     * every ticket with the "see every ticket" permission.
+     */
+    public function scopeVisibleTo(Builder $query, User $person): void
+    {
+        if ($person->hasPermission(Permission::ViewAllTickets)) {
+            return;
+        }
+
+        $query->where(fn (Builder $q) => $q->where('requester_id', $person->id)->orWhere('assignee_id', $person->id));
+    }
+
+    public function isVisibleTo(User $person): bool
+    {
+        return $person->hasPermission(Permission::ViewAllTickets)
+            || $this->requester_id === $person->id
+            || $this->assignee_id === $person->id;
     }
 
     /** Creates a ticket and records who opened it. */

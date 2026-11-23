@@ -8,7 +8,10 @@
     <div class="page-head">
         <div>
             <h2 class="section-title">{{ $workflow?->name ?? $fileName }}</h2>
-            <p class="page-sub">Shared action, saved in <code>{{ $fileName }}</code> in the project. Changes apply to everyone.</p>
+            <p class="page-sub">
+                Shared action, saved in <code>{{ $fileName }}</code> in the project.
+                @can('actions.shared.edit') Changes apply to everyone. @else You can read and run it; changing it needs a tag that allows editing shared actions. @endcan
+            </p>
         </div>
         @if ($workflow?->canRunManually())
             @include('actions.partials.run-button', ['workflow' => $workflow, 'url' => $workflow->inputs() ? route('actions.shared.run.form', $slug) : route('actions.shared.run', $slug)])
@@ -32,5 +35,6 @@
         'submitLabel' => 'Save file',
         'cancelUrl' => route('actions.index', $currentUser),
         'hidden' => ['hash' => $hash],
+        'readonly' => ! auth()->user()->can('actions.shared.edit'),
     ])
 @endsection

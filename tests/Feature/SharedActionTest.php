@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\Permission;
 use App\Models\ActionRun;
 use App\Models\Ticket;
 use App\Models\User;
@@ -21,8 +22,8 @@ class SharedActionTest extends TestCase
     {
         parent::setUp();
 
-        $this->alex = User::factory()->create(['name' => 'Alex Morgan', 'username' => 'alex.morgan']);
-        $this->withSession(['acting_user_id' => $this->alex->id]);
+        $this->alex = User::factory()->withPermissions(Permission::EditSharedActions)->create(['name' => 'Alex Morgan', 'username' => 'alex.morgan']);
+        $this->actingAs($this->alex);
 
         $this->folder = storage_path('framework/testing/actions-'.uniqid());
         File::ensureDirectoryExists($this->folder);
@@ -128,6 +129,24 @@ class SharedActionTest extends TestCase
         ])->assertSessionHasNoErrors();
 
         $this->from('/')->post('/actions/shared/broken/run')->assertSessionHas('status', 'fixed');
+    }
+
+    public function test_people_without_the_permission_can_read_but_not_save_shared_actions(): void
+    {
+        $before = file_get_contents("{$this->folder}/hello.yml");
+        $this->actingAs(User::factory()->create());
+
+        $this->get('/actions/shared/hello')
+            ->assertOk()
+            ->assertSee('Hello ${{ actor.name }}')
+            ->assertSee('readonly', false)
+            ->assertDontSee('Save file');
+
+        $this->put('/actions/shared/hello', ['yaml' => "name: Mine\non: { run: }\nsteps:\n  - uses: message/show\n    with: { text: y }", 'hash' => sha1($before)])
+            ->assertForbidden();
+
+        $this->assertSame($before, file_get_contents("{$this->folder}/hello.yml"));
+        $this->from('/')->post('/actions/shared/hello/run')->assertRedirect('/');
     }
 
     public function test_editing_unknown_or_unsafe_names_returns_404(): void

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class SettingsTest extends TestCase
@@ -22,7 +23,7 @@ class SettingsTest extends TestCase
             'email' => 'alex@fortvale.test',
             'theme' => 'system',
         ]);
-        $this->withSession(['acting_user_id' => $this->user->id]);
+        $this->actingAs($this->user);
     }
 
     /**
@@ -112,20 +113,14 @@ class SettingsTest extends TestCase
             ->assertSessionHasErrors('theme');
     }
 
-    public function test_switching_user_from_a_personal_page_opens_the_new_persons_page(): void
+    public function test_changing_the_password_needs_the_current_one(): void
     {
-        $derek = User::factory()->create(['username' => 'derek.lamar']);
+        $this->put(route('settings.password', $this->user), ['current_password' => 'wrong', 'password' => 'new-password-1', 'password_confirmation' => 'new-password-1'])
+            ->assertSessionHasErrorsIn('password', 'current_password');
 
-        $this->from('/alex.morgan/settings')
-            ->post(route('profile.switch', $derek))
-            ->assertRedirect('/derek.lamar/settings');
+        $this->put(route('settings.password', $this->user), ['current_password' => 'password', 'password' => 'new-password-1', 'password_confirmation' => 'new-password-1'])
+            ->assertSessionHas('status', 'Password changed.');
 
-        $this->from('/derek.lamar/actions/create')
-            ->post(route('profile.switch', $this->user))
-            ->assertRedirect('/alex.morgan/actions');
-
-        $this->from('/ticket?status=all')
-            ->post(route('profile.switch', $derek))
-            ->assertRedirect('/ticket?status=all');
+        $this->assertTrue(Hash::check('new-password-1', $this->user->fresh()->password));
     }
 }

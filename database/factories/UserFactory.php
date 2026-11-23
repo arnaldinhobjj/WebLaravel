@@ -2,6 +2,8 @@
 
 namespace Database\Factories;
 
+use App\Enums\Permission;
+use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -44,5 +46,13 @@ class UserFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'email_verified_at' => null,
         ]);
+    }
+
+    /**
+     * Give the person a tag of their own that grants these permissions.
+     */
+    public function withPermissions(Permission ...$permissions): static
+    {
+        return $this->hasAttached(Tag::factory()->granting(...$permissions));
     }
 }

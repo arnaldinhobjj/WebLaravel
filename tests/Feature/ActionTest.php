@@ -32,7 +32,7 @@ class ActionTest extends TestCase
 
         config(['fortvale.actions.path' => storage_path('framework/testing/no-shared-actions')]);
         $this->user = User::factory()->create(['username' => 'alex.morgan']);
-        $this->withSession(['acting_user_id' => $this->user->id]);
+        $this->actingAs($this->user);
     }
 
     public function test_lists_only_the_current_users_actions(): void

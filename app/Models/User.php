@@ -2,17 +2,20 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\Permission;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
-#[Fillable(['name', 'username', 'email', 'job_title', 'theme', 'password'])]
+#[Fillable(['name', 'username', 'email', 'job_title', 'department_id', 'theme', 'password'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -25,7 +28,7 @@ class User extends Authenticatable
     /**
      * Usernames that would clash with top-level routes such as /ticket.
      */
-    public const RESERVED_USERNAMES = ['ticket', 'favorites', 'actions', 'mentions', 'profile', 'settings', 'up', 'storage', 'css', 'js'];
+    public const RESERVED_USERNAMES = ['ticket', 'favorites', 'actions', 'mentions', 'profile', 'settings', 'up', 'storage', 'css', 'js', 'login', 'logout', 'tags'];
 
     /**
      * Always the people connection (MySQL by default), even when loaded through
@@ -83,6 +86,50 @@ class User extends Authenticatable
     public function actions(): HasMany
     {
         return $this->hasMany(Action::class)->orderBy('name');
+    }
+
+    /**
+     * @return BelongsTo<Department, $this>
+     */
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
+    }
+
+    /**
+     * Tags given to this person directly (on top of their department's).
+     *
+     * @return BelongsToMany<Tag, $this>
+     */
+    public function tags(): BelongsToMany
+    {
+        return $this->belongsToMany(Tag::class)->orderBy('name');
+    }
+
+    /**
+     * Every tag this person has: their own plus their department's.
+     *
+     * @return Collection<int, Tag>
+     */
+    public function allTags(): Collection
+    {
+        return $this->tags->concat($this->department?->tags ?? [])->unique('id')->sortBy('name')->values();
+    }
+
+    /**
+     * @return list<Permission>
+     */
+    public function permissions(): array
+    {
+        return array_values(array_filter(
+            Permission::cases(),
+            fn (Permission $permission): bool => $this->allTags()->contains(fn (Tag $tag): bool => $tag->grants($permission)),
+        ));
+    }
+
+    public function hasPermission(Permission $permission): bool
+    {
+        return in_array($permission, $this->permissions(), true);
     }
 
     public function assignedTickets(): HasMany

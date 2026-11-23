@@ -14,7 +14,9 @@ A Laravel 13 app that recreates the Fort Vale home screen sketch (a window with 
   - a ticket page with a timeline of replies and changes, a reply box that can also change the status, and controls for status, priority, assignee and category, plus *Assign to me* and *Mark resolved / Reopen*.
   - Mention ticket numbers on the home screen link to their tickets, and **Request printer support** opens a prefilled new ticket.
 - **Favorites and Actions carousels** – page back and forth with the arrow buttons (or the arrow keys when the row has focus).
-- **Profile menu** (the avatar) – your tickets, tickets you opened, new ticket, *My actions*, *Settings*, show/hide sidebar, and *Switch user*. There's no login: you act as one of the team members, and replies and changes are recorded under that person.
+- **Sign in** with email and password. Replies and changes are recorded under the person who is signed in.
+- **Profile menu** (the avatar) – your tickets, tickets you opened, new ticket, *My actions*, *Settings* (including your password), *Tags and permissions* (if you may manage them), show/hide sidebar, and *Sign out*.
+- **Tags page** (`/tags`) – permissions, departments and people. See [People, departments and tags](#people-departments-and-tags).
 - **Settings** (`/{username}/settings`) – name, username, email, job title, light/dark/system theme (saved per person), reset the home screen, and the keyboard shortcuts.
 - **Actions page** (`/{username}/actions`) – shared actions from the project, your own YAML actions (write them in the browser, starting from a template), and recent runs with each step's result.
 - Personal pages only open for the person you are acting as; someone else's `/{username}/…` page returns 403.
@@ -124,7 +126,7 @@ php artisan schedule:work    # only needed for actions with `on: schedule`
 
 ### Using the app
 
-- There's no login. You act as a team member, **Alex Morgan** to start with. Switch person from the avatar menu (top right); replies, changes and personal pages follow the selected person.
+- Sign in at http://127.0.0.1:8000/login. Every seeded person has the password `password`; **alex.morgan@fortvale.test** is the Administrator. Change it under *Settings* → *Password*.
 - Personal pages live at `/{username}/settings` and `/{username}/actions` (for example `/alex.morgan/settings`).
 - Tickets are at `/ticket`; new tickets are numbered from 38000.
 
@@ -204,12 +206,28 @@ If you used the app before Oracle support, add the `DB_*` and `TICKETS_DB_CONNEC
 - A small migration renames the `from`/`to` columns of `ticket_activities`, which are reserved words in Oracle.
 - Moving existing tickets into Oracle isn't automatic; start fresh with `php artisan migrate:fresh --seed`.
 
+## People, departments and tags
+
+Who may do what is set on the **Tags** page (`/tags`), which only people allowed to manage tags and people can open.
+
+- **Tags** hold permissions:
+  - *Manage tags and people*: open the Tags page, add people, change their department, tags and password.
+  - *Edit shared actions*: save `actions/*.yml` in the browser. Everyone else sees them read-only but can still run them.
+  - *See and work on every ticket*: without it, people only see tickets they opened or are assigned to. Other tickets answer "not found". Give it to whoever picks up new tickets (the seeded *Helpdesk* tag on IT).
+- **Departments** carry tags: everyone in a department gets its tags. Each person is in at most one department.
+- **People** can also get extra tags of their own. The People list shows what each person can do in the end, so you can see why.
+- **You can't lock yourself out.** Any change that would leave nobody able to manage tags and people is refused.
+- **Adding someone:** *Add person* on the Tags page, with their email and a first password. They sign in with those and can change the password under *Settings*.
+- **Upgrading an older install:** `php artisan migrate` adds these tables and makes the first person in the users table Administrator.
+
+Seed data: departments Operations (tag *Action editors*), Facilities and IT (tag *Helpdesk*); Alex Morgan also has *Administrator*.
+
 ## Actions (YAML)
 
 Actions work like GitHub Actions: each one is a YAML document with a `name`, what starts it (`on:`) and the `steps` it runs.
 
 - **Shared actions** are files in the [`actions/`](actions/) folder, one `.yml` per action, like `.github/workflows`. Everyone can run them.
-  - Edit them in the repository, or in the browser: click the action, change the YAML and save. Saving checks the YAML first, writes the file, and refuses to overwrite a file someone else changed since you opened it.
+  - Edit them in the repository, or in the browser if one of your tags allows it: click the action, change the YAML and save. Saving checks the YAML first, writes the file, and refuses to overwrite a file someone else changed since you opened it.
   - Changes made in the browser show up as changed files in git; commit them like any other change.
 - **Personal actions** are written in the browser on `/{username}/actions` and stored per person. The editor starts from a template and lists every mistake with where it is (for example `steps[1].with.url: …`).
 - **Click an action** (on the actions page or the home screen) to open its YAML; the play button runs it.
@@ -293,7 +311,7 @@ Values are plain text substitution; nothing in an action is ever run as code. Th
 - It refuses `localhost`, this server, the local network and cloud metadata addresses (the host name is looked up first).
 - It doesn't follow redirects, and gives up after at most 10 seconds.
 - For development against a local service you can set `FORTVALE_ACTIONS_ALLOW_PRIVATE_HOSTS=true` in `.env`; keep it off in production.
-- **Shared actions can read secrets, and anyone using the app can edit shared actions in the browser** (there's no login). Someone could therefore add a step that sends a secret to their own address. Only put secrets in `.env` on installs where everyone with access is trusted.
+- **Shared actions can read secrets**, so anyone allowed to edit shared actions could add a step that sends a secret elsewhere. Give the *Edit shared actions* permission only to people you'd trust with the secrets in `.env`.
 
 ## Tests
 
@@ -318,7 +336,10 @@ php artisan test
 | Path | What |
 | --- | --- |
 | `routes/web.php` | Routes |
-| `app/Http/Controllers/DashboardController.php` | Home screen, user switching, reset |
+| `app/Http/Controllers/DashboardController.php` | Home screen, reset |
+| `app/Http/Controllers/LoginController.php` | Sign in and out |
+| `app/Http/Controllers/TagController.php`, `DepartmentController.php`, `PersonController.php`, `resources/views/tags` | Tags page: tags, departments, people |
+| `app/Enums/Permission.php`, `app/Models/Tag.php`, `app/Models/Department.php`, `app/Support/AccessGuard.php` | Permissions, and the check that someone can always manage people |
 | `app/Http/Controllers/TicketController.php` | Ticket list, create, view, update, reply |
 | `app/Http/Controllers/SettingsController.php` | Settings page |
 | `actions/` | Shared actions (YAML) |

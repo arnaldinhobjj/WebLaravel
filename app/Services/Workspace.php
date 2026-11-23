@@ -44,6 +44,7 @@ class Workspace
             ['label' => 'Tickets', 'route' => 'tickets.index', 'badge' => 'active_tickets'],
             ['label' => 'My tickets', 'route' => 'tickets.index', 'params' => ['assignee' => 'me'], 'badge' => 'my_tickets'],
             'Approvals',
+            ['label' => 'Tags', 'route' => 'tags.index', 'can' => 'people.manage'],
         ]],
     ];
 

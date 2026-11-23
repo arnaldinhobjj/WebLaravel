@@ -47,7 +47,7 @@ class TicketEventActionsTest extends TestCase
     {
         Action::factory()->for($this->alex)->yaml(self::ACKNOWLEDGE_CCTV)->create();
 
-        $this->withSession(['acting_user_id' => $this->alex->id])
+        $this->actingAs($this->alex)
             ->post('/ticket', ['subject' => 'Camera 9 offline', 'description' => 'No picture', 'category' => 'cctv', 'priority' => 'high'])
             ->assertRedirect();
 
