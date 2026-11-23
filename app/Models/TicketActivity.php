@@ -17,6 +17,19 @@ class TicketActivity extends Model
         return config('fortvale.connections.tickets');
     }
 
+    /**
+     * Oracle's driver returns numbers as strings; keep ids comparable everywhere.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'ticket_id' => 'integer',
+            'user_id' => 'integer',
+        ];
+    }
+
     public function ticket(): BelongsTo
     {
         return $this->belongsTo(Ticket::class);

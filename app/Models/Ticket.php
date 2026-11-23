@@ -48,6 +48,9 @@ class Ticket extends Model
             'status' => TicketStatus::class,
             'priority' => TicketPriority::class,
             'resolved_at' => 'datetime',
+            // Oracle's driver returns numbers as strings; keep ids comparable everywhere.
+            'requester_id' => 'integer',
+            'assignee_id' => 'integer',
         ];
     }
 
