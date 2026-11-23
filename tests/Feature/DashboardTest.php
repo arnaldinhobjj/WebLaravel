@@ -35,15 +35,6 @@ class DashboardTest extends TestCase
         $this->post('/favorites/unknown')->assertNotFound();
     }
 
-    public function test_running_an_action_records_the_run(): void
-    {
-        $this->post('/actions/display-sales/run')
-            ->assertRedirect()
-            ->assertSessionHas('status', '“Display sales” started.');
-
-        $this->get('/')->assertSee('Last run');
-    }
-
     public function test_mentions_can_be_resolved_dismissed_and_restored(): void
     {
         $this->post('/mentions/37941/resolve')->assertSessionHas('status', 'Mention on #37941 marked as done.');
@@ -56,12 +47,6 @@ class DashboardTest extends TestCase
 
         $this->post('/mentions/restore');
         $this->get('/')->assertSee('#37941');
-    }
-
-    public function test_printer_support_action_opens_a_prefilled_ticket(): void
-    {
-        $this->post('/actions/request-printer-support/run')
-            ->assertRedirect(route('tickets.create', ['subject' => 'Printer support needed', 'category' => 'it']));
     }
 
     public function test_title_bar_has_only_the_profile_menu_with_settings_and_actions_links(): void
@@ -83,16 +68,17 @@ class DashboardTest extends TestCase
     public function test_home_screen_shows_the_users_own_actions_that_are_on_home(): void
     {
         $user = User::factory()->create();
-        Action::factory()->for($user)->create(['name' => 'Open urgent queue']);
-        Action::factory()->for($user)->create(['name' => 'Hidden shortcut', 'show_on_home' => false]);
-        Action::factory()->create(['name' => 'Someone elses action']);
+        $yaml = fn (string $name, string $home = 'true'): string => "name: {$name}\non:\n  run:\n    show_on_home: {$home}\nsteps:\n  - uses: page/open\n    with: { url: /ticket }\n";
+        Action::factory()->for($user)->yaml($yaml('Open urgent queue'))->create();
+        Action::factory()->for($user)->yaml($yaml('Hidden shortcut', 'false'))->create();
+        Action::factory()->yaml($yaml('Someone elses action'))->create();
 
         $this->withSession(['acting_user_id' => $user->id])
             ->get('/')
             ->assertSee('Open urgent queue')
             ->assertDontSee('Hidden shortcut')
             ->assertDontSee('Someone elses action')
-            ->assertSeeInOrder(['Open urgent queue', 'Display sales']);
+            ->assertSeeInOrder(['Display sales', 'Open urgent queue']);
     }
 
     public function test_reset_home_restores_defaults(): void

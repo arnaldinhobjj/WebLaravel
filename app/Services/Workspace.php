@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use Illuminate\Contracts\Session\Session;
-use Illuminate\Support\Carbon;
 
 /**
  * Holds the data shown on the Fort Vale home screen and the per-user state
@@ -23,12 +22,6 @@ class Workspace
     ];
 
     public const DEFAULT_FAVORITES = ['quality', 'nuclear', 'dispatch', 'cctv', 'health'];
-
-    public const ACTIONS = [
-        'display-sales' => ['name' => 'Display sales', 'description' => 'Open the sales report for the current period'],
-        'request-printer-support' => ['name' => 'Request printer support', 'description' => 'Create a support ticket for a printer', 'ticket' => ['subject' => 'Printer support needed', 'category' => 'it']],
-        'book-meeting-room' => ['name' => 'Book a meeting room', 'description' => 'Reserve a room in the main building'],
-    ];
 
     public const MENTIONS = [
         37941 => ['author' => 'Derek Lamar', 'message' => 'Could you please confirm you have reviewed the updated inspection checklist for building C before Friday’s audit? We need sign-off from every team lead.', 'minutes_ago' => 12],
@@ -106,25 +99,6 @@ class Workspace
         $this->session->put('favorites', $favorites);
 
         return true;
-    }
-
-    /** @return array<string, array{name: string, description: string, last_run: ?Carbon, ticket?: array}> */
-    public function actions(): array
-    {
-        $runs = $this->session->get('action_runs', []);
-
-        return collect(self::ACTIONS)
-            ->map(fn (array $action, string $slug) => $action + [
-                'last_run' => isset($runs[$slug]) ? Carbon::createFromTimestamp($runs[$slug]) : null,
-            ])
-            ->all();
-    }
-
-    public function runAction(string $slug): void
-    {
-        $runs = $this->session->get('action_runs', []);
-        $runs[$slug] = now()->getTimestamp();
-        $this->session->put('action_runs', $runs);
     }
 
     /** Mentions that are neither resolved nor dismissed, newest first. */

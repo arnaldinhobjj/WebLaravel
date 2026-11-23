@@ -1,0 +1,22 @@
+name: Book a meeting room
+description: Reserve a room in the main building
+on:
+  run:
+    show_on_home: true
+    inputs:
+      room:
+        description: Room
+        default: 2B
+      when:
+        description: When (e.g. "Thursday 14:00")
+        required: true
+steps:
+  - name: Ask facilities for the room
+    uses: ticket/create
+    with:
+      subject: "Room booking: ${{ inputs.room }}, ${{ inputs.when }}"
+      category: facilities
+      description: "${{ actor.name }} would like to book room ${{ inputs.room }} for ${{ inputs.when }}."
+  - uses: message/show
+    with:
+      text: "Requested room ${{ inputs.room }} for ${{ inputs.when }}."

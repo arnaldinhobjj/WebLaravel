@@ -2,37 +2,30 @@
 
 namespace App\Models;
 
-use App\Enums\ActionType;
-use App\Enums\TicketPriority;
+use App\Services\Workflows\Workflow;
+use App\Services\Workflows\WorkflowParser;
 use Database\Factories\ActionFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * A shortcut a person created on their actions page. Running it either opens a
- * link or opens the new ticket form filled in from the stored template.
+ * A person's own action, written in YAML (GitHub Actions style). The name,
+ * show-on-home flag and triggers are copied from the YAML for quick listing.
  */
 class Action extends Model
 {
     /** @use HasFactory<ActionFactory> */
     use HasFactory;
 
-    protected $fillable = [
-        'name',
-        'description',
-        'type',
-        'url',
-        'ticket_subject',
-        'ticket_category',
-        'ticket_priority',
-        'ticket_description',
-        'show_on_home',
-    ];
+    protected $fillable = ['name', 'yaml', 'show_on_home', 'triggers'];
 
     protected $attributes = [
-        'show_on_home' => true,
+        'show_on_home' => false,
     ];
+
+    private ?Workflow $parsedWorkflow = null;
 
     /**
      * Always the people connection (MySQL by default), even when loaded through
@@ -49,9 +42,8 @@ class Action extends Model
     protected function casts(): array
     {
         return [
-            'type' => ActionType::class,
-            'ticket_priority' => TicketPriority::class,
             'show_on_home' => 'boolean',
+            'triggers' => 'array',
             'last_run_at' => 'datetime',
         ];
     }
@@ -65,24 +57,39 @@ class Action extends Model
     }
 
     /**
-     * Where running this action takes the person.
+     * @return HasMany<ActionRun, $this>
      */
-    public function destination(): string
+    public function runs(): HasMany
     {
-        if ($this->type === ActionType::Link) {
-            return $this->url;
-        }
-
-        return route('tickets.create', array_filter([
-            'subject' => $this->ticket_subject,
-            'category' => $this->ticket_category,
-            'priority' => $this->ticket_priority?->value,
-            'description' => $this->ticket_description,
-        ]));
+        return $this->hasMany(ActionRun::class);
     }
 
-    public function opensExternalSite(): bool
+    public function key(): string
     {
-        return $this->type === ActionType::Link && ! str_starts_with($this->url, '/');
+        return Workflow::PERSONAL.':'.$this->id;
+    }
+
+    /**
+     * The parsed YAML. Stored YAML was validated when saved.
+     */
+    public function workflow(): Workflow
+    {
+        return $this->parsedWorkflow ??= app(WorkflowParser::class)
+            ->parse((string) $this->yaml, Workflow::PERSONAL, $this->key(), $this->user_id);
+    }
+
+    /**
+     * Copies a validated workflow into this action.
+     */
+    public function fillFromWorkflow(Workflow $workflow): static
+    {
+        $this->parsedWorkflow = null;
+
+        return $this->fill([
+            'name' => $workflow->name,
+            'yaml' => $workflow->yaml,
+            'show_on_home' => $workflow->showOnHome(),
+            'triggers' => $workflow->triggers(),
+        ]);
     }
 }

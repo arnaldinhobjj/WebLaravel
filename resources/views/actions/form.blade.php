@@ -2,104 +2,71 @@
 
 @section('title', $action->exists ? 'Edit action' : 'New action')
 
-@php
-    $selectedType = old('type', $action->type?->value ?? 'link');
-@endphp
-
 @section('content')
-    <a href="{{ route('actions.index', $user) }}" class="back-link"><x-icon name="arrow-left" :size="16" /> My actions</a>
+    <a href="{{ route('actions.index', $user) }}" class="back-link"><x-icon name="arrow-left" :size="16" /> Actions</a>
 
     <div class="page-head">
         <div>
-            <h2 class="section-title">{{ $action->exists ? 'Edit action' : 'New action' }}</h2>
-            <p class="page-sub">Actions you show on the home screen appear in its Actions row.</p>
+            <h2 class="section-title">{{ $action->exists ? 'Edit “'.$action->name.'”' : 'New action' }}</h2>
+            <p class="page-sub">Write the action in YAML. It is checked when you save; mistakes are listed with where they are.</p>
         </div>
     </div>
 
-    <form method="POST" action="{{ $action->exists ? route('actions.update', [$user, $action]) : route('actions.store', $user) }}" class="card ticket-form" data-action-form novalidate>
-        @csrf
-        @if ($action->exists)
-            @method('PUT')
-        @endif
-
-        <div class="field-row field-row-2">
-            <label class="field">
-                <span>Name</span>
-                <input type="text" name="name" value="{{ old('name', $action->name) }}" required maxlength="60" autofocus placeholder="Report a broken camera" @error('name') aria-invalid="true" @enderror>
-                @error('name') <p class="field-error">{{ $message }}</p> @enderror
-            </label>
-            <label class="field">
-                <span>Description <small>(optional)</small></span>
-                <input type="text" name="description" value="{{ old('description', $action->description) }}" maxlength="160" placeholder="Shown when you hover over the action" @error('description') aria-invalid="true" @enderror>
-                @error('description') <p class="field-error">{{ $message }}</p> @enderror
-            </label>
-        </div>
-
-        <fieldset class="type-options">
-            <legend class="field-legend">What should it do?</legend>
-            @foreach (\App\Enums\ActionType::cases() as $type)
-                <label class="type-option">
-                    <input type="radio" name="type" value="{{ $type->value }}" @checked($selectedType === $type->value) data-type-choice>
-                    <x-icon :name="$type === \App\Enums\ActionType::Link ? 'link' : 'ticket'" :size="20" />
-                    <span>
-                        <strong>{{ $type->label() }}</strong>
-                        <small>{{ $type->hint() }}</small>
-                    </span>
-                </label>
+    @unless ($action->exists)
+        <nav class="template-picker" aria-label="Start from a template">
+            <span class="muted small">Start from:</span>
+            @foreach (\App\Services\Workflows\ActionTemplates::TEMPLATES as $key => $template)
+                <a href="{{ route('actions.create', [$user, 'template' => $key]) }}" @class(['chip', 'is-active' => request('template', 'page') === $key])>{{ $template['label'] }}</a>
             @endforeach
-            @error('type') <p class="field-error">{{ $message }}</p> @enderror
-        </fieldset>
+        </nav>
+    @endunless
 
-        <div class="type-fields" data-type-fields="link" @if ($selectedType !== 'link') hidden @endif>
-            <label class="field">
-                <span>Page or web address</span>
-                <input type="text" name="url" value="{{ old('url', $action->url) }}" maxlength="2048" placeholder="/ticket?assignee=me or https://…" @error('url') aria-invalid="true" @enderror>
-                @error('url') <p class="field-error">{{ $message }}</p> @enderror
-            </label>
-        </div>
+    <div class="yaml-layout">
+        <form method="POST" action="{{ $action->exists ? route('actions.update', [$user, $action]) : route('actions.store', $user) }}" class="card yaml-form">
+            @csrf
+            @if ($action->exists)
+                @method('PUT')
+            @endif
 
-        <div class="type-fields" data-type-fields="ticket" @if ($selectedType !== 'ticket') hidden @endif>
-            <label class="field">
-                <span>Ticket subject</span>
-                <input type="text" name="ticket_subject" value="{{ old('ticket_subject', $action->ticket_subject) }}" maxlength="160" @error('ticket_subject') aria-invalid="true" @enderror>
-                @error('ticket_subject') <p class="field-error">{{ $message }}</p> @enderror
-            </label>
-            <div class="field-row field-row-2">
-                <label class="field">
-                    <span>Category</span>
-                    <select name="ticket_category">
-                        @foreach (\App\Models\Ticket::CATEGORIES as $value => $label)
-                            <option value="{{ $value }}" @selected(old('ticket_category', $action->ticket_category ?? 'general') === $value)>{{ $label }}</option>
+            @if ($errors->has('yaml'))
+                <div class="yaml-errors-box" role="alert">
+                    <strong>Fix {{ count($errors->get('yaml')) }} {{ Str::plural('problem', count($errors->get('yaml'))) }} before saving:</strong>
+                    <ul class="yaml-errors">
+                        @foreach ($errors->get('yaml') as $error)
+                            <li>{{ $error }}</li>
                         @endforeach
-                    </select>
-                    @error('ticket_category') <p class="field-error">{{ $message }}</p> @enderror
-                </label>
-                <label class="field">
-                    <span>Priority</span>
-                    <select name="ticket_priority">
-                        @foreach (\App\Enums\TicketPriority::cases() as $priority)
-                            <option value="{{ $priority->value }}" @selected(old('ticket_priority', $action->ticket_priority?->value ?? 'normal') === $priority->value)>{{ $priority->label() }}</option>
-                        @endforeach
-                    </select>
-                    @error('ticket_priority') <p class="field-error">{{ $message }}</p> @enderror
-                </label>
+                    </ul>
+                </div>
+            @endif
+
+            <label class="sr-only" for="yaml">Action YAML</label>
+            <textarea id="yaml" name="yaml" class="yaml-editor" rows="24" spellcheck="false" autocapitalize="off" autocomplete="off"
+                      data-yaml-editor @error('yaml') aria-invalid="true" @enderror>{{ old('yaml', $yaml) }}</textarea>
+
+            <div class="form-actions">
+                <a href="{{ route('actions.index', $user) }}" class="btn">Cancel</a>
+                <button type="submit" class="btn btn-primary">{{ $action->exists ? 'Save action' : 'Create action' }}</button>
             </div>
-            <label class="field">
-                <span>Description template <small>(optional)</small></span>
-                <textarea name="ticket_description" rows="4" maxlength="5000" placeholder="Questions you want answered every time" @error('ticket_description') aria-invalid="true" @enderror>{{ old('ticket_description', $action->ticket_description) }}</textarea>
-                @error('ticket_description') <p class="field-error">{{ $message }}</p> @enderror
-            </label>
-        </div>
+        </form>
 
-        <label class="checkbox">
-            <input type="hidden" name="show_on_home" value="0">
-            <input type="checkbox" name="show_on_home" value="1" @checked(old('show_on_home', $action->show_on_home))>
-            Show on the home screen
-        </label>
-
-        <div class="form-actions">
-            <a href="{{ route('actions.index', $user) }}" class="btn">Cancel</a>
-            <button type="submit" class="btn btn-primary">{{ $action->exists ? 'Save action' : 'Create action' }}</button>
-        </div>
-    </form>
+        <aside class="card yaml-help" aria-labelledby="yaml-help-title">
+            <h3 id="yaml-help-title" class="sub-title">Quick reference</h3>
+            <dl>
+                <dt><code>on: run</code></dt>
+                <dd>A Run button. <code>show_on_home: true</code> adds it to the home screen; <code>inputs:</code> asks for values first.</dd>
+                <dt><code>on: ticket</code></dt>
+                <dd><code>types: [created, status_changed, assigned, replied]</code>, optionally <code>if:</code> category, priority, status or assignee. Runs only for tickets you opened or are assigned to.</dd>
+                <dt><code>on: schedule</code></dt>
+                <dd><code>- cron: "0 9 * * 1"</code> (Mondays 09:00).</dd>
+                <dt>Steps (<code>uses:</code>)</dt>
+                <dd>
+                    <code>ticket/create</code>, <code>ticket/update</code>, <code>ticket/reply</code>, <code>http/request</code>, <code>message/show</code>,
+                    and as the last step of a Run-button action <code>page/open</code> or <code>ticket/open-form</code>.
+                </dd>
+                <dt>Values</dt>
+                <dd><code>${{ '{{' }} inputs.name }}</code>, <code>${{ '{{' }} ticket.id }}</code>, <code>${{ '{{' }} actor.name }}</code>, <code>${{ '{{' }} steps.&lt;id&gt;.ticket }}</code></dd>
+            </dl>
+            <p class="muted small">The full reference is in the README, under “Actions (YAML)”.</p>
+        </aside>
+    </div>
 @endsection

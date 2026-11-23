@@ -4,6 +4,8 @@ namespace Database\Seeders;
 
 use App\Models\Ticket;
 use App\Models\User;
+use App\Services\Workflows\Workflow;
+use App\Services\Workflows\WorkflowParser;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
@@ -11,6 +13,52 @@ use Illuminate\Support\Carbon;
 class DatabaseSeeder extends Seeder
 {
     use WithoutModelEvents;
+
+    private const URGENT_ACTION = <<<'YAML'
+        name: My urgent tickets
+        description: Urgent tickets assigned to me
+        on:
+          run:
+            show_on_home: true
+        steps:
+          - uses: page/open
+            with:
+              url: /ticket?assignee=me&priority=urgent
+        YAML;
+
+    private const CAMERA_ACTION = <<<'YAML'
+        name: Report a camera fault
+        description: Start a CCTV ticket with the usual questions
+        on:
+          run:
+            show_on_home: true
+            inputs:
+              camera:
+                description: Camera number
+                required: true
+        steps:
+          - uses: ticket/open-form
+            with:
+              subject: "Camera ${{ inputs.camera }} fault"
+              category: cctv
+              priority: high
+              description: |
+                Camera number: ${{ inputs.camera }}
+                Location:
+                When did it stop working?
+        YAML;
+
+    private const WAITING_ACTION = <<<'YAML'
+        name: Waiting on others
+        description: Tickets waiting on someone else
+        on:
+          run:
+            show_on_home: true
+        steps:
+          - uses: page/open
+            with:
+              url: /ticket?status=waiting
+        YAML;
 
     public function run(): void
     {
@@ -30,29 +78,12 @@ class DatabaseSeeder extends Seeder
             ]),
         ]);
 
-        $people['Alex Morgan']->actions()->createMany([
-            [
-                'name' => 'My urgent tickets',
-                'description' => 'Urgent tickets assigned to me',
-                'type' => 'link',
-                'url' => '/ticket?assignee=me&priority=urgent',
-            ],
-            [
-                'name' => 'Report a camera fault',
-                'description' => 'Start a CCTV ticket with the usual questions',
-                'type' => 'ticket',
-                'ticket_subject' => 'Camera fault',
-                'ticket_category' => 'cctv',
-                'ticket_priority' => 'high',
-                'ticket_description' => "Camera number:\nLocation:\nWhen did it stop working?",
-            ],
-            [
-                'name' => 'Waiting on others',
-                'description' => 'Tickets waiting on someone else',
-                'type' => 'link',
-                'url' => '/ticket?status=waiting',
-            ],
-        ]);
+        $parser = app(WorkflowParser::class);
+        foreach ([self::URGENT_ACTION, self::CAMERA_ACTION, self::WAITING_ACTION] as $yaml) {
+            $people['Alex Morgan']->actions()->make()
+                ->fillFromWorkflow($parser->parse($yaml, Workflow::PERSONAL, 'personal:new'))
+                ->save();
+        }
 
         // [id, subject, category, priority, status, requester, assignee, days ago, description, comments]
         $tickets = [

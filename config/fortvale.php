@@ -23,4 +23,27 @@ return [
         'tickets' => env('TICKETS_DB_CONNECTION', 'oracle'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Actions (YAML, GitHub Actions style)
+    |--------------------------------------------------------------------------
+    |
+    | Shared actions are the .yml files in `path`. `${{ secrets.NAME }}` in a
+    | shared action reads FORTVALE_SECRET_NAME from the environment; personal
+    | actions can't read secrets. Web requests from actions may only reach
+    | public internet addresses unless allow_private_hosts is true.
+    |
+    */
+
+    'actions' => [
+        'path' => base_path('actions'),
+
+        'allow_private_hosts' => (bool) env('FORTVALE_ACTIONS_ALLOW_PRIVATE_HOSTS', false),
+
+        'secrets' => collect(array_merge($_SERVER, $_ENV))
+            ->filter(fn (mixed $value, mixed $name): bool => is_string($name) && is_string($value) && str_starts_with($name, 'FORTVALE_SECRET_'))
+            ->mapWithKeys(fn (string $value, string $name): array => [substr($name, strlen('FORTVALE_SECRET_')) => $value])
+            ->all(),
+    ],
+
 ];

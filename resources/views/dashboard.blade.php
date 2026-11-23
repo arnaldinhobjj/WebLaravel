@@ -52,41 +52,24 @@
         </div>
 
         <div class="actions carousel-track" data-carousel-track tabindex="-1">
-            @foreach ($customActions as $customAction)
-                <form method="POST" action="{{ route('actions.custom.run', [$currentUser, $customAction]) }}" class="action action-custom"
-                      data-search-item="{{ $customAction->name }} {{ $customAction->description }}" @if ($customAction->opensExternalSite()) target="_blank" @endif>
-                    @csrf
-                    <span class="action-label" title="{{ $customAction->description }}">
-                        <x-icon :name="$customAction->type === \App\Enums\ActionType::Link ? 'link' : 'ticket'" :size="20" />
-                        <span>
-                            {{ $customAction->name }}
-                            @if ($customAction->last_run_at)
-                                <small>Last run {{ $customAction->last_run_at->diffForHumans() }}</small>
-                            @endif
-                        </span>
+            @foreach ($homeActions as $homeAction)
+                @php
+                    $runUrl = $homeAction->isShared()
+                        ? route($homeAction->inputs() ? 'actions.shared.run.form' : 'actions.shared.run', str($homeAction->key)->after(':')->toString())
+                        : route($homeAction->inputs() ? 'actions.custom.run.form' : 'actions.custom.run', [$currentUser, str($homeAction->key)->after(':')->toString()]);
+                @endphp
+                <form method="{{ $homeAction->inputs() ? 'GET' : 'POST' }}" action="{{ $runUrl }}" class="action @unless ($homeAction->isShared()) action-custom @endunless"
+                      data-search-item="{{ $homeAction->name }} {{ $homeAction->description }}">
+                    @unless ($homeAction->inputs())
+                        @csrf
+                    @endunless
+                    <span class="action-label" title="{{ $homeAction->description }}">
+                        <x-icon name="{{ $homeAction->isShared() ? 'list-checks' : 'workflow' }}" :size="20" />
+                        <span>{{ $homeAction->name }}</span>
                     </span>
-                    <button type="submit" class="action-run" title="Run “{{ $customAction->name }}”">
+                    <button type="submit" class="action-run" title="Run “{{ $homeAction->name }}”">
                         <x-icon name="play" :size="24" />
-                        <span class="sr-only">Run {{ $customAction->name }}</span>
-                    </button>
-                </form>
-            @endforeach
-
-            @foreach ($actions as $slug => $action)
-                <form method="POST" action="{{ route('actions.run', $slug) }}" class="action" data-search-item="{{ $action['name'] }} {{ $action['description'] }}">
-                    @csrf
-                    <span class="action-label" title="{{ $action['description'] }}">
-                        <x-icon name="list-checks" :size="20" />
-                        <span>
-                            {{ $action['name'] }}
-                            @if ($action['last_run'])
-                                <small>Last run {{ $action['last_run']->diffForHumans() }}</small>
-                            @endif
-                        </span>
-                    </span>
-                    <button type="submit" class="action-run" title="Run “{{ $action['name'] }}”">
-                        <x-icon name="play" :size="24" />
-                        <span class="sr-only">Run {{ $action['name'] }}</span>
+                        <span class="sr-only">Run {{ $homeAction->name }}</span>
                     </button>
                 </form>
             @endforeach

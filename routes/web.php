@@ -11,7 +11,12 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
 Route::post('/favorites/{module}', [DashboardController::class, 'toggleFavorite'])->name('favorites.toggle');
-Route::post('/actions/{action}/run', [DashboardController::class, 'runAction'])->name('actions.run');
+// Shared actions (actions/*.yml in the project).
+Route::prefix('actions/shared/{slug}')->name('actions.shared.')->controller(ActionRunController::class)->group(function () {
+    Route::get('/', 'showShared')->name('show');
+    Route::get('/run', 'createShared')->name('run.form');
+    Route::post('/run', 'storeShared')->name('run');
+});
 Route::post('/mentions/{ticket}/resolve', [DashboardController::class, 'resolveMention'])->whereNumber('ticket')->name('mentions.resolve');
 Route::post('/mentions/{ticket}/dismiss', [DashboardController::class, 'dismissMention'])->whereNumber('ticket')->name('mentions.dismiss');
 Route::post('/mentions/restore', [DashboardController::class, 'restoreMentions'])->name('mentions.restore');
@@ -37,5 +42,6 @@ Route::prefix('{user:username}')
         Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
 
         Route::resource('actions', ActionController::class)->except('show')->names('actions');
+        Route::get('/actions/{action}/run', [ActionRunController::class, 'create'])->name('actions.custom.run.form');
         Route::post('/actions/{action}/run', [ActionRunController::class, 'store'])->name('actions.custom.run');
     });

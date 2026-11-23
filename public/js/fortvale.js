@@ -74,16 +74,13 @@
         update();
     });
 
-    // Action form: show only the fields for the chosen type.
-    document.querySelectorAll('[data-action-form]').forEach((form) => {
-        const sync = () => {
-            const chosen = form.querySelector('[data-type-choice]:checked')?.value;
-            form.querySelectorAll('[data-type-fields]').forEach((group) => {
-                group.hidden = group.dataset.typeFields !== chosen;
-            });
-        };
-        form.querySelectorAll('[data-type-choice]').forEach((radio) => radio.addEventListener('change', sync));
-        sync();
+    // YAML editor: Tab inserts two spaces instead of leaving the field.
+    document.querySelectorAll('[data-yaml-editor]').forEach((editor) => {
+        editor.addEventListener('keydown', (event) => {
+            if (event.key !== 'Tab' || event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) return;
+            event.preventDefault();
+            editor.setRangeText('  ', editor.selectionStart, editor.selectionEnd, 'end');
+        });
     });
 
     // Ask before destructive submits.
