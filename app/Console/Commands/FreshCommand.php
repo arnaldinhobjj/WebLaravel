@@ -2,7 +2,11 @@
 
 namespace App\Console\Commands;
 
+use Illuminate\Database\Connection;
 use Illuminate\Database\Console\Migrations\FreshCommand as BaseFreshCommand;
+use Illuminate\Support\Facades\DB;
+use Yajra\Oci8\Oci8Connection;
+use Yajra\Oci8\Schema\OraclePreferences;
 
 /**
  * `migrate:fresh` that also wipes the tickets database.
@@ -40,12 +44,40 @@ class FreshCommand extends BaseFreshCommand
 
         $this->components->task(
             "Dropping all tables on the tickets connection [{$tickets}]",
-            fn () => $this->callSilent('db:wipe', array_filter([
-                '--database' => $tickets,
-                '--drop-views' => $this->option('drop-views'),
-                '--drop-types' => $this->option('drop-types'),
-                '--force' => true,
-            ])) === 0,
+            fn () => $this->dropEverything(DB::connection($tickets)),
         );
+    }
+
+    private function dropEverything(Connection $connection): bool
+    {
+        $schema = $connection->getSchemaBuilder();
+
+        if ($this->option('drop-views')) {
+            $schema->dropAllViews();
+        }
+
+        $this->dropAllTables($connection);
+
+        if ($this->option('drop-types')) {
+            $schema->dropAllTypes();
+        }
+
+        return true;
+    }
+
+    /**
+     * yajra/laravel-oci8 first drops Oracle Text preferences, which fails with
+     * ORA-00942 on databases without Oracle Text (such as Oracle Free "slim").
+     * Skip that step when Oracle Text isn't installed.
+     */
+    private function dropAllTables(Connection $connection): void
+    {
+        if ($connection instanceof Oci8Connection && ! (new OraclePreferences($connection))->checkIfCtxsysIsEnabled()) {
+            $connection->statement($connection->getSchemaGrammar()->compileDropAllTables());
+
+            return;
+        }
+
+        $connection->getSchemaBuilder()->dropAllTables();
     }
 }
