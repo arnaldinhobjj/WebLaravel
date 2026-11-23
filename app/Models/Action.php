@@ -35,6 +35,15 @@ class Action extends Model
     ];
 
     /**
+     * Always the people connection (MySQL by default), even when loaded through
+     * a ticket: Eloquent otherwise reuses the parent model's connection.
+     */
+    public function getConnectionName(): ?string
+    {
+        return config('fortvale.connections.people');
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array

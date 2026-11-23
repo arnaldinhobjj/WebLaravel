@@ -35,7 +35,7 @@ return [
         'sqlite' => [
             'driver' => 'sqlite',
             'url' => env('DB_URL'),
-            'database' => env('DB_DATABASE', database_path('database.sqlite')),
+            'database' => env('DB_SQLITE_DATABASE', env('DB_DATABASE', database_path('database.sqlite'))),
             'prefix' => '',
             'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
             'busy_timeout' => null,
@@ -62,6 +62,35 @@ return [
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
+        ],
+
+        // Oracle, through yajra/laravel-oci8 (needs the PHP oci8 extension and
+        // Oracle Instant Client). Fort Vale keeps tickets here by default; see
+        // config/fortvale.php.
+        'oracle' => [
+            'driver' => 'oracle',
+            'tns' => env('DB_ORACLE_TNS', ''),
+            'host' => env('DB_ORACLE_HOST', '127.0.0.1'),
+            'port' => env('DB_ORACLE_PORT', '1521'),
+            'database' => env('DB_ORACLE_DATABASE', ''),
+            'service_name' => env('DB_ORACLE_SERVICE_NAME', 'FREEPDB1'),
+            'username' => env('DB_ORACLE_USERNAME', 'fortvale'),
+            'password' => env('DB_ORACLE_PASSWORD', ''),
+            'charset' => env('DB_ORACLE_CHARSET', 'AL32UTF8'),
+            'prefix' => '',
+            'prefix_schema' => '',
+            'edition' => env('DB_ORACLE_EDITION', 'ora$base'),
+            'server_version' => env('DB_ORACLE_SERVER_VERSION', '12c'),
+            'load_balance' => 'yes',
+            'max_name_len' => env('DB_ORACLE_MAX_NAME_LEN', 128),
+            'dynamic' => [],
+            'sessionVars' => [
+                'NLS_TIME_FORMAT' => 'HH24:MI:SS',
+                'NLS_DATE_FORMAT' => 'YYYY-MM-DD HH24:MI:SS',
+                'NLS_TIMESTAMP_FORMAT' => 'YYYY-MM-DD HH24:MI:SS',
+                'NLS_TIMESTAMP_TZ_FORMAT' => 'YYYY-MM-DD HH24:MI:SS TZH:TZM',
+                'NLS_NUMERIC_CHARACTERS' => '.,',
+            ],
         ],
 
         'mariadb' => [

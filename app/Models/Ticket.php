@@ -10,7 +10,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Facades\DB;
 
 class Ticket extends Model
 {
@@ -35,12 +34,23 @@ class Ticket extends Model
         'priority' => 'normal',
     ];
 
+    /**
+     * Tickets live on their own connection (Oracle by default), see config/fortvale.php.
+     */
+    public function getConnectionName(): ?string
+    {
+        return config('fortvale.connections.tickets');
+    }
+
     protected function casts(): array
     {
         return [
             'status' => TicketStatus::class,
             'priority' => TicketPriority::class,
             'resolved_at' => 'datetime',
+            // Oracle's driver returns numbers as strings; keep ids comparable everywhere.
+            'requester_id' => 'integer',
+            'assignee_id' => 'integer',
         ];
     }
 
@@ -77,7 +87,7 @@ class Ticket extends Model
     /** Creates a ticket and records who opened it. */
     public static function open(array $attributes, User $requester): self
     {
-        return DB::transaction(function () use ($attributes, $requester) {
+        return (new self)->getConnection()->transaction(function () use ($attributes, $requester) {
             $ticket = self::create($attributes + ['requester_id' => $requester->id]);
             $ticket->activities()->create(['type' => 'created', 'user_id' => $requester->id]);
 
@@ -91,7 +101,7 @@ class Ticket extends Model
      */
     public function applyChanges(array $changes, User $actor): int
     {
-        return DB::transaction(function () use ($changes, $actor) {
+        return $this->getConnection()->transaction(function () use ($changes, $actor) {
             $changed = 0;
 
             foreach (['status', 'priority', 'assignee_id', 'category'] as $field) {
@@ -113,7 +123,7 @@ class Ticket extends Model
                     'category' => ['category', self::CATEGORIES[$old] ?? null, $this->categoryLabel()],
                 };
 
-                $this->activities()->create(['type' => $type, 'user_id' => $actor->id, 'from' => $from, 'to' => $to]);
+                $this->activities()->create(['type' => $type, 'user_id' => $actor->id, 'from_label' => $from, 'to_label' => $to]);
                 $changed++;
             }
 

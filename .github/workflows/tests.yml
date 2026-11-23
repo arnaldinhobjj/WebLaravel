@@ -18,7 +18,40 @@ jobs:
       matrix:
         php: [8.3, 8.4, 8.5]
 
-    name: PHP ${{ matrix.php }}
+    name: PHP ${{ matrix.php }} · MySQL + Oracle
+
+    # People and actions in MySQL, tickets in Oracle, like the app's default
+    # setup. Credentials match the defaults in phpunit.xml.
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: fortvale_test
+          MYSQL_USER: fortvale
+          MYSQL_PASSWORD: fortvale
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
+
+      oracle:
+        image: gvenzl/oracle-free:23-slim
+        env:
+          ORACLE_PASSWORD: oracle
+          APP_USER: fortvale_test
+          APP_USER_PASSWORD: fortvale
+        ports:
+          - 1521:1521
+        options: >-
+          --health-cmd healthcheck.sh
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 40
+          --health-start-period 30s
 
     steps:
       - name: Checkout code
@@ -30,8 +63,12 @@ jobs:
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, pdo_mysql, oci8
           coverage: none
+
+      - name: Check the oci8 extension is loaded
+        run: |
+          php -r 'exit(extension_loaded("oci8") ? 0 : 1);'
 
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
@@ -44,3 +81,39 @@ jobs:
 
       - name: Execute tests
         run: php artisan test
+
+  sqlite:
+    runs-on: ubuntu-latest
+
+    name: PHP 8.4 · SQLite only
+
+    # Both data groups on one in-memory SQLite database: the quick setup for
+    # trying the app without database servers.
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+        with:
+          php-version: '8.4'
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress --ignore-platform-req=ext-oci8
+
+      - name: Copy environment file
+        run: cp .env.example .env
+
+      - name: Generate app key
+        run: php artisan key:generate
+
+      - name: Execute tests
+        run: php artisan test
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ':memory:'
+          TICKETS_DB_CONNECTION: sqlite
