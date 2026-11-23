@@ -117,6 +117,23 @@ class TagsTest extends TestCase
             ->assertSessionHasNoErrors();
     }
 
+    public function test_every_row_on_the_tags_page_can_be_found_by_search(): void
+    {
+        $helpdesk = Tag::factory()->granting(Permission::ViewAllTickets)->create(['name' => 'Helpdesk']);
+        $it = Department::factory()->hasAttached($helpdesk)->create(['name' => 'IT']);
+        User::factory()->for($it)->create(['name' => 'Sam Okafor', 'job_title' => 'IT support']);
+
+        $page = $this->get('/tags')
+            ->assertSee('placeholder="Search tags, departments and people"', false)
+            ->assertSee('No people match your search.')
+            ->getContent();
+
+        // Each row's search text includes what is shown in its columns.
+        $this->assertMatchesRegularExpression('/data-search-item="Helpdesk\s.*See and work on every ticket IT"/', $page);
+        $this->assertMatchesRegularExpression('/data-search-item="IT Helpdesk Sam Okafor"/', $page);
+        $this->assertMatchesRegularExpression('/data-search-item="Sam Okafor .*IT support IT\s+See and work on every ticket"/', $page);
+    }
+
     public function test_tag_permissions_must_be_known_ones(): void
     {
         $this->post(route('tags.store'), ['name' => 'Odd', 'permissions' => ['everything']])->assertSessionHasErrors('permissions.0');
