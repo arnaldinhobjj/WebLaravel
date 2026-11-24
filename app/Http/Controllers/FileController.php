@@ -1,0 +1,384 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Department;
+use App\Models\FileVersion;
+use App\Models\Folder;
+use App\Models\FolderAccess;
+use App\Models\StoredFile;
+use App\Models\Tag;
+use App\Services\Files\FileAccess;
+use App\Services\Files\FileStore;
+use App\Support\CurrentUser;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+
+/**
+ * The file library and each person's private files: browsing, uploads,
+ * versions, preview, search and trash. Every request checks the folder's
+ * rules (App\Services\Files\FileAccess); things you may not see answer 404.
+ */
+class FileController extends Controller
+{
+    public function __construct(private FileAccess $access, private FileStore $store) {}
+
+    public function library(Request $request): View
+    {
+        return $this->browse($request, Folder::libraryRoot());
+    }
+
+    public function mine(Request $request): View
+    {
+        return $this->browse($request, Folder::personalRootFor(CurrentUser::get()));
+    }
+
+    public function show(Request $request, Folder $folder): View
+    {
+        return $this->browse($request, $folder);
+    }
+
+    public function upload(Request $request, Folder $folder): RedirectResponse
+    {
+        $this->authorizeFolder($folder, 'upload');
+        $request->validate(['files' => ['required', 'array', 'max:20'], 'files.*' => ['required', 'file']], [
+            'files.*.uploaded' => 'A file couldn’t be uploaded; it may be larger than the server allows.',
+        ]);
+
+        $added = $versions = 0;
+        foreach ($request->file('files') as $upload) {
+            $result = $this->store->upload(CurrentUser::get(), $folder, $upload);
+            $result['newVersion'] ? $versions++ : $added++;
+        }
+
+        $parts = array_filter([
+            $added ? "{$added} ".str('file')->plural($added).' uploaded' : null,
+            $versions ? "{$versions} new ".str('version')->plural($versions) : null,
+        ]);
+
+        return back()->with('status', ucfirst(implode(', ', $parts)).'.');
+    }
+
+    public function createFolder(Request $request, Folder $folder): RedirectResponse
+    {
+        $this->authorizeFolder($folder, 'upload');
+        $data = $request->validate(['name' => ['required', 'string', 'max:120']]);
+
+        $created = $this->store->createFolder(CurrentUser::get(), $folder, $data['name']);
+
+        return redirect()->route('files.folder', $created)->with('status', "Folder “{$created->name}” created.");
+    }
+
+    public function renameFolder(Request $request, Folder $folder): RedirectResponse
+    {
+        abort_if($folder->isRoot(), 404);
+        $this->authorizeFolder($folder, 'edit');
+        $this->store->rename($folder, $request->validate(['name' => ['required', 'string', 'max:120']])['name']);
+
+        return back()->with('status', 'Folder renamed.');
+    }
+
+    public function destroyFolder(Folder $folder): RedirectResponse
+    {
+        abort_if($folder->isRoot(), 404);
+        $this->authorizeFolder($folder, 'delete');
+        $parent = $folder->parent;
+        $folder->delete();
+
+        return redirect()->to($this->folderUrl($parent))->with('status', "“{$folder->name}” moved to the trash.");
+    }
+
+    public function editAccess(Folder $folder): View
+    {
+        $this->authorizeTopLevelAccess($folder);
+
+        return view('files.access', [
+            'folder' => $folder->load('access'),
+            'tags' => Tag::orderByDesc('is_everyone')->orderBy('name')->get(),
+            'departments' => Department::orderBy('name')->get(),
+        ]);
+    }
+
+    public function updateAccess(Request $request, Folder $folder): RedirectResponse
+    {
+        $this->authorizeTopLevelAccess($folder);
+        $data = $request->validate([
+            'tags' => ['array'],
+            'tags.*' => ['array'],
+            'tags.*.*' => [Rule::in(array_keys(FolderAccess::ABILITIES))],
+            'departments' => ['array'],
+            'departments.*' => ['array'],
+            'departments.*.*' => [Rule::in(array_keys(FolderAccess::ABILITIES))],
+        ]);
+
+        DB::connection(config('fortvale.connections.people'))->transaction(function () use ($folder, $data) {
+            $folder->access()->delete();
+            foreach (['tags' => 'tag_id', 'departments' => 'department_id'] as $group => $column) {
+                $model = $group === 'tags' ? Tag::class : Department::class;
+                foreach ($data[$group] ?? [] as $id => $abilities) {
+                    if ($abilities !== [] && $model::whereKey($id)->exists()) {
+                        $folder->access()->create([$column => (int) $id, 'abilities' => $this->withView($abilities)]);
+                    }
+                }
+            }
+        });
+
+        return redirect()->route('files.folder', $folder)->with('status', "Access to “{$folder->name}” saved.");
+    }
+
+    public function download(StoredFile $file): StreamedResponse
+    {
+        $this->authorizeFile($file, 'view');
+
+        return $this->store->stream($file, $file->currentVersion, inline: false);
+    }
+
+    public function raw(StoredFile $file): StreamedResponse
+    {
+        $this->authorizeFile($file, 'view');
+
+        return $this->store->stream($file, $file->currentVersion, inline: true);
+    }
+
+    public function preview(StoredFile $file): View
+    {
+        $this->authorizeFile($file, 'view');
+        $version = $file->currentVersion;
+
+        return view('files.preview', [
+            'file' => $file,
+            'kind' => match (true) {
+                str_starts_with($version->mime, 'image/') && in_array($version->mime, FileStore::PREVIEWABLE, true) => 'image',
+                $version->mime === 'application/pdf' => 'pdf',
+                in_array($version->mime, FileStore::TEXT, true) || str_starts_with($version->mime, 'text/') && ! in_array($version->mime, ['text/html', 'text/javascript'], true) => 'text',
+                default => 'none',
+            },
+            'text' => fn () => $this->store->textPreview($version),
+        ]);
+    }
+
+    public function history(StoredFile $file): View
+    {
+        $this->authorizeFile($file, 'view');
+
+        return view('files.history', [
+            'file' => $file->load('versions.uploader'),
+            'canEdit' => $this->access->allows(CurrentUser::get(), $file->folder, 'edit'),
+        ]);
+    }
+
+    public function downloadVersion(StoredFile $file, FileVersion $version): StreamedResponse
+    {
+        abort_unless($version->file_id === $file->id, 404);
+        $this->authorizeFile($file, 'view');
+
+        return $this->store->stream($file, $version, inline: false);
+    }
+
+    public function restoreVersion(StoredFile $file, FileVersion $version): RedirectResponse
+    {
+        abort_unless($version->file_id === $file->id, 404);
+        $this->authorizeFile($file, 'edit');
+        $new = $this->store->restoreVersion($file, $version, CurrentUser::get());
+
+        return back()->with('status', "Version {$version->number} restored as version {$new->number}.");
+    }
+
+    public function rename(Request $request, StoredFile $file): RedirectResponse
+    {
+        $this->authorizeFile($file, 'edit');
+        $this->store->rename($file, $request->validate(['name' => ['required', 'string', 'max:120']])['name']);
+
+        return back()->with('status', 'File renamed.');
+    }
+
+    public function move(Request $request, StoredFile $file): RedirectResponse
+    {
+        $this->authorizeFile($file, 'edit');
+        $destination = Folder::findOrFail($request->validate(['folder_id' => ['required', 'integer']])['folder_id']);
+        $this->authorizeFolder($destination, 'upload');
+
+        $this->store->move($file, $destination);
+
+        return back()->with('status', "“{$file->name}” moved to {$destination->name}.");
+    }
+
+    public function destroy(StoredFile $file): RedirectResponse
+    {
+        $this->authorizeFile($file, 'delete');
+        $file->delete();
+
+        return back()->with('status', "“{$file->name}” moved to the trash.");
+    }
+
+    public function search(Request $request): View
+    {
+        $me = CurrentUser::get();
+        $term = trim((string) $request->string('q'));
+        $folderIds = $this->access->visibleLibraryFolderIds($me);
+        if ($me->hasPermission('my_files.view')) {
+            $mine = Folder::personalRootFor($me);
+            array_push($folderIds, ...$this->visibleSubtree($mine));
+        }
+
+        $pattern = '%'.mb_strtolower($term).'%';
+        $matches = fn ($query) => $query->whereRaw('lower(name) like ?', [$pattern]);
+
+        return view('files.search', [
+            'term' => $term,
+            'folders' => $term === '' ? collect() : $matches(Folder::whereIn('id', $folderIds)->whereNotNull('parent_id'))->orderBy('name')->limit(50)->get(),
+            'files' => $term === '' ? collect() : $matches(StoredFile::whereIn('folder_id', $folderIds))->with('folder')->orderBy('name')->limit(100)->get(),
+        ]);
+    }
+
+    public function trash(Request $request): View
+    {
+        $me = CurrentUser::get();
+        $mine = $request->query('area') === 'mine';
+        $root = $mine ? Folder::personalRootFor($me) : Folder::libraryRoot();
+        abort_unless($mine ? $me->hasPermission('my_files.delete') : $me->hasPermission('files.delete'), 403);
+
+        $ids = $this->store->subtreeIds($root, true);
+        $canDeleteIn = fn (?Folder $folder): bool => $folder !== null && $this->access->allows($me, $folder, 'delete');
+
+        // Only the top-most trashed items: contents of a trashed folder come back with it.
+        $folders = Folder::onlyTrashed()->whereIn('parent_id', $ids)->get()
+            ->filter(fn (Folder $folder) => ! $folder->parent?->trashed() && $canDeleteIn($folder->parent));
+        $files = StoredFile::onlyTrashed()->whereIn('folder_id', $ids)->with('folder')->get()
+            ->filter(fn (StoredFile $file) => ! $file->folder?->trashed() && $canDeleteIn($file->folder));
+
+        return view('files.trash', [
+            'mine' => $mine,
+            'folders' => $folders,
+            'files' => $files,
+            'canEmpty' => $mine ? $me->hasPermission('my_files.delete') : $me->hasPermission('files.empty_trash'),
+        ]);
+    }
+
+    public function restoreFromTrash(string $type, int $id): RedirectResponse
+    {
+        $item = $type === 'folder' ? Folder::onlyTrashed()->findOrFail($id) : StoredFile::onlyTrashed()->findOrFail($id);
+        $parent = $item instanceof Folder ? $item->parent : $item->folder;
+        abort_if($parent === null || $parent->trashed(), 404);
+        $this->authorizeFolder($parent, 'delete');
+
+        $siblings = $item instanceof Folder ? Folder::where('parent_id', $parent->id) : StoredFile::where('folder_id', $parent->id);
+        if ($siblings->where('name', $item->name)->exists()) {
+            $info = pathinfo($item->name);
+            $item->name = ($info['filename'] ?? $item->name).' (restored)'.(isset($info['extension']) && $item instanceof StoredFile ? '.'.$info['extension'] : '');
+        }
+        $item->restore();
+
+        return back()->with('status', "“{$item->name}” restored.");
+    }
+
+    public function emptyTrash(Request $request): RedirectResponse
+    {
+        $me = CurrentUser::get();
+        $mine = $request->input('area') === 'mine';
+        abort_unless($mine ? $me->hasPermission('my_files.delete') : $me->hasPermission('files.empty_trash'), 403);
+
+        $removed = $this->store->purge(null, $mine ? Folder::personalRootFor($me) : Folder::libraryRoot());
+
+        return back()->with('status', "Trash emptied ({$removed} ".str('file')->plural($removed).' deleted for good).');
+    }
+
+    private function browse(Request $request, Folder $folder): View
+    {
+        $this->authorizeFolder($folder, 'view');
+        $me = CurrentUser::get();
+
+        $children = $folder->children()->with('access')->get()
+            ->filter(fn (Folder $child) => $folder->isPersonal() || ! $folder->isRoot() || $this->access->rulesAllow($me, $child, 'view'));
+
+        return view('files.browse', [
+            'folder' => $folder,
+            'ancestry' => $folder->ancestry(),
+            'children' => $children->values(),
+            'files' => $folder->files()->with(['currentVersion.uploader'])->withCount('versions')->get(),
+            'can' => collect(['upload', 'edit', 'delete'])->mapWithKeys(fn ($ability) => [$ability => $this->access->allows($me, $folder, $ability)]),
+            'canManageAccess' => ! $folder->isPersonal() && $folder->parent_id === Folder::libraryRoot()->id && $me->hasPermission('files.manage_access'),
+            'moveTargets' => $this->moveTargets($folder),
+            'usage' => $folder->isPersonal() ? $this->store->usage($me) : null,
+        ]);
+    }
+
+    /**
+     * Folders in the same area a file here could be moved to.
+     *
+     * @return Collection<int, Folder>
+     */
+    private function moveTargets(Folder $folder): Collection
+    {
+        $me = CurrentUser::get();
+        $ids = $folder->isPersonal() ? $this->visibleSubtree(Folder::personalRootFor($me)) : $this->access->visibleLibraryFolderIds($me);
+
+        return Folder::whereIn('id', $ids)->whereKeyNot($folder->id)->get()
+            ->filter(fn (Folder $target) => $this->access->allows($me, $target, 'upload'))
+            ->sortBy(fn (Folder $target) => $target->path())
+            ->values();
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function visibleSubtree(Folder $root): array
+    {
+        $ids = [$root->id];
+        $frontier = [$root->id];
+        while ($frontier !== []) {
+            $frontier = Folder::whereIn('parent_id', $frontier)->pluck('id')->all();
+            array_push($ids, ...$frontier);
+        }
+
+        return $ids;
+    }
+
+    /**
+     * Not allowed to view (or in the trash): 404, so folder names don't leak.
+     * Allowed to view but not this: 403.
+     */
+    private function authorizeFolder(Folder $folder, string $ability): void
+    {
+        $me = CurrentUser::get();
+        abort_if(collect($folder->ancestry())->contains(fn (Folder $f) => $f->trashed()), 404);
+        abort_unless($this->access->allows($me, $folder, 'view'), 404);
+        abort_unless($this->access->allows($me, $folder, $ability), 403);
+    }
+
+    private function authorizeFile(StoredFile $file, string $ability): void
+    {
+        abort_if($file->folder === null || $file->currentVersion === null, 404);
+        $this->authorizeFolder($file->folder, $ability);
+    }
+
+    private function authorizeTopLevelAccess(Folder $folder): void
+    {
+        abort_unless(! $folder->isPersonal() && $folder->parent_id === Folder::libraryRoot()->id, 404);
+        abort_unless(CurrentUser::get()->hasPermission('files.manage_access'), 403);
+    }
+
+    /**
+     * @param  list<string>  $abilities
+     * @return list<string>
+     */
+    private function withView(array $abilities): array
+    {
+        return array_values(array_intersect(array_keys(FolderAccess::ABILITIES), [...$abilities, 'view']));
+    }
+
+    private function folderUrl(?Folder $folder): string
+    {
+        return match (true) {
+            $folder === null => route('files.library'),
+            $folder->isRoot() && $folder->isPersonal() => route('files.mine'),
+            $folder->isRoot() => route('files.library'),
+            default => route('files.folder', $folder),
+        };
+    }
+}

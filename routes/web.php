@@ -7,6 +7,8 @@ use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\EmailController;
 use App\Http\Controllers\EmailSettingsController;
 use App\Http\Controllers\EmailTemplateController;
+use App\Http\Controllers\FileController;
+use App\Http\Controllers\FileSettingsController;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\PersonController;
 use App\Http\Controllers\SettingsController;
@@ -65,6 +67,37 @@ Route::middleware('auth')->group(function () {
         Route::get('/settings', [EmailSettingsController::class, 'edit'])->middleware('can:email_settings.view')->name('email-settings.edit');
         Route::put('/settings', [EmailSettingsController::class, 'update'])->middleware('can:email_settings.edit')->name('email-settings.update');
     });
+
+    // Files: the library, each person's own files, versions, trash. Folder
+    // rules are checked in FileController (they differ per folder).
+    Route::get('/my-files', [FileController::class, 'mine'])->middleware('can:my_files.view')->name('files.mine');
+    Route::prefix('files')->controller(FileController::class)->group(function () {
+        Route::get('/', 'library')->middleware('can:files.view')->name('files.library');
+        Route::get('/search', 'search')->name('files.search');
+        Route::get('/trash', 'trash')->name('files.trash');
+        Route::post('/trash/empty', 'emptyTrash')->name('files.trash.empty');
+        Route::post('/trash/{type}/{id}/restore', 'restoreFromTrash')->whereIn('type', ['file', 'folder'])->whereNumber('id')->name('files.trash.restore');
+
+        Route::get('/folders/{folder}', 'show')->name('files.folder');
+        Route::post('/folders/{folder}/upload', 'upload')->name('files.upload');
+        Route::post('/folders/{folder}/folders', 'createFolder')->name('files.folders.store');
+        Route::patch('/folders/{folder}', 'renameFolder')->name('files.folders.rename');
+        Route::delete('/folders/{folder}', 'destroyFolder')->name('files.folders.destroy');
+        Route::get('/folders/{folder}/access', 'editAccess')->name('files.access.edit');
+        Route::put('/folders/{folder}/access', 'updateAccess')->name('files.access.update');
+
+        Route::get('/{file}/download', 'download')->whereNumber('file')->name('files.download');
+        Route::get('/{file}/view', 'raw')->whereNumber('file')->name('files.raw');
+        Route::get('/{file}/preview', 'preview')->whereNumber('file')->name('files.preview');
+        Route::get('/{file}/history', 'history')->whereNumber('file')->name('files.history');
+        Route::get('/{file}/versions/{version}/download', 'downloadVersion')->whereNumber(['file', 'version'])->name('files.versions.download');
+        Route::post('/{file}/versions/{version}/restore', 'restoreVersion')->whereNumber(['file', 'version'])->name('files.versions.restore');
+        Route::patch('/{file}', 'rename')->whereNumber('file')->name('files.rename');
+        Route::patch('/{file}/move', 'move')->whereNumber('file')->name('files.move');
+        Route::delete('/{file}', 'destroy')->whereNumber('file')->name('files.destroy');
+    });
+    Route::get('/files/settings', [FileSettingsController::class, 'edit'])->middleware('can:file_settings.view')->name('file-settings.edit');
+    Route::put('/files/settings', [FileSettingsController::class, 'update'])->middleware('can:file_settings.edit')->name('file-settings.update');
 
     // Tags page: tags, departments and people, for those allowed to manage them.
     Route::prefix('tags')->group(function () {

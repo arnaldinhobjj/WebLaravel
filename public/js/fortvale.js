@@ -304,3 +304,20 @@ document.querySelectorAll('[data-permission-row]').forEach((row) => {
         });
     });
 });
+
+// File upload: choosing or dropping files uploads them straight away.
+document.querySelectorAll('[data-drop-zone]').forEach((zone) => {
+    const input = zone.querySelector('[data-drop-input]');
+    input.addEventListener('change', () => { if (input.files.length) zone.submit(); });
+    ['dragenter', 'dragover'].forEach((type) => zone.addEventListener(type, (event) => {
+        event.preventDefault();
+        zone.classList.add('is-over');
+    }));
+    ['dragleave', 'drop'].forEach((type) => zone.addEventListener(type, () => zone.classList.remove('is-over')));
+    zone.addEventListener('drop', (event) => {
+        event.preventDefault();
+        if (!event.dataTransfer.files.length) return;
+        input.files = event.dataTransfer.files;
+        zone.submit();
+    });
+});

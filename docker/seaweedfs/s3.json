@@ -1,0 +1,9 @@
+{
+  "identities": [
+    {
+      "name": "fortvale",
+      "credentials": [{ "accessKey": "fortvale", "secretKey": "fortvale-secret" }],
+      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+    }
+  ]
+}

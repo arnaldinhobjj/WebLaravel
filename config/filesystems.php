@@ -47,6 +47,21 @@ return [
             'report' => false,
         ],
 
+        // Fort Vale's file library and attachments: any S3-compatible store.
+        // Locally SeaweedFS from compose.yaml; on AWS leave FILES_ENDPOINT empty.
+        'files' => [
+            'driver' => 's3',
+            'key' => env('FILES_ACCESS_KEY_ID'),
+            'secret' => env('FILES_SECRET_ACCESS_KEY'),
+            'region' => env('FILES_REGION', 'us-east-1'),
+            'bucket' => env('FILES_BUCKET', 'fortvale'),
+            'endpoint' => env('FILES_ENDPOINT'),
+            'use_path_style_endpoint' => (bool) env('FILES_ENDPOINT'),
+            'visibility' => 'private',
+            'throw' => true,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),
