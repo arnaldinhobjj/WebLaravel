@@ -164,4 +164,17 @@ class WorkspaceTest extends TestCase
         $this->get(route('workspace.trash'))->assertSee('The trash is empty.');
         $this->get(route('workspace.trash', ['area' => 'mine']))->assertOk()->assertSee('My trash');
     }
+
+    public function test_it_lives_at_workspace_files_and_old_links_redirect(): void
+    {
+        $folder = Folder::factory()->create();
+
+        $this->assertSame(url('/workspace-files'), route('workspace.index'));
+        $this->assertSame(url('/workspace-files/trash'), route('workspace.trash'));
+        $this->assertSame(url("/workspace-files/{$folder->id}"), route('workspace.folder', $folder));
+
+        $this->get('/workspace')->assertRedirect('/workspace-files')->assertStatus(301);
+        $this->get("/workspace/{$folder->id}")->assertRedirect("/workspace-files/{$folder->id}");
+        $this->get('/workspace/trash?area=mine')->assertRedirect('/workspace-files/trash?area=mine');
+    }
 }

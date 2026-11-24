@@ -27,7 +27,7 @@ class User extends Authenticatable
     /**
      * Usernames that would clash with top-level routes such as /ticket.
      */
-    public const RESERVED_USERNAMES = ['ticket', 'favorites', 'actions', 'mentions', 'profile', 'settings', 'up', 'storage', 'css', 'js', 'login', 'logout', 'tags', 'email', 'files', 'my-files', 'workspace'];
+    public const RESERVED_USERNAMES = ['ticket', 'favorites', 'actions', 'mentions', 'profile', 'settings', 'up', 'storage', 'css', 'js', 'login', 'logout', 'tags', 'email', 'files', 'my-files', 'workspace', 'workspace-files'];
 
     /**
      * Always the people connection (MySQL by default), even when loaded through

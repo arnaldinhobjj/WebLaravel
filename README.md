@@ -239,7 +239,7 @@ Seed data: departments Operations (tag *Action editors*), Facilities and IT (tag
 
 ## Files
 
-**Files** (`/workspace`, in the sidebar) shows files like the macOS Finder:
+**Files** (`/workspace-files`, in the sidebar) shows files like the macOS Finder:
 
 - **Icons:** folders show as folder icons with their name underneath. Click one to open it; folders inside folders work at any depth. Files show as document icons labelled with their type (PDF, XLSX…), and images as small thumbnails. Click a file to preview it.
 - **Places:** a sidebar (Files, Library, My files, and the trash, which keeps the same look and has *Restore* under each item), a back button and the folder path.
