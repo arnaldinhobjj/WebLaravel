@@ -8,7 +8,6 @@
             <h2 class="section-title">AI</h2>
             <p class="page-sub">Chat with your own local AI. Your browser talks to it directly; chats are saved here and only you can see them.</p>
         </div>
-        <a href="{{ route('ai.skills') }}" class="btn">Skills</a>
     </div>
 
     <div class="ai-layout">
@@ -71,27 +70,29 @@
             <ol class="ai-messages" data-ai-messages aria-live="polite"></ol>
             <p class="ai-empty muted" data-ai-empty @if ($history->isNotEmpty()) hidden @endif>
                 @if ($connection)
-                    Ask anything. Type <kbd>/</kbd> or press <strong>Skills</strong> to use a Fort Vale skill or recipe.
+                    Ask anything. Type <kbd>/</kbd> to use a Fort Vale skill or recipe.
                 @else
                     Add an AI below (local or cloud), then start chatting.
                 @endif
             </p>
             <p class="field-error" data-ai-error hidden></p>
 
-            <div class="ai-skill-menu card" data-skill-menu hidden>
-                <label class="sr-only" for="skill-filter">Find a skill</label>
-                <input id="skill-filter" type="search" placeholder="Find a skill or recipe…" data-skill-filter autocomplete="off">
-                <ul data-skill-list role="listbox" aria-label="Skills"></ul>
-            </div>
             <form class="ai-skill-form card" data-skill-form hidden></form>
 
+            <div class="ai-compose-wrap">
+            <div class="ai-skill-menu card" data-skill-menu hidden>
+                <p class="ai-skill-menu-head muted small" data-skill-menu-head>Skills and recipes</p>
+                <ul id="skill-list" data-skill-list role="listbox" aria-label="Skills"></ul>
+            </div>
             <form class="ai-compose" data-ai-form>
                 <label class="sr-only" for="ai-input">Message</label>
-                <textarea id="ai-input" rows="2" placeholder="Message your AI… (/ for skills, Enter to send, Shift+Enter for a new line)" data-ai-input></textarea>
-                <button type="button" class="btn" data-skill-open aria-haspopup="listbox">Skills</button>
+                <textarea id="ai-input" rows="2" placeholder="Message your AI… Type / to use a skill. Enter sends, Shift+Enter adds a line." data-ai-input
+                          aria-describedby="ai-compose-hint" aria-controls="skill-list" aria-autocomplete="list"></textarea>
                 <button type="submit" class="btn btn-primary" data-ai-send>Send</button>
                 <button type="button" class="btn" data-ai-stop hidden>Stop</button>
             </form>
+            <p id="ai-compose-hint" class="ai-compose-hint muted small">Type <kbd>/</kbd> for skills: keep typing to narrow them down, ↑ ↓ to choose, Enter to pick. <a href="{{ route('ai.skills') }}">All skills</a></p>
+            </div>
         </section>
     </div>
 
