@@ -70,7 +70,7 @@ class WorkspaceTest extends TestCase
             ->assertSeeInOrder(['finder-folder', '2026', 'finder-doc-pdf', 'PDF', 'plan.pdf'], false)
             ->assertSee('1 folder, 1 file');
         $this->get(route('workspace.folder', $bridge))
-            ->assertSeeInOrder(['Files', 'Library', 'Projects', '2026', 'Bridge'])
+            ->assertSeeInOrder(['Workspace Files', 'Library', 'Projects', '2026', 'Bridge'])
             ->assertSee('href="'.route('workspace.folder', $year).'" class="tool-btn"', false)
             ->assertSee('survey.xlsx')
             ->assertSee('finder-doc-sheet', false)
@@ -132,6 +132,8 @@ class WorkspaceTest extends TestCase
         $mine = Folder::personalRootFor($this->alex);
 
         $this->get(route('workspace.index'))
+            ->assertSee('<summary class="btn">New</summary>', false)
+            ->assertSee('Workspace Files')
             ->assertSee('New folder in Library')
             ->assertSee('New folder in My files')
             ->assertSee('action="'.route('files.folders.store', $library).'"', false)
@@ -161,7 +163,8 @@ class WorkspaceTest extends TestCase
             ->assertSee('Restore draft.pdf');
 
         $this->from(route('workspace.trash'))->post(route('files.trash.restore', ['file', $draft->id]))->assertRedirect(route('workspace.trash'));
-        $this->get(route('workspace.trash'))->assertSee('The trash is empty.');
+        // No trash can icon inside the trash itself (the sidebar links keep theirs).
+        $this->get(route('workspace.trash'))->assertSee('<p class="finder-empty muted">The trash is empty.</p>', false);
         $this->get(route('workspace.trash', ['area' => 'mine']))->assertOk()->assertSee('My trash');
     }
 

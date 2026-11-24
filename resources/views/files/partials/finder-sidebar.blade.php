@@ -6,7 +6,7 @@
 @endphp
 <nav class="finder-sidebar" aria-label="Places">
     <p class="finder-sidebar-title">Places</p>
-    <a href="{{ route('workspace.index') }}" @class(['is-active' => $current === 'top'])><x-icon name="grid" :size="16" /> Files</a>
+    <a href="{{ route('workspace.index') }}" @class(['is-active' => $current === 'top'])><x-icon name="grid" :size="16" /> Workspace Files</a>
     @if ($library)
         <a href="{{ route('workspace.folder', $library) }}" @class(['is-active' => $current === 'library'])><x-icon name="inbox" :size="16" /> Library</a>
     @endif
