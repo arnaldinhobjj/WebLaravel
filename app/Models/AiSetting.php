@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
  * One person's connection to their own local AI. The browser uses it to talk
  * to the AI directly; the API key is stored encrypted.
  */
-#[Fillable(['user_id', 'base_url', 'model', 'api_key', 'system_prompt'])]
+#[Fillable(['user_id', 'base_url', 'model', 'api_key', 'system_prompt', 'disabled_skills'])]
 #[Hidden(['api_key'])]
 class AiSetting extends Model
 {
@@ -30,7 +30,7 @@ class AiSetting extends Model
      */
     protected function casts(): array
     {
-        return ['api_key' => 'encrypted'];
+        return ['api_key' => 'encrypted', 'disabled_skills' => 'array'];
     }
 
     public static function for(User $person): self
