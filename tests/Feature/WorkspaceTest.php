@@ -70,7 +70,7 @@ class WorkspaceTest extends TestCase
             ->assertSeeInOrder(['finder-folder', '2026', 'finder-doc-pdf', 'PDF', 'plan.pdf'], false)
             ->assertSee('1 folder, 1 file');
         $this->get(route('workspace.folder', $bridge))
-            ->assertSeeInOrder(['Workspace', 'Library', 'Projects', '2026', 'Bridge'])
+            ->assertSeeInOrder(['Files', 'Library', 'Projects', '2026', 'Bridge'])
             ->assertSee('href="'.route('workspace.folder', $year).'" class="tool-btn"', false)
             ->assertSee('survey.xlsx')
             ->assertSee('finder-doc-sheet', false)
@@ -114,7 +114,7 @@ class WorkspaceTest extends TestCase
         $folder = Folder::factory()->create(['name' => 'Inbox']);
         $sub = Folder::factory()->create(['name' => 'Old', 'parent_id' => $folder->id]);
 
-        $this->get(route('workspace.folder', $folder))->assertSee('data-drop-zone', false)->assertSee('New folder');
+        $this->get(route('workspace.folder', $folder))->assertSee('data-drop-zone', false)->assertSee('New folder')->assertSee('Upload files…');
         $this->from(route('workspace.folder', $folder))
             ->post(route('files.upload', $folder), ['files' => [UploadedFile::fake()->createWithContent('note.txt', 'hi')]])
             ->assertRedirect(route('workspace.folder', $folder));
@@ -124,5 +124,44 @@ class WorkspaceTest extends TestCase
         Tag::everyone()->update(['permissions' => ['files.view']]);
         $this->actingAs(User::factory()->create())->get(route('workspace.folder', $folder))
             ->assertSee('note.txt')->assertDontSee('data-drop-zone', false)->assertDontSee('New folder');
+    }
+
+    public function test_the_new_menu_works_at_the_top_and_in_folders(): void
+    {
+        $library = Folder::libraryRoot();
+        $mine = Folder::personalRootFor($this->alex);
+
+        $this->get(route('workspace.index'))
+            ->assertSee('New folder in Library')
+            ->assertSee('New folder in My files')
+            ->assertSee('action="'.route('files.folders.store', $library).'"', false)
+            ->assertSee('action="'.route('files.folders.store', $mine).'"', false);
+
+        $this->post(route('files.folders.store', $mine), ['name' => 'Receipts', 'from' => 'workspace'])
+            ->assertRedirect(route('workspace.folder', Folder::where('name', 'Receipts')->sole()));
+        $this->get(route('workspace.folder', $mine))->assertSee('<span class="finder-name">Receipts</span>', false);
+
+        // People who can't add anything don't get the menu.
+        Tag::everyone()->update(['permissions' => ['files.view']]);
+        $this->actingAs(User::factory()->create())->get(route('workspace.folder', $library))->assertDontSee('finder-new', false);
+    }
+
+    public function test_the_trash_keeps_the_files_look(): void
+    {
+        $folder = Folder::factory()->create(['name' => 'Old stuff']);
+        $this->upload($folder, 'draft.pdf', '%PDF-1.4');
+        $draft = StoredFile::where('name', 'draft.pdf')->sole();
+        $this->delete(route('files.destroy', $draft));
+
+        $this->get(route('workspace.index'))->assertSee('href="'.route('workspace.trash').'"', false);
+        $this->get(route('workspace.trash'))->assertOk()
+            ->assertSee('class="finder-window card"', false)
+            ->assertSee('finder-doc-pdf', false)
+            ->assertSee('draft.pdf')
+            ->assertSee('Restore draft.pdf');
+
+        $this->from(route('workspace.trash'))->post(route('files.trash.restore', ['file', $draft->id]))->assertRedirect(route('workspace.trash'));
+        $this->get(route('workspace.trash'))->assertSee('The trash is empty.');
+        $this->get(route('workspace.trash', ['area' => 'mine']))->assertOk()->assertSee('My trash');
     }
 }

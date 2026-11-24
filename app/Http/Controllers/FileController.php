@@ -52,13 +52,16 @@ class FileController extends Controller
     {
         $me = CurrentUser::get();
 
+        $areas = array_values(array_filter([
+            $me->hasPermission('files.view') ? Folder::libraryRoot() : null,
+            $me->hasPermission('my_files.view') ? Folder::personalRootFor($me) : null,
+        ]));
+
         return view('files.workspace', [
             'folder' => null,
             'ancestry' => [],
-            'areas' => array_values(array_filter([
-                $me->hasPermission('files.view') ? Folder::libraryRoot() : null,
-                $me->hasPermission('my_files.view') ? Folder::personalRootFor($me) : null,
-            ])),
+            'areas' => $areas,
+            'newIn' => collect($areas)->filter(fn (Folder $area) => $this->access->allows($me, $area, 'upload'))->values(),
             'children' => collect(),
             'files' => collect(),
             'can' => collect(['upload' => false, 'edit' => false, 'delete' => false]),
@@ -269,7 +272,15 @@ class FileController extends Controller
         ]);
     }
 
-    public function trash(Request $request): View
+    /**
+     * The trash in the Files (Finder-style) view.
+     */
+    public function workspaceTrash(Request $request): View
+    {
+        return $this->trash($request, 'files.workspace-trash');
+    }
+
+    public function trash(Request $request, string $view = 'files.trash'): View
     {
         $me = CurrentUser::get();
         $mine = $request->query('area') === 'mine';
@@ -285,7 +296,7 @@ class FileController extends Controller
         $files = StoredFile::onlyTrashed()->whereIn('folder_id', $ids)->with('folder')->get()
             ->filter(fn (StoredFile $file) => ! $file->folder?->trashed() && $canDeleteIn($file->folder));
 
-        return view('files.trash', [
+        return view($view, [
             'mine' => $mine,
             'folders' => $folders,
             'files' => $files,
@@ -337,6 +348,7 @@ class FileController extends Controller
             'can' => collect(['upload', 'edit', 'delete'])->mapWithKeys(fn ($ability) => [$ability => $this->access->allows($me, $folder, $ability)]),
             'canManageAccess' => ! $folder->isPersonal() && $folder->parent_id === Folder::libraryRoot()->id && $me->hasPermission('files.manage_access'),
             'moveTargets' => $view === 'files.browse' ? $this->moveTargets($folder) : collect(),
+            'newIn' => $this->access->allows($me, $folder, 'upload') ? collect([$folder]) : collect(),
             'usage' => $folder->isPersonal() ? $this->store->usage($me) : null,
         ]);
     }

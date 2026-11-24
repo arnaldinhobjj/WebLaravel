@@ -1247,8 +1247,8 @@ fieldset.card { margin: 0; min-width: 0; }
 .file-pick [data-file-status] { margin: 8px 0 0; }
 
 /* ---------- Workspace (Finder-style icon view) ---------- */
-.finder-window { display: grid; grid-template-columns: 190px minmax(0, 1fr); padding: 0; overflow: hidden; min-height: calc(100vh - 170px); }
-.finder-sidebar { display: flex; flex-direction: column; gap: 2px; padding: 14px 10px; background: var(--sidebar); border-right: 1px solid var(--border); }
+.finder-window { display: grid; grid-template-columns: 190px minmax(0, 1fr); padding: 0; min-height: calc(100vh - 170px); }
+.finder-sidebar { display: flex; flex-direction: column; gap: 2px; padding: 14px 10px; background: var(--sidebar); border-right: 1px solid var(--border); border-radius: var(--radius) 0 0 var(--radius); }
 .finder-sidebar-title { margin: 10px 8px 4px; font-size: 11.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted); }
 .finder-sidebar-title:first-child { margin-top: 0; }
 .finder-sidebar a { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 7px; color: var(--text); text-decoration: none; font-size: 14px; }
@@ -1296,3 +1296,15 @@ fieldset.card { margin: 0; min-width: 0; }
     :root:not([data-theme="light"]) .finder-doc .fold { fill: #333b49; stroke: #4a5465; }
 }
 @media (max-width: 760px) { .finder-window { grid-template-columns: 1fr; } .finder-sidebar { flex-direction: row; flex-wrap: wrap; border-right: 0; border-bottom: 1px solid var(--border); } .finder-sidebar-title { display: none; } }
+.finder-new .menu-list { min-width: 280px; display: flex; flex-direction: column; gap: 4px; z-index: 30; }
+.finder-new-folder { display: flex; flex-direction: column; gap: 4px; padding: 6px 8px; font-size: 13px; color: var(--text-muted); }
+.finder-new-folder .inline-form { padding: 0; }
+.finder-new label.menu-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+.finder-new label.menu-item:hover { background: var(--surface-2); }
+.finder-new summary { list-style: none; }
+.finder-new summary::-webkit-details-marker { display: none; }
+.finder-trashed { cursor: default; }
+.finder-trashed .finder-folder, .finder-trashed .finder-doc { opacity: .75; }
+.finder-meta { font-size: 11.5px; }
+.finder-empty .icon { opacity: .5; }
+@media (max-width: 760px) { .finder-sidebar { border-radius: var(--radius) var(--radius) 0 0; } }

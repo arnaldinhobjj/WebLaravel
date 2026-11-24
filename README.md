@@ -239,11 +239,11 @@ Seed data: departments Operations (tag *Action editors*), Facilities and IT (tag
 
 ## Files
 
-**Workspace** (`/workspace`, in the sidebar) shows files like the macOS Finder:
+**Files** (`/workspace`, in the sidebar) shows files like the macOS Finder:
 
 - **Icons:** folders show as folder icons with their name underneath. Click one to open it; folders inside folders work at any depth. Files show as document icons labelled with their type (PDF, XLSX…), and images as small thumbnails. Click a file to preview it.
-- **Places:** a sidebar (Workspace, Library, My files, trash), a back button and the folder path.
-- **In a folder:** *New folder*, and drop files anywhere to upload them.
+- **Places:** a sidebar (Files, Library, My files, and the trash, which keeps the same look and has *Restore* under each item), a back button and the folder path.
+- **New:** *New folder* and *Upload files…* inside a folder; at the top, *New folder in Library* or *in My files*. You can also drop files anywhere in a folder to upload them.
 - **List view** opens the same folder with renaming, moving, versions and access settings. *Icon view* on the Files pages comes back.
 - **Access:** the same rules as everywhere: you only see the areas and folders you may open.
 
@@ -459,7 +459,7 @@ php artisan test
 | `app/Http/Controllers/DashboardController.php` | Home screen, reset |
 | `app/Http/Controllers/LoginController.php` | Sign in and out |
 | `app/Http/Controllers/TagController.php`, `DepartmentController.php`, `PersonController.php`, `resources/views/tags` | Tags page: tags, departments, people |
-| `resources/views/files/workspace.blade.php`, `resources/views/files/partials/folder-icon.blade.php` | The Finder-style Workspace page |
+| `resources/views/files/workspace.blade.php`, `workspace-trash.blade.php`, `resources/views/files/partials/` (folder and file icons, Finder sidebar) | The Finder-style Files pages |
 | `app/Services/Files/`, `app/Support/Attachables.php`, `resources/views/components/attachments.blade.php`, `app/Http/Controllers/FileController.php`, `AttachmentController.php`, `FileSettingsController.php`, `resources/views/files`, `app/Models/Folder.php`, `StoredFile.php`, `FileVersion.php`, `FolderAccess.php` | Files: storage, access rules, limits, trash and the file pages |
 | `app/Services/Email/Mailer.php`, `app/Listeners/SendTicketEmails.php`, `app/Http/Controllers/Email*Controller.php`, `resources/views/emails` | Sending email, ticket emails, the Email, templates and settings pages, the email layout |
 | `app/Support/PagePermissions.php`, `app/Models/Tag.php`, `app/Models/Department.php`, `app/Support/AccessGuard.php` | Pages and their permissions, tags, departments, and the check that someone can always manage access |
