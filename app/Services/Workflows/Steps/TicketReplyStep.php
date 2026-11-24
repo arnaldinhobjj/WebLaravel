@@ -27,7 +27,9 @@ class TicketReplyStep extends BaseStep
         }
 
         $ticket = $context->targetTicket($with['ticket'] ?? null);
-        $ticket->addComment($body, $context->person($with['as'] ?? null));
+        $person = $context->person($with['as'] ?? null);
+        $context->ensureAllowed($person, ['tickets.view', 'tickets.reply'], $ticket);
+        $ticket->addComment($body, $person);
 
         return ['ticket' => $ticket->id];
     }

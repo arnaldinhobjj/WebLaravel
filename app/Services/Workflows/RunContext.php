@@ -59,6 +59,38 @@ class RunContext
     }
 
     /**
+     * Personal actions may only do what their owner may: see the ticket and
+     * have the page permissions. Shared actions are written by people trusted
+     * to edit them, so they aren't limited here.
+     *
+     * @param  list<string>  $permissions
+     */
+    public function ensureAllowed(User $person, array $permissions, ?Ticket $ticket = null): void
+    {
+        if ($this->workflow->isShared()) {
+            return;
+        }
+
+        if ($ticket !== null && ! $ticket->isVisibleTo($person)) {
+            throw new StepFailed("Ticket #{$ticket->id} isn't one {$person->name} can see.");
+        }
+        foreach ($permissions as $permission) {
+            if (! $person->hasPermission($permission)) {
+                throw new StepFailed("{$person->name} isn't allowed to do that ({$permission}).");
+            }
+        }
+    }
+
+    /**
+     * Whether a file step may use this person's My files: always for a
+     * personal action's owner; for shared actions only the person running it.
+     */
+    public function mayUseMyFilesOf(User $person): bool
+    {
+        return ! $this->workflow->isShared() || ($this->actor !== null && $this->actor->is($person));
+    }
+
+    /**
      * Whose file access a file step uses. Personal actions always use their
      * owner's (so they can't reach someone else's files); shared actions use
      * `as:` or whoever started the run, or nobody for a scheduled run.
@@ -78,6 +110,16 @@ class RunContext
      */
     public function person(?string $username): User
     {
+        // Personal actions always act as their owner, whoever triggered them.
+        if (! $this->workflow->isShared()) {
+            $owner = User::find($this->workflow->ownerId) ?? throw new StepFailed('The owner of this action no longer exists.');
+            if ($username !== null && $username !== '' && $username !== $owner->username) {
+                throw new StepFailed('Personal actions always act as their owner; remove `as`.');
+            }
+
+            return $owner;
+        }
+
         if ($username !== null && $username !== '') {
             return User::where('username', $username)->first()
                 ?? throw new StepFailed("No person with username \"{$username}\".");

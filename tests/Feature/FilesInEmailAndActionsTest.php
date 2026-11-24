@@ -40,7 +40,7 @@ class FilesInEmailAndActionsTest extends TestCase
         File::ensureDirectoryExists($this->actionsFolder);
         config(['fortvale.actions.path' => $this->actionsFolder]);
 
-        $this->alex = User::factory()->withPermissions('emails.view', 'emails.send', 'email_templates.view', 'email_templates.edit')
+        $this->alex = User::factory()->withPermissions('tickets.assign', 'emails.view', 'emails.send', 'email_templates.view', 'email_templates.edit')
             ->create(['name' => 'Alex Morgan', 'username' => 'alex.morgan', 'email' => 'alex@fortvale.test']);
         $this->actingAs($this->alex);
     }

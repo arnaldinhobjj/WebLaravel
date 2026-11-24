@@ -26,11 +26,14 @@ class WebPage
     public function read(string $url): array
     {
         for ($hop = 0; $hop <= self::MAX_REDIRECTS; $hop++) {
-            $this->assertPublic($url);
+            $address = $this->publicAddress($url);
 
             try {
                 $response = Http::withHeaders(['User-Agent' => 'Mozilla/5.0 (compatible; FortVale/1.0)', 'Accept' => 'text/html,text/plain,application/json;q=0.9,*/*;q=0.1'])
-                    ->timeout(10)->withoutRedirecting()->get($url);
+                    ->timeout(10)->withoutRedirecting()
+                    // Connect to the address that was checked, so DNS can't change in between.
+                    ->withOptions(HostResolver::pinnedTo($url, $address))
+                    ->get($url);
             } catch (ConnectionException $exception) {
                 throw new RuntimeException("Couldn't reach {$url}: {$exception->getMessage()}");
             }
@@ -55,16 +58,16 @@ class WebPage
         throw new RuntimeException('Too many redirects.');
     }
 
-    private function assertPublic(string $url): void
+    private function publicAddress(string $url): string
     {
         $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
         $host = (string) parse_url($url, PHP_URL_HOST);
         if (! in_array($scheme, ['http', 'https'], true) || $host === '') {
             throw new RuntimeException("“{$url}” isn't an http(s) web address.");
         }
-        if (! $this->resolver->isPublic($host)) {
-            throw new RuntimeException("{$host} isn't a public internet address, so it can't be read.");
-        }
+
+        return $this->resolver->publicAddress($host)
+            ?? throw new RuntimeException("{$host} isn't a public internet address, so it can't be read.");
     }
 
     private function absolute(string $location, string $base): string

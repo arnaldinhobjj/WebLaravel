@@ -294,6 +294,10 @@ class WorkflowParser
             $handler = $this->steps->get($uses);
             array_push($errors, ...$handler->validate($with, "{$path}.with"));
 
+            if ($source === Workflow::PERSONAL && array_key_exists('as', $with)) {
+                $errors[] = "{$path}.with.as: personal actions always act as their owner; remove `as`.";
+            }
+
             if ($handler->redirects() && ($run === null || $index !== $last)) {
                 $errors[] = "{$path}.uses: {$uses} can only be the last step of an action with `on: run`.";
             }

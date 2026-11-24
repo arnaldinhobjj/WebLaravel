@@ -27,7 +27,7 @@ class WorkflowStepsTest extends TestCase
     {
         parent::setUp();
 
-        $this->alex = User::factory()->create(['name' => 'Alex Morgan', 'username' => 'alex.morgan']);
+        $this->alex = User::factory()->withPermissions('tickets.edit', 'tickets.assign')->create(['name' => 'Alex Morgan', 'username' => 'alex.morgan']);
         $this->fakeDns(['hooks.example.com' => '93.184.216.34', 'intranet.example.com' => '10.0.0.5']);
     }
 
@@ -52,7 +52,7 @@ class WorkflowStepsTest extends TestCase
      */
     private function runAction(string $yaml, array $inputs = [], ?Ticket $ticket = null, string $source = Workflow::PERSONAL): RunOutcome
     {
-        $workflow = app(WorkflowParser::class)->parse($yaml, $source, $source.':test');
+        $workflow = app(WorkflowParser::class)->parse($yaml, $source, $source.':test', $source === Workflow::PERSONAL ? $this->alex->id : null);
 
         return app(WorkflowRunner::class)->run($workflow, $ticket ? 'ticket' : 'run', $this->alex, $inputs, $ticket, $ticket ? 'created' : null);
     }

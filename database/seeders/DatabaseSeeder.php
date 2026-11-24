@@ -161,7 +161,7 @@ class DatabaseSeeder extends Seeder
             'description' => 'Every permission.',
             'permissions' => array_keys(PagePermissions::all()),
         ]);
-        $helpdesk = Tag::create(['name' => 'Helpdesk', 'description' => 'Picks up and works on every ticket.', 'permissions' => ['tickets.view', 'tickets.view_all', 'tickets.assign']]);
+        $helpdesk = Tag::create(['name' => 'Helpdesk', 'description' => 'Picks up, changes and assigns every ticket.', 'permissions' => ['tickets.view', 'tickets.view_all', 'tickets.edit', 'tickets.assign']]);
         $editors = Tag::create(['name' => 'Action editors', 'description' => 'Maintains the shared actions.', 'permissions' => ['shared_actions.view', 'shared_actions.edit']]);
 
         $departments = [

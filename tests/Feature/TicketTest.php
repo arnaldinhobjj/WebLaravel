@@ -21,7 +21,7 @@ class TicketTest extends TestCase
     {
         parent::setUp();
 
-        $this->me = User::factory()->withPermissions('tickets.view_all')->create(['name' => 'Alex Morgan', 'job_title' => 'Operations lead']);
+        $this->me = User::factory()->withPermissions('tickets.view_all', 'tickets.edit', 'tickets.assign')->create(['name' => 'Alex Morgan', 'job_title' => 'Operations lead']);
         $this->colleague = User::factory()->create(['name' => 'Sam Okafor', 'job_title' => 'IT support']);
         $this->actingAs($this->me);
     }

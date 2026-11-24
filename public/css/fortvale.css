@@ -1397,3 +1397,7 @@ fieldset.card { margin: 0; min-width: 0; }
 .ai-skill-menu-head { margin: 2px 4px 4px; }
 .ai-skill-choice[aria-selected="true"] { background: var(--accent-soft); }
 .ai-skill-choice mark { background: none; color: var(--accent); font-weight: 700; }
+
+/* Your own messages sit in the middle of the conversation; the AI's stay on the left. */
+.ai-message-user { justify-content: center; }
+.ai-message-user .ai-bubble { border-radius: 14px; }

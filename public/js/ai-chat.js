@@ -363,7 +363,7 @@
         event.preventDefault();
         const text = input.value.trim();
         if (!text || controller) return;
-        if (text.startsWith('/')) { pick(); return; }
+        if (!menu.hidden && shown.length) { pick(); return; }
         input.value = '';
         closeMenu();
         converse(text);
@@ -379,8 +379,11 @@
     ];
     let shown = [];
     let selected = 0;
+    let dismissed = false; // Esc closed the menu for this "/…" text
 
-    const query = () => (input.value.startsWith('/') && !input.value.includes('\n') ? input.value.slice(1) : null);
+    // The menu is for "/" plus a skill name: once there's a space or a new line,
+    // it's an ordinary message (e.g. "/var/log is full").
+    const query = () => (/^\/[^\s]*$/.test(input.value) && !dismissed ? input.value.slice(1) : null);
 
     function closeMenu() {
         menu.hidden = true;
@@ -432,7 +435,7 @@
         if (!shown.length) {
             const item = document.createElement('li');
             item.className = 'muted small ai-skill-none';
-            item.textContent = entries.length ? 'No skill or recipe matches. Delete letters to see more.' : 'No skills are available to you.';
+            item.textContent = entries.length ? 'No skill or recipe matches. Press Enter to send this as a message, or delete letters to see more.' : 'No skills are available to you.';
             menuList.replaceChildren(item);
         }
         menu.hidden = false;
@@ -459,12 +462,16 @@
         if (!menu.hidden) {
             if (event.key === 'ArrowDown') { event.preventDefault(); move(1); return; }
             if (event.key === 'ArrowUp') { event.preventDefault(); move(-1); return; }
-            if ((event.key === 'Enter' && !event.shiftKey) || event.key === 'Tab') { event.preventDefault(); pick(); return; }
-            if (event.key === 'Escape') { event.preventDefault(); closeMenu(); input.value = ''; return; }
+            if (((event.key === 'Enter' && !event.shiftKey) || event.key === 'Tab') && shown.length) { event.preventDefault(); pick(); return; }
+            if (event.key === 'Escape') { event.preventDefault(); dismissed = true; closeMenu(); return; }
         }
         if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); form.requestSubmit(); }
     });
-    input.addEventListener('input', () => { selected = 0; showMenu(); });
+    input.addEventListener('input', () => {
+        selected = 0;
+        if (!input.value.startsWith('/')) dismissed = false;
+        showMenu();
+    });
     input.addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== input) closeMenu(); }, 150));
     input.addEventListener('focus', showMenu);
 

@@ -59,7 +59,14 @@ class TicketUpdateStep extends BaseStep
                     ?? throw new StepFailed("No person with username \"{$with['assignee']}\" to assign."));
         }
 
-        $changed = $ticket->applyChanges($changes, $context->person($with['as'] ?? null));
+        $person = $context->person($with['as'] ?? null);
+        $context->ensureAllowed($person, array_values(array_filter([
+            'tickets.view',
+            array_intersect_key($changes, array_flip(['status', 'priority', 'category'])) !== [] ? 'tickets.edit' : null,
+            array_key_exists('assignee_id', $changes) ? 'tickets.assign' : null,
+        ])), $ticket);
+
+        $changed = $ticket->applyChanges($changes, $person);
 
         return ['ticket' => $ticket->id, 'changed' => $changed];
     }
