@@ -341,9 +341,12 @@
             }
         } catch (failure) {
             if (failure.name !== 'AbortError') {
+                const missingModel = failure instanceof ProviderError && failure.status === 404 && /model/i.test(failure.body) && /not found|does not exist/i.test(failure.body);
                 showError(failure instanceof TypeError
                     ? `Couldn’t reach ${conn.name} at ${conn.base_url}. Is it running, and does it allow this page (CORS)? See “Your AIs”.`
-                    : failure.message);
+                    : missingModel
+                        ? `${conn.name} doesn’t have the model “${conn.model}” (yet). If it’s still downloading, wait until it finishes (Ollama: “ollama list” shows downloaded models); otherwise pick another model under “Your AIs”.`
+                        : failure.message);
             }
         } finally {
             controller = null;

@@ -54,6 +54,8 @@ class SkillRegistry
         Abilities\ActionsValidate::class,
         Abilities\ActionsRun::class,
         Abilities\HomeSummary::class,
+        Abilities\WebSearch::class,
+        Abilities\WebRead::class,
     ];
 
     /** @var list<class-string<Recipe>> */
@@ -68,6 +70,7 @@ class SkillRegistry
         Recipes\EmailTicketUpdate::class,
         Recipes\HandoverNotes::class,
         Recipes\ExplainMyPermissions::class,
+        Recipes\ResearchTopic::class,
     ];
 
     /** @var array<string, Skill>|null */

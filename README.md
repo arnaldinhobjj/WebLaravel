@@ -331,8 +331,9 @@ Skills are what any AI can do in Fort Vale. Each is written once (`app/Ai/Skills
   - files: search, recent, list a folder, read, details/versions, create a folder, save a text file, trash;
   - email: templates, sent, send;
   - actions: list, explain, recent runs, check YAML, run;
-  - today's summary.
-- **10 recipes**, ready-made instructions an AI follows: summarise a ticket, draft a reply, triage my tickets, my day, weekly ticket report, find a document, write an action, email an update about a ticket, handover notes, what can I do.
+  - today's summary;
+  - **web: search the internet, and read a web page as text.**
+- **10 recipes**, ready-made instructions an AI follows: summarise a ticket, draft a reply, triage my tickets, my day, weekly ticket report, find a document, write an action, email an update about a ticket, handover notes, what can I do, research a topic on the web.
 - **In the chat:**
   - **The AI uses skills by itself**, when the model supports tool calling (most current ones; small models choose poorly, so use something like `qwen3:30b`, which this Mac uses, or a cloud AI). Skills that change something (open, reply, send, run, save, delete…) ask you first.
   - **You can call them yourself:** type `/` or press **Skills**, pick an ability (it runs at once and the AI sees the result) or a recipe (sent to your AI).
@@ -354,6 +355,13 @@ Create a token under *Let your AI use Fort Vale* (it needs *AI: Connect my AI to
     - `POST /api/ai/skills/{name}`: JSON in, `{ok, summary, data}` out;
     - `GET /api/ai/recipes/{name}?…`: a recipe's instructions.
   - **Limits:** 60 calls a minute per token, every call is logged on the token, and *Revoke* stops it.
+
+**Web search** (`web.search`) uses DuckDuckGo out of the box, with no key. For other search services, set `WEB_SEARCH_PROVIDER` in `.env`:
+- `brave` with `BRAVE_SEARCH_API_KEY`;
+- `tavily` with `TAVILY_API_KEY`;
+- `searxng` with `SEARXNG_URL`, your own instance.
+
+`web.read` only reads public internet addresses, after every redirect too, so it can't reach your own network. Both need *AI: Search and read the web*; everyone has it by default.
 
 **Adding a skill:**
 1. Write a class in `app/Ai/Skills/Abilities/` (name, description, JSON Schema inputs, permissions, `run()`), or a recipe in `app/Ai/Skills/Recipes/`.
