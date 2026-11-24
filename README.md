@@ -341,6 +341,10 @@ A failed send is written to `storage/logs/laravel.log`. It never breaks the page
 
 ## Actions (YAML)
 
+**Help writing actions:**
+- `php artisan actions:validate` checks every file in `actions/`, or the files you name; add `--personal` to check a personal action. It lists every mistake.
+- If you use Claude Code, the project includes an **action-builder** agent (`.claude/agents/action-builder.md`). Ask it for an action in plain language, e.g. "make an action that emails IT when a CCTV ticket is created". It writes the file in `actions/` and validates it.
+
 Actions work like GitHub Actions: each one is a YAML document with a `name`, what starts it (`on:`) and the `steps` it runs.
 
 - **Shared actions** are files in the [`actions/`](actions/) folder, one `.yml` per action, like `.github/workflows`. Everyone can run them.
