@@ -302,6 +302,7 @@ class FileController extends Controller
         $parent = $item instanceof Folder ? $item->parent : $item->folder;
         abort_if($parent === null || $parent->trashed(), 404);
         $this->authorizeFolder($parent, 'delete');
+        abort_unless(! $item instanceof Folder || $this->ownRulesAllowDelete(CurrentUser::get(), $item), 404);
 
         $siblings = $item instanceof Folder ? Folder::where('parent_id', $parent->id) : StoredFile::where('folder_id', $parent->id);
         if ($siblings->where('name', $item->name)->exists()) {
@@ -339,9 +340,18 @@ class FileController extends Controller
         $canDeleteIn = fn (?Folder $folder): bool => $folder !== null && ! $folder->trashed() && $this->access->allows($me, $folder, 'delete');
 
         return [
-            'folders' => Folder::onlyTrashed()->whereIn('parent_id', $ids)->get()->filter(fn (Folder $folder) => $canDeleteIn($folder->parent))->values(),
+            'folders' => Folder::onlyTrashed()->whereIn('parent_id', $ids)->get()->filter(fn (Folder $folder) => $canDeleteIn($folder->parent) && $this->ownRulesAllowDelete($me, $folder))->values(),
             'files' => StoredFile::onlyTrashed()->whereIn('folder_id', $ids)->with('folder')->get()->filter(fn (StoredFile $file) => $canDeleteIn($file->folder))->values(),
         ];
+    }
+
+    /**
+     * A trashed top-level library folder carries its own access rules (its
+     * parent, the library root, has none), so judge it by them.
+     */
+    private function ownRulesAllowDelete(User $me, Folder $folder): bool
+    {
+        return ! $folder->parent?->isRoot() || $folder->isPersonal() || $this->access->rulesAllow($me, $folder, 'delete');
     }
 
     private function browse(Request $request, Folder $folder, string $view = 'files.browse'): View

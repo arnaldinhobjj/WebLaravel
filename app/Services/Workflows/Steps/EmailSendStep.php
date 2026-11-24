@@ -84,6 +84,10 @@ class EmailSendStep extends BaseStep
         if (isset($with['template'])) {
             $template = EmailTemplate::where('name', $with['template'])->first()
                 ?? throw new StepFailed("No email template named \"{$with['template']}\".");
+            // A template (and its files) is only for people who may see templates.
+            if ($checked = $context->filesPerson(null) ?? $context->actor) {
+                $context->ensureAllowed($checked, ['email_templates.view']);
+            }
             [$subject, $body] = [$template->subject, $template->body];
             array_push($files, ...Mailer::templateAttachments($template));
         } else {

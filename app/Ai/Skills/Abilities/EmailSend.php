@@ -64,6 +64,9 @@ class EmailSend extends Skill
 
         $files = [];
         if (! empty($input['template'])) {
+            if (! $me->hasPermission('email_templates.view')) {
+                throw new SkillFailed('Using a template needs permission to see email templates.');
+            }
             $template = EmailTemplate::where('name', $input['template'])->first() ?? throw new SkillFailed("No email template named “{$input['template']}”.");
             [$subject, $body] = [$template->subject, $template->body];
             $files = Mailer::templateAttachments($template);
