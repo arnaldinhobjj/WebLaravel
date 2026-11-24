@@ -66,19 +66,22 @@
                         <span class="muted">Upload from this computer</span>
                         <input type="file" name="uploads[]" multiple>
                     </label>
-                    @if ($pickable->isNotEmpty())
-                        <details class="file-pick">
-                            <summary>Attach from Files ({{ $pickable->count() }})</summary>
-                            <div class="file-pick-list">
-                                @foreach ($pickable as $file)
-                                    <label class="check">
-                                        <input type="checkbox" name="stored_files[]" value="{{ $file->id }}" @checked(in_array($file->id, array_map('intval', old('stored_files', [])), true))>
-                                        <span>{{ $file->name }}<small>{{ $file->folder->path() }}</small></span>
-                                    </label>
-                                @endforeach
-                            </div>
-                        </details>
-                    @endif
+                    <details class="file-pick" data-file-picker data-url="{{ route('emails.files') }}" @if ($chosen->isNotEmpty()) open @endif>
+                        <summary>Attach from Files</summary>
+                        <div data-file-chosen class="file-pick-list file-pick-chosen" aria-label="Chosen files">
+                            @foreach ($chosen as $file)
+                                @include('emails.partials.file-choice', ['file' => $file, 'checked' => true])
+                            @endforeach
+                        </div>
+                        <label class="sr-only" for="file-pick-search">Search files by name</label>
+                        <input id="file-pick-search" type="search" placeholder="Search files by name" autocomplete="off" data-file-search>
+                        <p class="muted small" data-file-status aria-live="polite">{{ $pickable->isEmpty() ? 'No files you can attach yet.' : 'Recently changed:' }}</p>
+                        <div data-file-results class="file-pick-list">
+                            @foreach ($pickable as $file)
+                                @include('emails.partials.file-choice', ['file' => $file, 'checked' => false])
+                            @endforeach
+                        </div>
+                    </details>
                     @error('attachments') <p class="field-error">{{ $message }}</p> @enderror
                     @error('stored_files') <p class="field-error">{{ $message }}</p> @enderror
                     @error('uploads.*') <p class="field-error">{{ $message }}</p> @enderror

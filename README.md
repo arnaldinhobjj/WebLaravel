@@ -289,7 +289,7 @@ FILES_BUCKET=fortvale
 
 **Files in email and actions.**
 
-- **Email page:** attach files from Files (anything you may open), or upload new ones (sent, not stored), up to 10 MB in total. Starting from a template also sends the template's files.
+- **Email page:** *Attach from Files* shows your 30 most recently changed files and searches all files you may open by name; ticked files stay ticked while you search. You can also upload new ones (sent, not stored). Up to 10 MB in total. Starting from a template also sends the template's files.
 - **Email templates:** files in a template's *Files for this template* box go with every email that uses it: the Email page, the template's test send, actions, and the built-in ticket emails.
 - **Actions:** `email/send` takes `attachments:` (paths such as `Library/Quality/Checklist.pdf` or `My files/notes.txt`), and `file/save` writes text into a folder. Both use the access of:
   - **personal actions:** their owner;

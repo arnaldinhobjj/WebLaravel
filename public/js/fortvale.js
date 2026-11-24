@@ -321,3 +321,50 @@ document.querySelectorAll('[data-drop-zone]').forEach((zone) => {
         zone.submit();
     });
 });
+
+// Email page: search Files for attachments. Ticked files move to the top and stay while you search.
+document.querySelectorAll('[data-file-picker]').forEach((picker) => {
+    const chosen = picker.querySelector('[data-file-chosen]');
+    const results = picker.querySelector('[data-file-results]');
+    const status = picker.querySelector('[data-file-status]');
+    const search = picker.querySelector('[data-file-search]');
+    let timer;
+
+    const choice = (file) => {
+        const label = document.createElement('label');
+        label.className = 'check';
+        label.dataset.fileChoice = file.id;
+        const box = document.createElement('input');
+        box.type = 'checkbox';
+        box.name = 'stored_files[]';
+        box.value = file.id;
+        const text = document.createElement('span');
+        text.textContent = file.name;
+        const where = document.createElement('small');
+        where.textContent = file.path;
+        text.append(where);
+        label.append(box, text);
+        return label;
+    };
+
+    picker.addEventListener('change', (event) => {
+        const label = event.target.closest('[data-file-choice]');
+        if (!label) return;
+        (event.target.checked ? chosen : results).prepend(label);
+    });
+
+    search.addEventListener('keydown', (event) => { if (event.key === 'Enter') event.preventDefault(); });
+    search.addEventListener('input', () => {
+        clearTimeout(timer);
+        timer = setTimeout(async () => {
+            const query = search.value.trim();
+            const response = await fetch(`${picker.dataset.url}?q=${encodeURIComponent(query)}`, { headers: { Accept: 'application/json' } });
+            if (!response.ok) return;
+            const files = await response.json();
+            const taken = new Set([...chosen.querySelectorAll('[data-file-choice]')].map((label) => label.dataset.fileChoice));
+            const shown = files.filter((file) => !taken.has(String(file.id)));
+            results.replaceChildren(...shown.map(choice));
+            status.textContent = query === '' ? 'Recently changed:' : (shown.length ? `${shown.length} found:` : 'No files match.');
+        }, 200);
+    });
+});

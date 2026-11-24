@@ -1241,3 +1241,7 @@ fieldset.card { margin: 0; min-width: 0; }
 .file-pick summary { cursor: pointer; font-size: 14px; color: var(--accent); font-weight: 600; }
 .file-pick-list { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow: auto; margin-top: 8px; padding: 4px; }
 .file-pick-list .check small { display: block; color: var(--text-muted); font-weight: 400; }
+.file-pick [data-file-search] { width: 100%; margin-top: 8px; padding: 7px 10px; }
+.file-pick-chosen:empty { display: none; }
+.file-pick-chosen { border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+.file-pick [data-file-status] { margin: 8px 0 0; }
