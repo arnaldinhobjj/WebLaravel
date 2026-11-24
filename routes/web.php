@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ActionController;
 use App\Http\Controllers\ActionRunController;
+use App\Http\Controllers\AiController;
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
@@ -70,6 +71,22 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/settings', [EmailSettingsController::class, 'edit'])->middleware('can:email_settings.view')->name('email-settings.edit');
         Route::put('/settings', [EmailSettingsController::class, 'update'])->middleware('can:email_settings.edit')->name('email-settings.update');
+    });
+
+    // AI: chat with your own local AI, saved per person; tokens for your AI to use Fort Vale (MCP).
+    Route::prefix('ai')->name('ai.')->controller(AiController::class)->group(function () {
+        Route::middleware('can:ai.chat')->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::put('/settings', 'saveSettings')->name('settings');
+            Route::post('/conversations', 'storeConversation')->name('conversations.store');
+            Route::post('/conversations/{conversation}/messages', 'storeMessages')->name('messages.store');
+            Route::patch('/conversations/{conversation}', 'renameConversation')->name('conversations.rename');
+            Route::delete('/conversations/{conversation}', 'destroyConversation')->name('conversations.destroy');
+        });
+        Route::middleware('can:ai.connect')->group(function () {
+            Route::post('/tokens', 'storeToken')->name('tokens.store');
+            Route::delete('/tokens/{token}', 'destroyToken')->name('tokens.destroy');
+        });
     });
 
     // Files: the library, each person's own files, versions, trash. Folder

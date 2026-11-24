@@ -7,8 +7,11 @@ use App\Models\User;
 use App\Services\Workspace;
 use App\Support\CurrentUser;
 use App\Support\PagePermissions;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -22,6 +25,9 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Paginator::defaultView('partials.pagination');
+
+        // People's AI apps using Fort Vale (MCP): 60 calls a minute per token.
+        RateLimiter::for('ai-mcp', fn (Request $request) => Limit::perMinute(60)->by('ai-token:'.($request->attributes->get('ai_token_id') ?? $request->ip())));
 
         // Every "page.ability" in PagePermissions is checked against the person's tags.
         Gate::before(fn (User $user, string $ability): ?bool => PagePermissions::exists($ability) ? $user->hasPermission($ability) : null);
