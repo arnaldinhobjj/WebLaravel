@@ -87,7 +87,7 @@ From the project folder:
 docker-compose up -d
 ```
 
-- Starts **MySQL 8.4** on port 3306, **Oracle Free 23ai** on port 1521 (service `FREEPDB1`), and **Mailpit**, which catches every email the app sends: read them at http://localhost:8025.
+- Starts **MySQL 8.4** on port 3306, **Oracle Free 23ai** on port 1521 (service `FREEPDB1`), **Mailpit**, which catches every email the app sends (read them at http://localhost:8025), and **SeaweedFS**, an S3-compatible store for files (S3 on port 8333, a file browser at http://localhost:8888). A one-off `seaweedfs-bucket` container creates the `fortvale` bucket.
 - Oracle takes a minute or two the first time; `docker-compose ps` shows both as `healthy` when they're ready.
 - Also creates the test databases: `fortvale_test` in MySQL and the `FORTVALE_TEST` schema in Oracle. Tests never touch your development data.
 - `docker compose up -d` (with a space) works too, if your Docker has the Compose plugin.
@@ -115,7 +115,7 @@ Then open http://127.0.0.1:8000.
 
 ```bash
 colima start                 # macOS only, after a restart
-docker-compose up -d         # MySQL, Oracle and Mailpit
+docker-compose up -d         # MySQL, Oracle, Mailpit and SeaweedFS
 php artisan serve            # the app, at http://127.0.0.1:8000
 php artisan schedule:work    # only needed for actions with `on: schedule`
 ```
@@ -236,6 +236,48 @@ Who may do what is set per page on the **Tags** page (`/tags`).
 The tag grid and the Tags page pick it up by themselves.
 
 Seed data: departments Operations (tag *Action editors*), Facilities and IT (tag *Helpdesk*: see and assign every ticket); Alex Morgan also has *Administrator* (everything).
+
+## Files
+
+Files lives in the sidebar and has three areas:
+
+- **Library** (`/files`): shared folders.
+- **My files** (`/my-files`): private to each person.
+- **Trash:** deleted items stay for 30 days.
+
+What you can do:
+
+- **Upload:** drop files on the page or choose them. A file with the same name as one already in the folder becomes a **new version**. *Version history* lists every version; any old version can be downloaded or restored (restoring adds it as the newest, so nothing is lost).
+- **Preview:** images (PNG, JPEG, GIF, WebP), PDFs and text files open in the page. Everything else, including SVG and HTML, downloads instead of being shown, since those can carry scripts.
+- **Organise:** rename, move between folders, new folders, and **search** by name across everything you may see.
+
+**Who sees what:**
+
+- **Personal areas:** only their owner can open them, administrators included.
+- **Library:**
+  - *Files (library)* in the tag grid allows View / Create (upload, new folder) / Edit (rename, move, new versions) / Delete, plus *Manage folder access* and *Empty trash*.
+  - **Each top-level folder** can be limited with *Who has access*: tick tags and departments, and what each may do. Subfolders follow. A folder with nothing ticked is open to everyone with the Files permission.
+  - Both have to allow it.
+  - Folders and files you may not see answer "not found".
+- **Defaults:** the Everyone tag may view, upload and edit in the library, and use My files; the Administrator tag also deletes, manages access, empties the trash and changes file settings.
+
+**Limits** (*File settings*, `/files/settings`):
+
+- **Largest file:** 25 MB by default. PHP's own `upload_max_filesize` must be at least as big; on this Mac it is set to 100 MB.
+- **Blocked extensions.** Programs are refused whatever their name, because the type is read from the content.
+- **Quotas:** a limit for My files per person and a total limit. Versions and the trash count towards them.
+
+**Storage.** File contents live in an S3 bucket, one object per version under a random name. Names, folders and versions are in MySQL, so renaming or moving never touches S3. Downloads go through Fort Vale, which checks access first; the bucket itself refuses anyone without the keys. Locally that's SeaweedFS; for AWS S3 or another S3-compatible service, set in `.env`:
+
+```dotenv
+FILES_ENDPOINT=            # empty for AWS; e.g. https://<account>.r2.cloudflarestorage.com for others
+FILES_ACCESS_KEY_ID=…
+FILES_SECRET_ACCESS_KEY=…
+FILES_REGION=eu-west-1
+FILES_BUCKET=fortvale
+```
+
+**Trash:** `php artisan files:empty-trash` runs daily from the scheduler (`php artisan schedule:work`) and deletes items older than 30 days, including their stored objects.
 
 ## Email
 
@@ -389,6 +431,7 @@ php artisan test
 | `app/Http/Controllers/DashboardController.php` | Home screen, reset |
 | `app/Http/Controllers/LoginController.php` | Sign in and out |
 | `app/Http/Controllers/TagController.php`, `DepartmentController.php`, `PersonController.php`, `resources/views/tags` | Tags page: tags, departments, people |
+| `app/Services/Files/`, `app/Http/Controllers/FileController.php`, `FileSettingsController.php`, `resources/views/files`, `app/Models/Folder.php`, `StoredFile.php`, `FileVersion.php`, `FolderAccess.php` | Files: storage, access rules, limits, trash and the file pages |
 | `app/Services/Email/Mailer.php`, `app/Listeners/SendTicketEmails.php`, `app/Http/Controllers/Email*Controller.php`, `resources/views/emails` | Sending email, ticket emails, the Email, templates and settings pages, the email layout |
 | `app/Support/PagePermissions.php`, `app/Models/Tag.php`, `app/Models/Department.php`, `app/Support/AccessGuard.php` | Pages and their permissions, tags, departments, and the check that someone can always manage access |
 | `app/Http/Controllers/TicketController.php` | Ticket list, create, view, update, reply |

@@ -1,6 +1,7 @@
 # Databases and a mail catcher for local development and tests: `docker compose up -d`.
 # MySQL holds people, actions and framework tables; Oracle holds tickets.
 # Mailpit catches every email the app sends; read them at http://localhost:8025.
+# SeaweedFS is an S3-compatible store for files (S3 API on 8333, file browser on http://localhost:8888).
 services:
   mysql:
     image: mysql:8.4
@@ -44,6 +45,24 @@ services:
       - "1025:1025"
       - "8025:8025"
 
+  seaweedfs:
+    image: chrislusf/seaweedfs:3.97
+    command: server -dir=/data -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3.json -filer
+    ports:
+      - "8333:8333"
+      - "8888:8888"
+    volumes:
+      - seaweedfs-data:/data
+      - ./docker/seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
+
+  # Creates the "fortvale" bucket once SeaweedFS is up (safe to run again).
+  seaweedfs-bucket:
+    image: chrislusf/seaweedfs:3.97
+    depends_on: [seaweedfs]
+    restart: on-failure
+    entrypoint: ["/bin/sh", "-c", "sleep 5 && echo 's3.bucket.create -name fortvale' | weed shell -master=seaweedfs:9333 -filer=seaweedfs:8888"]
+
 volumes:
   mysql-data:
   oracle-data:
+  seaweedfs-data:

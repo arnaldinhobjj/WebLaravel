@@ -14,3 +14,6 @@ Schedule::call(fn () => app(WorkflowScheduler::class)->runDue(now()))
     ->everyMinute()
     ->name('fortvale-scheduled-actions')
     ->withoutOverlapping();
+
+// Files that have been in the trash for 30 days are deleted for good.
+Schedule::command('files:empty-trash')->daily()->name('fortvale-empty-file-trash');

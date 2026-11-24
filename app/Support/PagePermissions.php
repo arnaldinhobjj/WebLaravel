@@ -39,6 +39,13 @@ class PagePermissions
         'emails' => ['label' => 'Email', 'abilities' => ['view'], 'extras' => ['send' => 'Send emails']],
         'email_templates' => ['label' => 'Email templates', 'abilities' => ['view', 'create', 'edit', 'delete']],
         'email_settings' => ['label' => 'Email settings', 'abilities' => ['view', 'edit']],
+        'files' => [
+            'label' => 'Files (library)',
+            'abilities' => ['view', 'create', 'edit', 'delete'],
+            'extras' => ['manage_access' => 'Manage folder access', 'empty_trash' => 'Empty trash'],
+        ],
+        'my_files' => ['label' => 'My files', 'abilities' => ['view', 'create', 'edit', 'delete']],
+        'file_settings' => ['label' => 'File settings', 'abilities' => ['view', 'edit']],
     ];
 
     /**
@@ -50,6 +57,8 @@ class PagePermissions
         'tickets.view', 'tickets.create', 'tickets.edit', 'tickets.reply', 'tickets.assign',
         'actions.view', 'actions.create', 'actions.edit', 'actions.delete', 'actions.run',
         'shared_actions.view', 'shared_actions.run',
+        'files.view', 'files.create', 'files.edit',
+        'my_files.view', 'my_files.create', 'my_files.edit', 'my_files.delete',
     ];
 
     /**
