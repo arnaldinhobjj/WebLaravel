@@ -12,7 +12,7 @@
     <div class="page-head">
         <div>
             <h2 class="section-title">Version history</h2>
-            <p class="page-sub">{{ $file->folder->path() }} / {{ $file->name }}. Restoring an old version adds it as the newest, so nothing is lost.</p>
+            <p class="page-sub">{{ $location['label'] }} / {{ $file->name }}. Restoring an old version adds it as the newest, so nothing is lost.</p>
         </div>
     </div>
 

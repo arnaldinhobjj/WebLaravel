@@ -5,6 +5,7 @@ namespace App\Listeners;
 use App\Events\TicketChanged;
 use App\Models\AppSetting;
 use App\Models\EmailTemplate;
+use App\Models\StoredFile;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Services\Email\Mailer;
@@ -62,12 +63,21 @@ class SendTicketEmails
             }
         }
 
+        $reply = $type === 'replied' ? $ticket->comments()->latest('id')->first() : null;
         $values = [
             'ticket' => Mailer::ticketValues($ticket),
             'actor' => ['name' => $actor->name, 'username' => $actor->username],
-            'reply' => ['body' => $type === 'replied' ? (string) $ticket->comments()->latest('id')->value('body') : ''],
+            'reply' => ['body' => (string) $reply?->body],
         ];
 
-        $this->mailer->send($recipients, $template->subject, $template->body, $values, 'ticket', $actor, route('tickets.show', $ticket));
+        // Files aren't attached to automatic emails (to keep them small); say they're there.
+        $attachments = match (true) {
+            $type === 'created' => StoredFile::where('attachable_type', 'ticket')->where('attachable_id', (string) $ticket->id)->count(),
+            $reply !== null => StoredFile::where('attachable_type', 'ticket_reply')->where('attachable_id', (string) $reply->id)->count(),
+            default => 0,
+        };
+        $body = $template->body.($attachments > 0 ? "\n\n{$attachments} attached ".str('file')->plural($attachments).'. Open the ticket to see '.($attachments === 1 ? 'it' : 'them').'.' : '');
+
+        $this->mailer->send($recipients, $template->subject, $body, $values, 'ticket', $actor, route('tickets.show', $ticket));
     }
 }

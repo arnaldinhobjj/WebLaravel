@@ -60,6 +60,10 @@
         </aside>
     </div>
 
+    @if ($template->exists)
+        <x-attachments type="email_template" :id="$template->id" title="Files for this template" class="attachments-below" />
+    @endif
+
     @if ($template->exists && ! $template->isBuiltIn() && auth()->user()->can('email_templates.delete'))
         <form method="POST" action="{{ route('email-templates.destroy', $template) }}" data-confirm="Delete the template “{{ $template->name }}”?" class="narrow-form">
             @csrf

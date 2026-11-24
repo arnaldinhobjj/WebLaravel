@@ -4,12 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Enums\TicketPriority;
 use App\Enums\TicketStatus;
+use App\Models\StoredFile;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Services\Files\FileStore;
 use App\Support\CurrentUser;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -65,14 +68,19 @@ class TicketController extends Controller
             'category' => ['required', Rule::in(array_keys(Ticket::CATEGORIES))],
             'priority' => ['required', Rule::enum(TicketPriority::class)],
             'assignee_id' => ['nullable', Rule::exists(User::class, 'id')],
+            ...self::FILE_RULES,
         ]);
+        $uploads = $this->acceptableUploads($request);
 
         $actor = CurrentUser::get();
         // Without the assign permission the field isn't shown, so a value is ignored.
         $assignee = $actor->can('tickets.assign') ? ($data['assignee_id'] ?? null) : null;
-        unset($data['assignee_id']);
+        unset($data['assignee_id'], $data['files']);
 
         $ticket = Ticket::open($data, $actor);
+        foreach ($uploads as $upload) {
+            app(FileStore::class)->attach($actor, 'ticket', (string) $ticket->id, $upload);
+        }
         if ($assignee) {
             $ticket->applyChanges(['assignee_id' => (int) $assignee], $actor);
         }
@@ -84,9 +92,11 @@ class TicketController extends Controller
     {
         $this->ensureVisible($ticket);
         $ticket->load(['requester', 'assignee', 'activities.user']);
+        $replyIds = $ticket->activities->where('type', 'comment')->map(fn ($activity) => (string) $activity->id)->values()->all();
 
         return view('tickets.show', [
             'ticket' => $ticket,
+            'replyFiles' => StoredFile::where('attachable_type', 'ticket_reply')->whereIn('attachable_id', $replyIds)->get()->groupBy('attachable_id'),
             'users' => User::orderBy('name')->get(),
             'me' => CurrentUser::get(),
         ]);
@@ -121,20 +131,46 @@ class TicketController extends Controller
         $data = $request->validate([
             'body' => ['required', 'string', 'max:10000'],
             'status' => ['nullable', Rule::enum(TicketStatus::class)],
+            ...self::FILE_RULES,
         ]);
+        $uploads = $this->acceptableUploads($request);
 
         if (! empty($data['status'])) {
             Gate::authorize('tickets.edit');
         }
 
         $actor = CurrentUser::get();
-        $ticket->addComment($data['body'], $actor);
+        $reply = $ticket->addComment($data['body'], $actor);
+        foreach ($uploads as $upload) {
+            app(FileStore::class)->attach($actor, 'ticket_reply', (string) $reply->id, $upload);
+        }
 
         if (! empty($data['status'])) {
             $ticket->applyChanges(['status' => $data['status']], $actor);
         }
 
         return redirect()->to(route('tickets.show', $ticket).'#latest')->with('status', 'Reply posted.');
+    }
+
+    /** Optional files on a new ticket or a reply. */
+    private const FILE_RULES = [
+        'files' => ['nullable', 'array', 'max:10'],
+        'files.*' => ['file'],
+    ];
+
+    /**
+     * Checks every upload against the file limits before anything is saved.
+     *
+     * @return list<UploadedFile>
+     */
+    private function acceptableUploads(Request $request): array
+    {
+        $uploads = array_values($request->file('files', []));
+        foreach ($uploads as $upload) {
+            app(FileStore::class)->assertAcceptable($upload);
+        }
+
+        return $uploads;
     }
 
     /**

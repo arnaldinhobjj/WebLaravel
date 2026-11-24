@@ -8,11 +8,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
- * A file in a folder (or attached to a page). Its content lives in S3, one
+ * A file in a folder, or attached to a page (`attachable_type` and
+ * `attachable_id`, see App\Support\Attachables). Its content lives in S3, one
  * object per version; the newest version is `current_version_id`.
  */
 #[Fillable(['folder_id', 'name', 'current_version_id', 'size', 'mime', 'created_by'])]
@@ -58,14 +58,6 @@ class StoredFile extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
-    }
-
-    /**
-     * @return MorphTo<Model, $this>
-     */
-    public function attachable(): MorphTo
-    {
-        return $this->morphTo();
     }
 
     public function extension(): string

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ActionController;
 use App\Http\Controllers\ActionRunController;
+use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\EmailController;
@@ -16,6 +17,7 @@ use App\Http\Controllers\SharedActionController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\TicketController;
 use App\Http\Middleware\EnsureCurrentUser;
+use App\Support\Attachables;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
@@ -96,6 +98,8 @@ Route::middleware('auth')->group(function () {
         Route::patch('/{file}/move', 'move')->whereNumber('file')->name('files.move');
         Route::delete('/{file}', 'destroy')->whereNumber('file')->name('files.destroy');
     });
+    Route::post('/attachments/{type}/{id}', [AttachmentController::class, 'store'])
+        ->whereIn('type', array_keys(Attachables::TYPES))->where('id', '[a-z0-9_-]{1,100}')->name('attachments.store');
     Route::get('/files/settings', [FileSettingsController::class, 'edit'])->middleware('can:file_settings.view')->name('file-settings.edit');
     Route::put('/files/settings', [FileSettingsController::class, 'update'])->middleware('can:file_settings.edit')->name('file-settings.update');
 
