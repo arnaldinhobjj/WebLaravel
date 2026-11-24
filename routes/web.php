@@ -18,6 +18,7 @@ use App\Http\Controllers\TagController;
 use App\Http\Controllers\TicketController;
 use App\Http\Middleware\EnsureCurrentUser;
 use App\Support\Attachables;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
@@ -73,9 +74,13 @@ Route::middleware('auth')->group(function () {
 
     // Files: the library, each person's own files, versions, trash. Folder
     // rules are checked in FileController (they differ per folder).
-    Route::get('/workspace', [FileController::class, 'workspace'])->middleware('can:workspace')->name('workspace.index');
-    Route::get('/workspace/trash', [FileController::class, 'workspaceTrash'])->middleware('can:workspace')->name('workspace.trash');
-    Route::get('/workspace/{folder}', [FileController::class, 'workspaceFolder'])->whereNumber('folder')->name('workspace.folder');
+    Route::get('/workspace-files', [FileController::class, 'workspace'])->middleware('can:workspace')->name('workspace.index');
+    Route::get('/workspace-files/trash', [FileController::class, 'workspaceTrash'])->middleware('can:workspace')->name('workspace.trash');
+    Route::get('/workspace-files/{folder}', [FileController::class, 'workspaceFolder'])->whereNumber('folder')->name('workspace.folder');
+    // The page used to live at /workspace; keep old links and bookmarks working.
+    Route::permanentRedirect('/workspace', '/workspace-files');
+    Route::get('/workspace/{rest}', fn (Request $request, string $rest) => redirect('/workspace-files/'.$rest.($request->getQueryString() ? '?'.$request->getQueryString() : ''), 301))
+        ->where('rest', 'trash|[0-9]+');
     Route::get('/my-files', [FileController::class, 'mine'])->middleware('can:my_files.view')->name('files.mine');
     Route::prefix('files')->controller(FileController::class)->group(function () {
         Route::get('/', 'library')->middleware('can:files.view')->name('files.library');
