@@ -306,6 +306,31 @@ FILES_BUCKET=fortvale
 
 **Trash:** `php artisan files:empty-trash` runs daily from the scheduler (`php artisan schedule:work`) and deletes items older than 30 days, including their stored objects.
 
+## AI
+
+The **AI** page (`/ai`, in the sidebar) connects your own local AI to Fort Vale, both ways. Everything on it is per person: your connection, your chats and your tokens. Nobody else can see your chats, administrators included.
+
+### Chat with your AI
+
+- **Any OpenAI-compatible local AI works:** Ollama, LM Studio, llama.cpp, vLLM, Jan… Under *Connect your AI*, enter its address (Ollama `http://localhost:11434/v1`, LM Studio `http://localhost:1234/v1`). Then *Test connection*, pick a model and save. An API key is optional and stored encrypted.
+- **Your browser talks to your AI directly.** It runs on your computer, and answers stream in as they're written. So your AI must allow this page to call it (CORS):
+  - **Ollama:** `OLLAMA_ORIGINS=http://127.0.0.1:8000 ollama serve` (or set `OLLAMA_ORIGINS` for the Ollama app), then e.g. `ollama pull llama3.2`;
+  - **LM Studio:** Developer tab → start the server, turn on *Enable CORS*.
+- **Chats are saved:** each exchange is saved as it happens. Your chats are listed on the left; rename or delete them there. A chat is titled from its first message.
+
+### Let your AI use Fort Vale (MCP)
+
+Fort Vale is an MCP server at `/mcp/fortvale`.
+
+- **Connecting:** under *Let your AI use Fort Vale*, create a token (shown once), then add Fort Vale to your AI app with header `Authorization: Bearer <token>`. The page shows a ready-made `mcp.json` for LM Studio and Claude Desktop.
+- **What your AI can do:** `search_tickets`, `get_ticket`, `create_ticket`, `reply_to_ticket`, `search_files`, `read_file` (text files), `list_actions`, `run_action`. It acts **as you**, with your permissions, never more: it only sees tickets and folders you can see, and only gets the tools your tags allow.
+- **Tokens:**
+  - 60 calls a minute per token.
+  - Every call is logged; the token list shows the recent ones.
+  - *Revoke* stops a token at once.
+
+**Permissions:** *AI: Chat with my AI* (the Everyone tag has it) and *AI: Connect my AI to Fort Vale* (tokens; the Administrator tag has it).
+
 ## Email
 
 Fort Vale sends email three ways, all through one sender (`app/Services/Email/Mailer.php`):
@@ -464,6 +489,7 @@ php artisan test
 | `app/Http/Controllers/LoginController.php` | Sign in and out |
 | `app/Http/Controllers/TagController.php`, `DepartmentController.php`, `PersonController.php`, `resources/views/tags` | Tags page: tags, departments, people |
 | `resources/views/files/workspace.blade.php`, `workspace-trash.blade.php`, `resources/views/files/partials/` (folder and file icons, Finder sidebar) | The Finder-style Workspace Files pages |
+| `app/Http/Controllers/AiController.php`, `resources/views/ai`, `app/Mcp/` (server and tools), `routes/ai.php`, `app/Http/Middleware/AuthenticateAiToken.php` | The AI page, saved chats, and Fort Vale as an MCP server |
 | `app/Services/Files/`, `app/Support/Attachables.php`, `resources/views/components/attachments.blade.php`, `app/Http/Controllers/FileController.php`, `AttachmentController.php`, `FileSettingsController.php`, `resources/views/files`, `app/Models/Folder.php`, `StoredFile.php`, `FileVersion.php`, `FolderAccess.php` | Files: storage, access rules, limits, trash and the file pages |
 | `app/Services/Email/Mailer.php`, `app/Listeners/SendTicketEmails.php`, `app/Http/Controllers/Email*Controller.php`, `resources/views/emails` | Sending email, ticket emails, the Email, templates and settings pages, the email layout |
 | `app/Support/PagePermissions.php`, `app/Models/Tag.php`, `app/Models/Department.php`, `app/Support/AccessGuard.php` | Pages and their permissions, tags, departments, and the check that someone can always manage access |
