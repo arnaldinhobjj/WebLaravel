@@ -44,6 +44,9 @@ class Workspace
             ['label' => 'Tickets', 'route' => 'tickets.index', 'badge' => 'active_tickets', 'can' => 'tickets.view'],
             ['label' => 'My tickets', 'route' => 'tickets.index', 'params' => ['assignee' => 'me'], 'badge' => 'my_tickets', 'can' => 'tickets.view'],
             'Approvals',
+            ['label' => 'Email', 'route' => 'emails.create', 'can' => 'emails.view'],
+            ['label' => 'Email templates', 'route' => 'email-templates.index', 'can' => 'email_templates.view'],
+            ['label' => 'Email settings', 'route' => 'email-settings.edit', 'can' => 'email_settings.view'],
             ['label' => 'Tags', 'route' => 'tags.index', 'can' => 'tags-page'],
         ]],
     ];

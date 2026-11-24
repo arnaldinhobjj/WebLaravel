@@ -4,6 +4,9 @@ use App\Http\Controllers\ActionController;
 use App\Http\Controllers\ActionRunController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
+use App\Http\Controllers\EmailController;
+use App\Http\Controllers\EmailSettingsController;
+use App\Http\Controllers\EmailTemplateController;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\PersonController;
 use App\Http\Controllers\SettingsController;
@@ -44,6 +47,23 @@ Route::middleware('auth')->group(function () {
         Route::get('/{ticket}', 'show')->whereNumber('ticket')->middleware('can:tickets.view')->name('show');
         Route::patch('/{ticket}', 'update')->whereNumber('ticket')->middleware('can:tickets.view')->name('update');
         Route::post('/{ticket}/comments', 'comment')->whereNumber('ticket')->middleware('can:tickets.reply')->name('comment');
+    });
+
+    // Email: compose, templates and default addresses.
+    Route::prefix('email')->group(function () {
+        Route::get('/', [EmailController::class, 'create'])->middleware('can:emails.view')->name('emails.create');
+        Route::post('/', [EmailController::class, 'store'])->middleware('can:emails.send')->name('emails.store');
+
+        Route::get('/templates', [EmailTemplateController::class, 'index'])->middleware('can:email_templates.view')->name('email-templates.index');
+        Route::get('/templates/create', [EmailTemplateController::class, 'create'])->middleware('can:email_templates.create')->name('email-templates.create');
+        Route::post('/templates', [EmailTemplateController::class, 'store'])->middleware('can:email_templates.create')->name('email-templates.store');
+        Route::get('/templates/{emailTemplate}/edit', [EmailTemplateController::class, 'edit'])->middleware('can:email_templates.edit')->name('email-templates.edit');
+        Route::put('/templates/{emailTemplate}', [EmailTemplateController::class, 'update'])->middleware('can:email_templates.edit')->name('email-templates.update');
+        Route::delete('/templates/{emailTemplate}', [EmailTemplateController::class, 'destroy'])->middleware('can:email_templates.delete')->name('email-templates.destroy');
+        Route::post('/templates/{emailTemplate}/test', [EmailTemplateController::class, 'test'])->middleware('can:email_templates.view')->name('email-templates.test');
+
+        Route::get('/settings', [EmailSettingsController::class, 'edit'])->middleware('can:email_settings.view')->name('email-settings.edit');
+        Route::put('/settings', [EmailSettingsController::class, 'update'])->middleware('can:email_settings.edit')->name('email-settings.update');
     });
 
     // Tags page: tags, departments and people, for those allowed to manage them.

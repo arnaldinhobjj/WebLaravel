@@ -14,7 +14,7 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
-#[Fillable(['name', 'username', 'email', 'job_title', 'department_id', 'theme', 'password'])]
+#[Fillable(['name', 'username', 'email', 'job_title', 'department_id', 'theme', 'email_preferences', 'password'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -27,7 +27,7 @@ class User extends Authenticatable
     /**
      * Usernames that would clash with top-level routes such as /ticket.
      */
-    public const RESERVED_USERNAMES = ['ticket', 'favorites', 'actions', 'mentions', 'profile', 'settings', 'up', 'storage', 'css', 'js', 'login', 'logout', 'tags'];
+    public const RESERVED_USERNAMES = ['ticket', 'favorites', 'actions', 'mentions', 'profile', 'settings', 'up', 'storage', 'css', 'js', 'login', 'logout', 'tags', 'email'];
 
     /**
      * Always the people connection (MySQL by default), even when loaded through
@@ -76,7 +76,24 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'email_preferences' => 'array',
         ];
+    }
+
+    /** Ticket emails a person can turn off in Settings. */
+    public const EMAIL_PREFERENCES = [
+        'created' => 'A ticket is opened and assigned to me',
+        'assigned' => 'A ticket is assigned to me',
+        'replied' => 'Someone replies on my ticket',
+        'status_changed' => 'The status of my ticket changes',
+    ];
+
+    /**
+     * Whether this person wants the email for a ticket event (on unless turned off).
+     */
+    public function wantsEmail(string $event): bool
+    {
+        return (bool) ($this->email_preferences[$event] ?? true);
     }
 
     /**

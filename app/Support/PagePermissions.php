@@ -36,6 +36,9 @@ class PagePermissions
         'tags' => ['label' => 'Tags', 'abilities' => ['view', 'create', 'edit', 'delete']],
         'departments' => ['label' => 'Departments', 'abilities' => ['view', 'create', 'edit', 'delete']],
         'people' => ['label' => 'People', 'abilities' => ['view', 'create', 'edit']],
+        'emails' => ['label' => 'Email', 'abilities' => ['view'], 'extras' => ['send' => 'Send emails']],
+        'email_templates' => ['label' => 'Email templates', 'abilities' => ['view', 'create', 'edit', 'delete']],
+        'email_settings' => ['label' => 'Email settings', 'abilities' => ['view', 'edit']],
     ];
 
     /**

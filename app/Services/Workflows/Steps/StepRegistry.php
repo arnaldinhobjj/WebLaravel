@@ -13,6 +13,7 @@ class StepRegistry
         'ticket/update' => TicketUpdateStep::class,
         'ticket/reply' => TicketReplyStep::class,
         'http/request' => HttpRequestStep::class,
+        'email/send' => EmailSendStep::class,
         'message/show' => MessageShowStep::class,
         'page/open' => PageOpenStep::class,
         'ticket/open-form' => TicketOpenFormStep::class,

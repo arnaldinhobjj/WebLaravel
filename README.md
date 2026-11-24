@@ -87,7 +87,7 @@ From the project folder:
 docker-compose up -d
 ```
 
-- Starts **MySQL 8.4** on port 3306 and **Oracle Free 23ai** on port 1521 (service `FREEPDB1`).
+- Starts **MySQL 8.4** on port 3306, **Oracle Free 23ai** on port 1521 (service `FREEPDB1`), and **Mailpit**, which catches every email the app sends: read them at http://localhost:8025.
 - Oracle takes a minute or two the first time; `docker-compose ps` shows both as `healthy` when they're ready.
 - Also creates the test databases: `fortvale_test` in MySQL and the `FORTVALE_TEST` schema in Oracle. Tests never touch your development data.
 - `docker compose up -d` (with a space) works too, if your Docker has the Compose plugin.
@@ -115,7 +115,7 @@ Then open http://127.0.0.1:8000.
 
 ```bash
 colima start                 # macOS only, after a restart
-docker-compose up -d         # MySQL and Oracle
+docker-compose up -d         # MySQL, Oracle and Mailpit
 php artisan serve            # the app, at http://127.0.0.1:8000
 php artisan schedule:work    # only needed for actions with `on: schedule`
 ```
@@ -237,6 +237,39 @@ The tag grid and the Tags page pick it up by themselves.
 
 Seed data: departments Operations (tag *Action editors*), Facilities and IT (tag *Helpdesk*: see and assign every ticket); Alex Morgan also has *Administrator* (everything).
 
+## Email
+
+Fort Vale sends email three ways, all through one sender (`app/Services/Email/Mailer.php`):
+
+- **Ticket emails**, automatically:
+  - **New ticket:** the category's extra addresses (below).
+  - **Assigned:** the new assignee.
+  - **Reply** and **status change:** the requester and the assignee.
+
+  Nobody is emailed about their own change, or about a ticket they can't see. Each person picks which ticket emails they get under *Settings* → *Email me when…*.
+- **The Email page** (`/email`): pick people and/or type addresses, optionally start from a template, and send. Each recipient gets their own copy. Your sent emails are listed below the form.
+- **Actions**, with the `email/send` step (see [Steps](#steps-uses)).
+
+Defaults:
+
+- **Email templates** (`/email/templates`): four built-in templates are the ticket emails. Edit their wording, but you can't delete them. Add your own for the Email page and actions. *Send a test to me* sends one with example values. Templates use the same `${{ … }}` placeholders as actions, plus `recipient.name` and `reply.body`.
+- **Email settings** (`/email/settings`): the sender name and address, and per ticket category the addresses that also get the "new ticket" email. The sender falls back to `MAIL_FROM_NAME` / `MAIL_FROM_ADDRESS` in `.env`.
+
+Permissions (on the Tags page): *Email* (view, Send emails), *Email templates* (view, create, edit, delete), and *Email settings* (view, edit). The Everyone tag doesn't include them; the Administrator tag has them all.
+
+**Locally**, everything lands in Mailpit at http://localhost:8025 and nothing leaves your machine. **For real email**, point `.env` at your mail server:
+
+```dotenv
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.example.com
+MAIL_PORT=587
+MAIL_USERNAME=…
+MAIL_PASSWORD=…
+MAIL_FROM_ADDRESS="fortvale@yourcompany.com"
+```
+
+A failed send is written to `storage/logs/laravel.log`. It never breaks the page; an action's step is marked failed.
+
 ## Actions (YAML)
 
 Actions work like GitHub Actions: each one is a YAML document with a `name`, what starts it (`on:`) and the `steps` it runs.
@@ -298,6 +331,7 @@ steps:
 | `ticket/create` | Opens a ticket. Output: `ticket` (its number) | `subject` (required), `description`, `category`, `priority`, `assignee` (username), `as` (username to open it as) |
 | `ticket/update` | Changes a ticket | `ticket` (number; defaults to the triggering ticket), `status`, `priority`, `category`, `assignee` (username or `none`), `as` |
 | `ticket/reply` | Adds a reply | `ticket`, `body` (required), `as` |
+| `email/send` | Sends an email, one copy per recipient. Outputs: `sent`, `to` | `to` (required: usernames and/or addresses, up to 20), and either `template` (an email template's name) or `subject` + `body`. `${{ recipient.name }}` is filled in per person. Personal actions need their owner to have *Email: Send emails* |
 | `http/request` | Calls a web address, e.g. a Slack or Teams webhook. Outputs: `status`, `body` | `url` (required), `method` (GET, POST, PUT, PATCH, DELETE; POST when there's a body), `headers`, `body` (text, or a map sent as JSON), `timeout` (1–10 s) |
 | `message/show` | The message shown after a Run-button run | `text` (required) |
 | `page/open` | Sends you to a Fort Vale page (`/ticket?…`) or a website | `url` (required) |
@@ -313,7 +347,8 @@ steps:
 | Value | Is |
 | --- | --- |
 | `${{ inputs.<name> }}` | What was typed for a Run-button input |
-| `${{ ticket.id }}`, `.subject`, `.status`, `.priority`, `.category` | The ticket that triggered the action (`on: ticket` only) |
+| `${{ ticket.id }}`, `.subject`, `.status`, `.priority`, `.category`, `.url`, `.requester`, `.assignee` | The ticket that triggered the action (`on: ticket` only); requester and assignee are usernames |
+| `${{ recipient.name }}`, `${{ recipient.email }}` | The person receiving the email (`email/send` only) |
 | `${{ actor.name }}`, `${{ actor.username }}` | The person who started the run |
 | `${{ steps.<id>.<output> }}` | An earlier step's output |
 | `${{ secrets.<NAME> }}` | `FORTVALE_SECRET_<NAME>` from `.env`. **Shared actions only**; masked as `***` in run logs |
@@ -354,6 +389,7 @@ php artisan test
 | `app/Http/Controllers/DashboardController.php` | Home screen, reset |
 | `app/Http/Controllers/LoginController.php` | Sign in and out |
 | `app/Http/Controllers/TagController.php`, `DepartmentController.php`, `PersonController.php`, `resources/views/tags` | Tags page: tags, departments, people |
+| `app/Services/Email/Mailer.php`, `app/Listeners/SendTicketEmails.php`, `app/Http/Controllers/Email*Controller.php`, `resources/views/emails` | Sending email, ticket emails, the Email, templates and settings pages, the email layout |
 | `app/Support/PagePermissions.php`, `app/Models/Tag.php`, `app/Models/Department.php`, `app/Support/AccessGuard.php` | Pages and their permissions, tags, departments, and the check that someone can always manage access |
 | `app/Http/Controllers/TicketController.php` | Ticket list, create, view, update, reply |
 | `app/Http/Controllers/SettingsController.php` | Settings page |

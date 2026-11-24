@@ -329,7 +329,8 @@ class WorkflowParser
         $root = $parts[0];
 
         return match (true) {
-            ! in_array($root, Expressions::ROOTS, true) => 'unknown value. Use inputs, ticket, actor, steps or secrets.',
+            ! in_array($root, Expressions::ROOTS, true) => 'unknown value. Use inputs, ticket, actor, steps, secrets or (in email/send) recipient.',
+            $root === 'recipient' && ! in_array($parts[1] ?? '', ['name', 'email'], true) => 'use recipient.name or recipient.email.',
             count($parts) < 2 => 'name a field, e.g. inputs.camera.',
             $root === 'inputs' && ! isset(($run['inputs'] ?? [])[$parts[1]]) => "no input named \"{$parts[1]}\" under on.run.inputs.",
             $root === 'ticket' && $ticket === null => 'ticket values are only available in actions with `on: ticket`.',

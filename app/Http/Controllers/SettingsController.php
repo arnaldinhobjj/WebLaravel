@@ -18,7 +18,15 @@ class SettingsController extends Controller
 
     public function update(UpdateSettingsRequest $request, User $user): RedirectResponse
     {
-        $user->update($request->validated());
+        $data = $request->safe()->except('email_preferences');
+
+        // Unticked boxes aren't sent, so the form marks that the email choices were on it.
+        if ($request->boolean('email_preferences_shown')) {
+            $chosen = $request->validated('email_preferences', []);
+            $data['email_preferences'] = collect(User::EMAIL_PREFERENCES)->map(fn (string $label, string $event): bool => in_array($event, $chosen, true))->all();
+        }
+
+        $user->update($data);
 
         return redirect()
             ->route('settings.edit', $user)

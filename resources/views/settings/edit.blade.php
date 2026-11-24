@@ -69,8 +69,25 @@
             </fieldset>
         </section>
 
+        <section class="card settings-section" aria-labelledby="email-prefs-title">
+            <div class="settings-intro">
+                <h3 id="email-prefs-title" class="sub-title">Email me when…</h3>
+                <p class="muted">Sent to {{ $user->email }}. You never get an email about your own changes.</p>
+            </div>
+            <fieldset class="settings-fields check-list">
+                <legend class="sr-only">Ticket emails</legend>
+                <input type="hidden" name="email_preferences_shown" value="1">
+                @foreach (\App\Models\User::EMAIL_PREFERENCES as $event => $label)
+                    <label class="check">
+                        <input type="checkbox" name="email_preferences[]" value="{{ $event }}" @checked(old('email_preferences_shown') ? in_array($event, old('email_preferences', []), true) : $user->wantsEmail($event))>
+                        {{ $label }}
+                    </label>
+                @endforeach
+            </fieldset>
+        </section>
+
         <div class="form-actions">
-            <button type="submit" class="btn btn-primary">Save settings</button>
+            <button type="submit" class="btn btn-primary">Save settings</button
         </div>
     </form>
 

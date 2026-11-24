@@ -1189,3 +1189,7 @@ a.action-label:hover { color: var(--accent); }
 .permission-grid td:last-child, .permission-grid thead th:last-child, .permission-grid th[scope="row"] { text-align: left; }
 .permission-grid input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--accent); }
 .permission-grid .check { margin: 2px 0; }
+.people-picks { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px 16px; }
+.people-picks .check small { display: block; color: var(--text-muted); font-weight: 400; }
+fieldset.card { margin: 0; min-width: 0; }
+.compose-form { margin-top: 16px; }

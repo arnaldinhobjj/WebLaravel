@@ -55,7 +55,8 @@ class WorkflowRunner
                 $timer = hrtime(true);
 
                 try {
-                    $output = $handler->run(Expressions::render($step['with'], $context->values()), $context);
+                    $keep = $step['uses'] === 'email/send' ? ['recipient'] : [];
+                    $output = $handler->run(Expressions::render($step['with'], $context->values(), $keep), $context);
 
                     if ($step['id'] !== null) {
                         $context->stepOutputs[$step['id']] = $output;
