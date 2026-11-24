@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\EmailController;
 use App\Mail\FortValeEmail;
 use App\Models\Action;
 use App\Models\ActionRun;
@@ -85,6 +86,45 @@ class FilesInEmailAndActionsTest extends TestCase
 
         Mail::assertSent(FortValeEmail::class, fn (FortValeEmail $mail) => self::names($mail) === ['checklist.pdf', 'photo.png', 'audit-guide.txt']);
         $this->assertSame(0, StoredFile::where('name', 'photo.png')->count(), 'Uploads on the email page are sent, not stored.');
+    }
+
+    public function test_the_file_picker_searches_every_file_you_may_attach(): void
+    {
+        $quality = Folder::factory()->create(['name' => 'Quality']);
+        $old = $this->store($quality, 'Annual audit 2019.pdf', '%PDF-1.4');
+        $old->forceFill(['updated_at' => now()->subYears(5)])->save();
+        foreach (range(1, EmailController::RECENT_FILES) as $i) {
+            $this->store($quality, "recent-{$i}.txt");
+        }
+        $hidden = Folder::factory()->create(['name' => 'HR']);
+        $hidden->access()->create(['department_id' => Department::factory()->create()->id, 'abilities' => ['view']]);
+        $this->store($hidden, 'Annual salaries.xlsx', 'x');
+        $this->store(Folder::personalRootFor($this->alex), 'annual leave.txt');
+
+        $this->get(route('emails.create'))->assertSee('Recently changed:')->assertDontSee('Annual audit 2019.pdf');
+
+        $this->getJson(route('emails.files', ['q' => 'ANNUAL']))
+            ->assertOk()
+            ->assertJsonFragment(['id' => $old->id, 'name' => 'Annual audit 2019.pdf', 'path' => 'Library / Quality'])
+            ->assertJsonFragment(['name' => 'annual leave.txt', 'path' => 'My files'])
+            ->assertJsonMissing(['name' => 'Annual salaries.xlsx'])
+            ->assertJsonCount(2);
+
+        $this->actingAs(User::factory()->create())->getJson(route('emails.files', ['q' => 'annual']))->assertForbidden();
+    }
+
+    public function test_ticked_files_stay_ticked_after_a_form_error(): void
+    {
+        $old = $this->store(Folder::factory()->create(), 'old report.pdf', '%PDF-1.4');
+        $old->forceFill(['updated_at' => now()->subYears(5)])->save();
+        foreach (range(1, EmailController::RECENT_FILES) as $i) {
+            $this->store(Folder::personalRootFor($this->alex), "n{$i}.txt");
+        }
+
+        $this->from(route('emails.create'))->post(route('emails.store'), ['subject' => 'x', 'body' => 'x', 'stored_files' => [$old->id]])
+            ->assertSessionHasErrors('people');
+
+        $this->get(route('emails.create'))->assertSee('old report.pdf')->assertSee('value="'.$old->id.'" checked', false);
     }
 
     public function test_files_you_cannot_read_and_oversized_attachments_are_refused(): void

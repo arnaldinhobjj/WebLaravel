@@ -13,6 +13,8 @@ use App\Services\Files\FilePaths;
 use App\Services\Files\FileStore;
 use App\Support\Attachables;
 use App\Support\CurrentUser;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -25,26 +27,42 @@ use Illuminate\View\View;
  */
 class EmailController extends Controller
 {
-    public function create(Request $request, FileAccess $access): View
+    /** How many recent files the picker shows before you search. */
+    public const RECENT_FILES = 30;
+
+    public function create(Request $request): View
     {
         $template = $request->integer('template') ? EmailTemplate::find($request->integer('template')) : null;
         $me = CurrentUser::get();
-
-        $folderIds = $access->visibleLibraryFolderIds($me);
-        if ($me->hasPermission('my_files.view')) {
-            $mine = Folder::personalRootFor($me);
-            array_push($folderIds, ...app(FileStore::class)->subtreeIds($mine));
-        }
+        $chosenIds = array_map('intval', (array) $request->old('stored_files', []));
 
         return view('emails.compose', [
-            // shortcut: lists the 300 most recently changed files; add a search box if libraries grow past that.
-            'pickable' => StoredFile::whereIn('folder_id', $folderIds)->whereNotNull('current_version_id')->with('folder')->latest('updated_at')->limit(300)->get(),
+            'pickable' => $this->pickableFiles($me)->whereKeyNot($chosenIds)->limit(self::RECENT_FILES)->get(),
+            'chosen' => $this->pickableFiles($me)->whereKey($chosenIds)->get(),
             'templateFiles' => $template ? Attachables::filesFor('email_template', $template->id) : collect(),
             'people' => User::orderBy('name')->get(),
             'templates' => EmailTemplate::orderBy('name')->get(),
             'template' => $template,
             'sent' => SentEmail::where('user_id', $me->id)->where('source', 'compose')->latest('id')->limit(20)->get(),
         ]);
+    }
+
+    /**
+     * Files you may attach whose name matches `q`, for the picker's search box.
+     */
+    public function files(Request $request): JsonResponse
+    {
+        $term = mb_strtolower(trim((string) $request->string('q')));
+        $query = $this->pickableFiles(CurrentUser::get());
+        if ($term !== '') {
+            $query->whereRaw('lower(name) like ?', ['%'.$term.'%']);
+        }
+
+        return response()->json($query->limit(50)->get()->map(fn (StoredFile $file): array => [
+            'id' => $file->id,
+            'name' => $file->name,
+            'path' => $file->folder->path(),
+        ]));
     }
 
     public function store(Request $request, Mailer $mailer): RedirectResponse
@@ -121,5 +139,20 @@ class EmailController extends Controller
         Mailer::assertAttachmentSize($files);
 
         return $files;
+    }
+
+    /**
+     * Files in folders this person may open (library and their own), newest first.
+     *
+     * @return Builder<StoredFile>
+     */
+    private function pickableFiles(User $me): Builder
+    {
+        $folderIds = app(FileAccess::class)->visibleLibraryFolderIds($me);
+        if ($me->hasPermission('my_files.view')) {
+            array_push($folderIds, ...app(FileStore::class)->subtreeIds(Folder::personalRootFor($me)));
+        }
+
+        return StoredFile::whereIn('folder_id', $folderIds)->whereNotNull('current_version_id')->with('folder')->latest('updated_at');
     }
 }

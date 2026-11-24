@@ -57,6 +57,7 @@ Route::middleware('auth')->group(function () {
     Route::prefix('email')->group(function () {
         Route::get('/', [EmailController::class, 'create'])->middleware('can:emails.view')->name('emails.create');
         Route::post('/', [EmailController::class, 'store'])->middleware('can:emails.send')->name('emails.store');
+        Route::get('/files', [EmailController::class, 'files'])->middleware('can:emails.send')->name('emails.files');
 
         Route::get('/templates', [EmailTemplateController::class, 'index'])->middleware('can:email_templates.view')->name('email-templates.index');
         Route::get('/templates/create', [EmailTemplateController::class, 'create'])->middleware('can:email_templates.create')->name('email-templates.create');
