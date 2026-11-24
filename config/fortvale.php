@@ -46,4 +46,13 @@ return [
             ->all(),
     ],
 
+    // Web search for AI skills (web.search): duckduckgo (default, no key),
+    // brave, tavily or searxng (your own instance).
+    'web_search' => [
+        'provider' => env('WEB_SEARCH_PROVIDER', 'duckduckgo'),
+        'brave_key' => env('BRAVE_SEARCH_API_KEY'),
+        'tavily_key' => env('TAVILY_API_KEY'),
+        'searxng_url' => env('SEARXNG_URL'),
+    ],
+
 ];

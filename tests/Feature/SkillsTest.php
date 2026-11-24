@@ -15,8 +15,10 @@ use App\Models\Tag;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Services\Files\FileStore;
+use App\Services\Workflows\HostResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -299,5 +301,78 @@ class SkillsTest extends TestCase
 
         Tag::everyone()->update(['permissions' => []]);
         $this->actingAs(User::factory()->create())->get(route('ai.skills'))->assertForbidden();
+    }
+
+    // Web
+
+    private function fakeInternet(): void
+    {
+        $this->app->instance(HostResolver::class, new class extends HostResolver
+        {
+            public function addresses(string $host): array
+            {
+                return match ($host) {
+                    'intranet.local' => ['10.0.0.5'],
+                    default => filter_var($host, FILTER_VALIDATE_IP) ? [$host] : ['93.184.215.14'],
+                };
+            }
+        });
+    }
+
+    public function test_web_search_works_with_every_provider(): void
+    {
+        Http::fake([
+            'html.duckduckgo.com/*' => Http::response('<div class="result results_links"><a class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Flaravel.com%2Fdocs&rut=x">Laravel docs</a><a class="result__snippet">The PHP framework.</a></div>'),
+            'api.search.brave.com/*' => Http::response(['web' => ['results' => [['title' => 'Brave hit', 'url' => 'https://brave.example', 'description' => '<b>Fast</b>']]]]),
+            'api.tavily.com/*' => Http::response(['results' => [['title' => 'Tavily hit', 'url' => 'https://tavily.example', 'content' => 'Deep']]]),
+            'search.local/*' => Http::response(['results' => [['title' => 'SearX hit', 'url' => 'https://searx.example', 'content' => 'Own']]]),
+        ]);
+
+        $this->assertSame([['title' => 'Laravel docs', 'url' => 'https://laravel.com/docs', 'snippet' => 'The PHP framework.']], $this->use('web.search', ['query' => 'laravel'])['data']['results']);
+
+        config(['fortvale.web_search.provider' => 'brave', 'fortvale.web_search.brave_key' => 'k']);
+        $this->assertSame('Fast', $this->use('web.search', ['query' => 'x'])['data']['results'][0]['snippet']);
+        config(['fortvale.web_search.provider' => 'tavily', 'fortvale.web_search.tavily_key' => 'k']);
+        $this->assertSame('Tavily hit', $this->use('web.search', ['query' => 'x'])['data']['results'][0]['title']);
+        config(['fortvale.web_search.provider' => 'searxng', 'fortvale.web_search.searxng_url' => 'http://search.local']);
+        $this->assertSame('SearX hit', $this->use('web.search', ['query' => 'x'])['data']['results'][0]['title']);
+
+        config(['fortvale.web_search.provider' => 'brave', 'fortvale.web_search.brave_key' => '']);
+        $this->assertStringContainsString('BRAVE_SEARCH_API_KEY', $this->use('web.search', ['query' => 'x'])['summary']);
+    }
+
+    public function test_web_read_turns_public_pages_into_text_and_refuses_private_ones(): void
+    {
+        $this->fakeInternet();
+        Http::fake([
+            'https://example.com/old' => Http::response('', 301, ['Location' => '/page']),
+            'https://example.com/page' => Http::response('<html><head><title>Fire drills</title><script>evil()</script></head><body><nav>menu</nav><p>Meet at the gate.</p><p>Bring &amp; count.</p></body></html>', 200, ['Content-Type' => 'text/html']),
+            'https://example.com/to-intranet' => Http::response('', 302, ['Location' => 'http://intranet.local/secret']),
+            'https://example.com/photo' => Http::response('png', 200, ['Content-Type' => 'image/png']),
+        ]);
+
+        $page = $this->use('web.read', ['url' => 'https://example.com/old']);
+        $this->assertTrue($page['ok']);
+        $this->assertSame(['Fire drills', 'https://example.com/page'], [$page['data']['title'], $page['data']['url']]);
+        $this->assertStringContainsString("Meet at the gate.\n", $page['data']['text']."\n");
+        $this->assertStringContainsString('Bring & count.', $page['data']['text']);
+        $this->assertStringNotContainsString('evil', $page['data']['text']);
+        $this->assertStringNotContainsString('menu', $page['data']['text']);
+
+        $this->assertStringContainsString("isn't a public internet address", $this->use('web.read', ['url' => 'https://example.com/to-intranet'])['summary']);
+        $this->assertStringContainsString("isn't a public internet address", $this->use('web.read', ['url' => 'http://127.0.0.1:8000/ai'])['summary']);
+        $this->assertStringContainsString("isn't an http(s) web address", $this->use('web.read', ['url' => 'file:///etc/passwd'])['summary']);
+        $this->assertStringContainsString("isn't a web page", $this->use('web.read', ['url' => 'https://example.com/photo'])['summary']);
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'intranet.local'));
+    }
+
+    public function test_the_web_skills_need_their_permission_and_have_a_research_recipe(): void
+    {
+        $this->assertArrayHasKey('web.search', $this->skills->availableAbilities($this->alex), 'everyone may by default');
+        $this->assertArrayHasKey('recipes.research_topic', $this->skills->availableRecipes($this->alex));
+        $this->assertStringContainsString('web_search', $this->skills->recipe($this->alex, 'recipes.research_topic', ['question' => 'fire codes'])->data['instructions']);
+
+        Tag::everyone()->update(['permissions' => ['tickets.view']]);
+        $this->assertArrayNotHasKey('web.search', $this->skills->availableAbilities(User::factory()->create()));
     }
 }

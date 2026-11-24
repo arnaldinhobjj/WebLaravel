@@ -46,7 +46,7 @@ class PagePermissions
         ],
         'my_files' => ['label' => 'My files', 'abilities' => ['view', 'create', 'edit', 'delete']],
         'file_settings' => ['label' => 'File settings', 'abilities' => ['view', 'edit']],
-        'ai' => ['label' => 'AI', 'abilities' => [], 'extras' => ['chat' => 'Chat with my AI', 'connect' => 'Connect my AI to Fort Vale', 'manage_skills' => 'Switch skills off for everyone']],
+        'ai' => ['label' => 'AI', 'abilities' => [], 'extras' => ['chat' => 'Chat with my AI', 'connect' => 'Connect my AI to Fort Vale', 'manage_skills' => 'Switch skills off for everyone', 'web' => 'Search and read the web']],
     ];
 
     /**
@@ -60,7 +60,7 @@ class PagePermissions
         'shared_actions.view', 'shared_actions.run',
         'files.view', 'files.create', 'files.edit',
         'my_files.view', 'my_files.create', 'my_files.edit', 'my_files.delete',
-        'ai.chat',
+        'ai.chat', 'ai.web',
     ];
 
     /**
