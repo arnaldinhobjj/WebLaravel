@@ -44,6 +44,32 @@ class FileController extends Controller
         return $this->browse($request, $folder);
     }
 
+    /**
+     * The workspace: files as icons, like the Finder. The top shows the
+     * areas you may open (the library and your own files).
+     */
+    public function workspace(): View
+    {
+        $me = CurrentUser::get();
+
+        return view('files.workspace', [
+            'folder' => null,
+            'ancestry' => [],
+            'areas' => array_values(array_filter([
+                $me->hasPermission('files.view') ? Folder::libraryRoot() : null,
+                $me->hasPermission('my_files.view') ? Folder::personalRootFor($me) : null,
+            ])),
+            'children' => collect(),
+            'files' => collect(),
+            'can' => collect(['upload' => false, 'edit' => false, 'delete' => false]),
+        ]);
+    }
+
+    public function workspaceFolder(Request $request, Folder $folder): View
+    {
+        return $this->browse($request, $folder, 'files.workspace');
+    }
+
     public function upload(Request $request, Folder $folder): RedirectResponse
     {
         $this->authorizeFolder($folder, 'upload');
@@ -72,7 +98,9 @@ class FileController extends Controller
 
         $created = $this->store->createFolder(CurrentUser::get(), $folder, $data['name']);
 
-        return redirect()->route('files.folder', $created)->with('status', "Folder “{$created->name}” created.");
+        $url = $request->input('from') === 'workspace' ? route('workspace.folder', $created) : route('files.folder', $created);
+
+        return redirect()->to($url)->with('status', "Folder “{$created->name}” created.");
     }
 
     public function renameFolder(Request $request, Folder $folder): RedirectResponse
@@ -84,14 +112,16 @@ class FileController extends Controller
         return back()->with('status', 'Folder renamed.');
     }
 
-    public function destroyFolder(Folder $folder): RedirectResponse
+    public function destroyFolder(Request $request, Folder $folder): RedirectResponse
     {
         abort_if($folder->isRoot(), 404);
         $this->authorizeFolder($folder, 'delete');
         $parent = $folder->parent;
         $folder->delete();
 
-        return redirect()->to($this->folderUrl($parent))->with('status', "“{$folder->name}” moved to the trash.");
+        $url = $request->input('from') === 'workspace' ? route('workspace.folder', $parent) : $this->folderUrl($parent);
+
+        return redirect()->to($url)->with('status', "“{$folder->name}” moved to the trash.");
     }
 
     public function editAccess(Folder $folder): View
@@ -291,7 +321,7 @@ class FileController extends Controller
         return back()->with('status', "Trash emptied ({$removed} ".str('file')->plural($removed).' deleted for good).');
     }
 
-    private function browse(Request $request, Folder $folder): View
+    private function browse(Request $request, Folder $folder, string $view = 'files.browse'): View
     {
         $this->authorizeFolder($folder, 'view');
         $me = CurrentUser::get();
@@ -299,14 +329,14 @@ class FileController extends Controller
         $children = $folder->children()->with('access')->get()
             ->filter(fn (Folder $child) => $folder->isPersonal() || ! $folder->isRoot() || $this->access->rulesAllow($me, $child, 'view'));
 
-        return view('files.browse', [
+        return view($view, [
             'folder' => $folder,
             'ancestry' => $folder->ancestry(),
             'children' => $children->values(),
             'files' => $folder->files()->with(['currentVersion.uploader'])->withCount('versions')->get(),
             'can' => collect(['upload', 'edit', 'delete'])->mapWithKeys(fn ($ability) => [$ability => $this->access->allows($me, $folder, $ability)]),
             'canManageAccess' => ! $folder->isPersonal() && $folder->parent_id === Folder::libraryRoot()->id && $me->hasPermission('files.manage_access'),
-            'moveTargets' => $this->moveTargets($folder),
+            'moveTargets' => $view === 'files.browse' ? $this->moveTargets($folder) : collect(),
             'usage' => $folder->isPersonal() ? $this->store->usage($me) : null,
         ]);
     }

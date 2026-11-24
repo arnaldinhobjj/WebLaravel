@@ -25,6 +25,7 @@ class AppServiceProvider extends ServiceProvider
 
         // Every "page.ability" in PagePermissions is checked against the person's tags.
         Gate::before(fn (User $user, string $ability): ?bool => PagePermissions::exists($ability) ? $user->hasPermission($ability) : null);
+        Gate::define('workspace', fn (User $user): bool => $user->hasPermission('files.view') || $user->hasPermission('my_files.view'));
         Gate::define('actions-page', fn (User $user): bool => $user->hasPermission('actions.view') || $user->hasPermission('shared_actions.view'));
         Gate::define('tags-page', fn (User $user): bool => $user->hasPermission('tags.view') || $user->hasPermission('departments.view') || $user->hasPermission('people.view'));
 

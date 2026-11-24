@@ -73,6 +73,8 @@ Route::middleware('auth')->group(function () {
 
     // Files: the library, each person's own files, versions, trash. Folder
     // rules are checked in FileController (they differ per folder).
+    Route::get('/workspace', [FileController::class, 'workspace'])->middleware('can:workspace')->name('workspace.index');
+    Route::get('/workspace/{folder}', [FileController::class, 'workspaceFolder'])->name('workspace.folder');
     Route::get('/my-files', [FileController::class, 'mine'])->middleware('can:my_files.view')->name('files.mine');
     Route::prefix('files')->controller(FileController::class)->group(function () {
         Route::get('/', 'library')->middleware('can:files.view')->name('files.library');

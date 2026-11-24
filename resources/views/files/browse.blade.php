@@ -32,6 +32,7 @@
                     @endif
                 </div>
                 <div class="page-head-actions">
+                    <a href="{{ route('workspace.folder', $folder) }}" class="btn"><x-icon name="grid" :size="16" /> Icon view</a>
                     @if ($canManageAccess)
                         <a href="{{ route('files.access.edit', $folder) }}" class="btn">Who has access</a>
                     @endif
