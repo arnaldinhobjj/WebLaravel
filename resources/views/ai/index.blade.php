@@ -8,6 +8,7 @@
             <h2 class="section-title">AI</h2>
             <p class="page-sub">Chat with your own local AI. Your browser talks to it directly; chats are saved here and only you can see them.</p>
         </div>
+        <a href="{{ route('ai.skills') }}" class="btn">Skills</a>
     </div>
 
     <div class="ai-layout">
@@ -26,100 +27,114 @@
         {{-- The conversation --}}
         <section class="card ai-chat" aria-label="Chat"
                  data-ai-chat
-                 data-base-url="{{ $settings->base_url }}"
-                 data-model="{{ $settings->model }}"
-                 data-api-key="{{ $settings->api_key }}"
-                 data-system-prompt="{{ $settings->system_prompt }}"
                  data-conversation-id="{{ $conversation?->id }}"
+                 data-system-prompt="{{ $settings->system_prompt }}"
                  data-create-url="{{ route('ai.conversations.store') }}"
-                 data-save-url="{{ url('/ai/conversations') }}/{id}/messages">
+                 data-save-url="{{ url('/ai/conversations') }}/{id}/messages"
+                 data-run-url="{{ url('/ai/skills') }}/{name}/run"
+                 data-recipe-url="{{ url('/ai/recipes') }}/{name}">
             <script type="application/json" data-ai-history>@json($history)</script>
+            <script type="application/json" data-ai-skills>@json($skills)</script>
+            {{-- Your connections, with keys, for your own browser only. --}}
+            <script type="application/json" data-ai-connections>@json($browserConnections)</script>
 
-            @if ($conversation)
-                <div class="ai-chat-head">
-                    <details class="menu inline-menu">
-                        <summary class="btn">Rename</summary>
-                        <form method="POST" action="{{ route('ai.conversations.rename', $conversation) }}" class="menu-list inline-form">
-                            @csrf @method('PATCH')
-                            <label class="sr-only" for="chat-title">Chat name</label>
-                            <input id="chat-title" type="text" name="title" value="{{ $conversation->title }}" required maxlength="120">
-                            <button type="submit" class="btn btn-primary">Save</button>
+            <div class="ai-chat-head">
+                <label class="ai-connection-pick">
+                    <span class="muted small">Talking to</span>
+                    <select data-ai-connection>
+                        @forelse ($connections as $option)
+                            <option value="{{ $option->id }}" @selected($connection?->is($option))>{{ $option->name }}{{ $option->model ? ' · '.$option->model : '' }}</option>
+                        @empty
+                            <option value="">No AI connected yet</option>
+                        @endforelse
+                    </select>
+                </label>
+                @if ($conversation)
+                    <span class="ai-chat-tools">
+                        <details class="menu inline-menu">
+                            <summary class="btn">Rename</summary>
+                            <form method="POST" action="{{ route('ai.conversations.rename', $conversation) }}" class="menu-list inline-form">
+                                @csrf @method('PATCH')
+                                <label class="sr-only" for="chat-title">Chat name</label>
+                                <input id="chat-title" type="text" name="title" value="{{ $conversation->title }}" required maxlength="120">
+                                <button type="submit" class="btn btn-primary">Save</button>
+                            </form>
+                        </details>
+                        <form method="POST" action="{{ route('ai.conversations.destroy', $conversation) }}" data-confirm="Delete this chat?">
+                            @csrf @method('DELETE')
+                            <button type="submit" class="btn btn-ghost-danger">Delete</button>
                         </form>
-                    </details>
-                    <form method="POST" action="{{ route('ai.conversations.destroy', $conversation) }}" data-confirm="Delete this chat?">
-                        @csrf @method('DELETE')
-                        <button type="submit" class="btn btn-ghost-danger">Delete</button>
-                    </form>
-                </div>
-            @endif
+                    </span>
+                @endif
+            </div>
 
-            <ol class="ai-messages" data-ai-messages aria-live="polite">
-                @foreach ($history as $message)
-                    <li class="ai-message ai-message-{{ $message['role'] }}"><div class="ai-bubble">{{ $message['content'] }}</div></li>
-                @endforeach
-            </ol>
+            <ol class="ai-messages" data-ai-messages aria-live="polite"></ol>
             <p class="ai-empty muted" data-ai-empty @if ($history->isNotEmpty()) hidden @endif>
-                @if ($settings->model)
-                    Ask {{ $settings->model }} anything.
+                @if ($connection)
+                    Ask anything. Type <kbd>/</kbd> or press <strong>Skills</strong> to use a Fort Vale skill or recipe.
                 @else
-                    Connect your AI below, then start chatting.
+                    Add an AI below (local or cloud), then start chatting.
                 @endif
             </p>
             <p class="field-error" data-ai-error hidden></p>
 
+            <div class="ai-skill-menu card" data-skill-menu hidden>
+                <label class="sr-only" for="skill-filter">Find a skill</label>
+                <input id="skill-filter" type="search" placeholder="Find a skill or recipe…" data-skill-filter autocomplete="off">
+                <ul data-skill-list role="listbox" aria-label="Skills"></ul>
+            </div>
+            <form class="ai-skill-form card" data-skill-form hidden></form>
+
             <form class="ai-compose" data-ai-form>
                 <label class="sr-only" for="ai-input">Message</label>
-                <textarea id="ai-input" rows="2" placeholder="Message your AI… (Enter to send, Shift+Enter for a new line)" data-ai-input required></textarea>
+                <textarea id="ai-input" rows="2" placeholder="Message your AI… (/ for skills, Enter to send, Shift+Enter for a new line)" data-ai-input></textarea>
+                <button type="button" class="btn" data-skill-open aria-haspopup="listbox">Skills</button>
                 <button type="submit" class="btn btn-primary" data-ai-send>Send</button>
                 <button type="button" class="btn" data-ai-stop hidden>Stop</button>
             </form>
         </section>
     </div>
 
-    {{-- Connection to your AI --}}
-    <details class="card ai-panel" @if (! $settings->model) open @endif>
-        <summary><strong>Connect your AI</strong> <span class="muted small">{{ $settings->model ? $settings->model.' at '.$settings->base_url : 'not set up yet' }}</span></summary>
-        <form method="POST" action="{{ route('ai.settings') }}" class="ai-settings" data-ai-settings>
-            @csrf @method('PUT')
-            <div class="field-row field-row-2">
-                <label class="field">
-                    <span>Address (OpenAI-compatible)</span>
-                    <input type="url" name="base_url" value="{{ old('base_url', $settings->base_url) }}" required data-ai-base-url>
-                    <small class="muted">Ollama: http://localhost:11434/v1 · LM Studio: http://localhost:1234/v1</small>
-                    @error('base_url') <p class="field-error">{{ $message }}</p> @enderror
-                </label>
-                <label class="field">
-                    <span>Model</span>
-                    <span class="ai-model-row">
-                        <select name="model" data-ai-model-select>
-                            @if ($settings->model)<option value="{{ $settings->model }}" selected>{{ $settings->model }}</option>@endif
-                        </select>
-                        <button type="button" class="btn" data-ai-test>Test connection</button>
-                    </span>
-                    <small class="muted" data-ai-test-result aria-live="polite">Test connection lists the models your AI has.</small>
-                </label>
-                <label class="field">
-                    <span>API key <small class="muted">(optional; most local AIs don’t need one)</span>
-                    <input type="password" name="api_key" autocomplete="off" placeholder="{{ $settings->api_key ? 'Saved — leave empty to keep it' : '' }}" data-ai-api-key>
-                    @if ($settings->api_key)
-                        <label class="check"><input type="checkbox" name="clear_api_key" value="1"> Remove the saved key</label>
-                    @endif
-                </label>
-                <label class="field">
-                    <span>Instructions for your AI <small class="muted">(optional system prompt)</small></span>
-                    <textarea name="system_prompt" rows="3" maxlength="4000">{{ old('system_prompt', $settings->system_prompt) }}</textarea>
-                </label>
-            </div>
-            <div class="form-actions"><button type="submit" class="btn btn-primary">Save connection</button></div>
-        </form>
+    {{-- Your AIs: local or cloud --}}
+    <details class="card ai-panel" @if ($connections->isEmpty()) open @endif>
+        <summary><strong>Your AIs</strong> <span class="muted small">{{ $connections->count() }} connected · local (Ollama, LM Studio…) or cloud (OpenAI, Claude, Gemini…)</span></summary>
+
+        @foreach ($connections as $item)
+            <details class="ai-connection" @if (! $item->model) open @endif>
+                <summary><strong>{{ $item->name }}</strong> <span class="muted small">{{ \App\Models\AiConnection::PROVIDERS[$item->provider] }} · {{ $item->model ?? 'no model chosen' }} · {{ $item->base_url }}</span></summary>
+                @include('ai.partials.connection-form', ['item' => $item])
+                <form method="POST" action="{{ route('ai.connections.destroy', $item) }}" data-confirm="Remove “{{ $item->name }}”? Chats with it are kept.">
+                    @csrf @method('DELETE')
+                    <button type="submit" class="btn btn-ghost-danger">Remove</button>
+                </form>
+            </details>
+        @endforeach
+
+        <details class="ai-connection" @if ($connections->isEmpty()) open @endif>
+            <summary><strong>Add an AI</strong></summary>
+            @include('ai.partials.connection-form', ['item' => null])
+        </details>
+
         <div class="ai-help muted small">
-            <p><strong>Your AI must allow this page to call it.</strong></p>
+            <p><strong>Local AIs must allow this page to call them</strong> (cloud AIs already do; your key is stored encrypted and only sent to your own browser):</p>
             <ul>
-                <li><strong>Ollama:</strong> start it with <code>OLLAMA_ORIGINS={{ url('/') }} ollama serve</code> (or set <code>OLLAMA_ORIGINS</code> and restart the Ollama app), then <code>ollama pull llama3.2</code>.</li>
-                <li><strong>LM Studio:</strong> Developer tab → start the server, and turn on <em>Enable CORS</em>.</li>
-                <li><strong>Others</strong> (llama.cpp, vLLM, Jan…): use their OpenAI-compatible address ending in <code>/v1</code> and allow CORS.</li>
+                <li><strong>Ollama:</strong> <code>OLLAMA_ORIGINS={{ url('/') }} ollama serve</code>, then e.g. <code>ollama pull qwen2.5:7b</code> (good at using skills).</li>
+                <li><strong>LM Studio:</strong> Developer tab → start the server, turn on <em>Enable CORS</em>.</li>
+                <li><strong>Skills</strong> work with models that support tool calling (most current ones: Llama 3.1+, Qwen 2.5+, GPT-4o, Claude, Gemini…). Others still chat, without skills.</li>
             </ul>
         </div>
+    </details>
+
+    <details class="card ai-panel">
+        <summary><strong>Instructions for your AIs</strong> <span class="muted small">{{ $settings->system_prompt ? 'set' : 'none' }} · <a href="{{ route('ai.skills') }}">skills</a></span></summary>
+        <form method="POST" action="{{ route('ai.settings') }}" class="ai-settings">
+            @csrf @method('PUT')
+            <label class="field">
+                <span>Sent at the start of every chat (optional)</span>
+                <textarea name="system_prompt" rows="3" maxlength="4000">{{ old('system_prompt', $settings->system_prompt) }}</textarea>
+            </label>
+            <div class="form-actions"><button type="submit" class="btn btn-primary">Save instructions</button></div>
+        </form>
     </details>
 
     {{-- Your AI uses Fort Vale --}}
@@ -187,3 +202,7 @@
         </details>
     @endcan
 @endsection
+
+@push('scripts')
+    <script src="{{ asset('js/ai-chat.js') }}?v={{ filemtime(public_path('js/ai-chat.js')) }}" defer></script>
+@endpush

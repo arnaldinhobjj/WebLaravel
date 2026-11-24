@@ -1321,7 +1321,7 @@ fieldset.card { margin: 0; min-width: 0; }
 .ai-chats a:not(.btn):hover { background: var(--surface-2); }
 .ai-chats a.is-active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 .ai-chat { padding: 14px; display: flex; flex-direction: column; gap: 10px; min-height: 60vh; }
-.ai-chat-head { display: flex; justify-content: flex-end; gap: 8px; }
+.ai-chat-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
 .ai-messages { list-style: none; margin: 0; padding: 0; flex: 1; display: flex; flex-direction: column; gap: 10px; overflow: auto; max-height: 60vh; }
 .ai-message { display: flex; }
 .ai-message-user { justify-content: flex-end; }
@@ -1344,3 +1344,42 @@ fieldset.card { margin: 0; min-width: 0; }
 .ai-new-token code { font-size: 14px; user-select: all; overflow-wrap: anywhere; }
 .ai-token-form { padding: 0; margin: 8px 0 12px; max-width: 560px; }
 @media (max-width: 860px) { .ai-layout { grid-template-columns: 1fr; } .ai-chats { max-height: none; } }
+
+/* ---------- AI skills ---------- */
+.skill-index { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 8px; }
+.skill-index a { padding: 4px 10px; border: 1px solid var(--border); border-radius: 999px; font-size: 13px; color: var(--text); text-decoration: none; }
+.skill-index a:hover { border-color: var(--accent); color: var(--accent); }
+.skill-list { display: flex; flex-direction: column; gap: 8px; }
+.skill { padding: 12px 14px; }
+.skill > summary { cursor: pointer; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: center; list-style: none; }
+.skill > summary::-webkit-details-marker { display: none; }
+.skill-name code { font-size: 12px; color: var(--text-muted); }
+.skill-badges { display: flex; gap: 6px; }
+.skill p { margin: 10px 0 0; font-size: 14px; }
+.skill-switches { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.skill-try { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
+.skill-result { padding: 12px 14px; margin-bottom: 14px; border-left: 4px solid var(--success); }
+.skill-result.is-error { border-left-color: var(--danger); }
+.skill-result pre { margin: 8px 0 0; max-height: 360px; overflow: auto; font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.ai-connection-pick { display: flex; align-items: center; gap: 8px; }
+.ai-connection-pick select { max-width: 320px; }
+.ai-chat-tools { display: flex; gap: 8px; }
+.ai-message-tool { justify-content: flex-start; }
+.ai-skill-note { max-width: min(720px, 85%); padding: 6px 12px; border: 1px dashed var(--border-strong); border-radius: 10px; font-size: 13px; color: var(--text-muted); }
+.ai-skill-note.is-error { border-color: var(--danger); color: var(--danger); }
+.ai-skill-note summary { cursor: pointer; overflow-wrap: anywhere; }
+.ai-skill-note pre { margin: 6px 0 0; max-height: 260px; overflow: auto; font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text); }
+.ai-skill-menu { padding: 8px; display: flex; flex-direction: column; gap: 6px; max-height: 320px; }
+.ai-skill-menu input { width: 100%; padding: 7px 10px; }
+.ai-skill-menu ul { list-style: none; margin: 0; padding: 0; overflow: auto; display: flex; flex-direction: column; gap: 2px; }
+.ai-skill-choice { width: 100%; text-align: left; display: grid; grid-template-columns: auto 1fr; gap: 0 10px; padding: 7px 10px; border-radius: 8px; }
+.ai-skill-choice:hover, .ai-skill-choice:focus-visible { background: var(--surface-2); outline: none; }
+.ai-skill-choice small { color: var(--text-muted); align-self: center; }
+.ai-skill-choice span { grid-column: 1 / -1; font-size: 12.5px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ai-skill-form { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.ai-skill-form p { margin: 0; }
+.ai-connection { border-top: 1px solid var(--border); padding: 10px 0; }
+.ai-connection:first-of-type { margin-top: 10px; }
+.ai-connection > summary { cursor: pointer; display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
+.ai-connection > form[data-confirm] { margin-top: 8px; }

@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * A saved chat with your AI. Only its owner can see it.
  */
-#[Fillable(['user_id', 'title'])]
+#[Fillable(['user_id', 'connection_id', 'title'])]
 class AiConversation extends Model
 {
     public function getConnectionName(): ?string

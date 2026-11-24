@@ -1,46 +1,47 @@
 <?php
 
-namespace App\Mcp\Tools;
+namespace App\Ai\Skills\Abilities;
 
+use App\Ai\Skills\Skill;
+use App\Ai\Skills\SkillResult;
 use App\Models\Action;
 use App\Models\User;
 use App\Services\Workflows\Workflow;
 use App\Services\Workflows\WorkflowRepository;
-use Illuminate\Contracts\JsonSchema\JsonSchema;
-use Laravel\Mcp\Request;
-use Laravel\Mcp\Response;
-use Laravel\Mcp\Server\Attributes\Description;
-use Laravel\Mcp\Server\Attributes\Name;
 
-#[Name('list_actions')]
-#[Description('Lists the Fort Vale actions the person may run from a Run button, with their inputs. Run one with run_action and its key.')]
-class ListActions extends FortValeTool
+class ActionsList extends Skill
 {
-    protected function permissions(): array
+    public function name(): string
     {
-        return [];
+        return 'actions.list';
     }
 
-    public function shouldRegister(): bool
+    public function title(): string
     {
-        $me = auth()->user();
-
-        return $me instanceof User && ($me->hasPermission('shared_actions.run') || $me->hasPermission('actions.run'));
+        return 'List actions I can run';
     }
 
-    public function schema(JsonSchema $schema): array
+    public function description(): string
     {
-        return [];
+        return 'The Fort Vale actions the person may run from a Run button, with what they do and their inputs. Run one with actions.run and its key.';
     }
 
-    protected function perform(User $me, Request $request): Response
+    public function allows(User $me): bool
     {
-        return Response::json(['actions' => array_map(fn (Workflow $workflow): array => [
+        return $me->hasPermission('shared_actions.run') || $me->hasPermission('actions.run');
+    }
+
+    public function run(User $me, array $input): SkillResult
+    {
+        $actions = array_map(fn (Workflow $workflow): array => [
             'key' => $workflow->key,
             'name' => $workflow->name,
             'description' => $workflow->description,
+            'shared' => $workflow->isShared(),
             'inputs' => $workflow->inputs(),
-        ], self::runnable($me))]);
+        ], self::runnable($me));
+
+        return SkillResult::ok(count($actions).' actions you can run.', ['actions' => $actions]);
     }
 
     /**

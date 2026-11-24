@@ -46,7 +46,7 @@ class PagePermissions
         ],
         'my_files' => ['label' => 'My files', 'abilities' => ['view', 'create', 'edit', 'delete']],
         'file_settings' => ['label' => 'File settings', 'abilities' => ['view', 'edit']],
-        'ai' => ['label' => 'AI', 'abilities' => [], 'extras' => ['chat' => 'Chat with my AI', 'connect' => 'Connect my AI to Fort Vale']],
+        'ai' => ['label' => 'AI', 'abilities' => [], 'extras' => ['chat' => 'Chat with my AI', 'connect' => 'Connect my AI to Fort Vale', 'manage_skills' => 'Switch skills off for everyone']],
     ];
 
     /**

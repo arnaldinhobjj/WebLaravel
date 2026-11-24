@@ -32,5 +32,6 @@
 @endif
 
 <script src="{{ asset('js/fortvale.js') }}?v={{ filemtime(public_path('js/fortvale.js')) }}" defer></script>
+@stack('scripts')
 </body>
 </html>

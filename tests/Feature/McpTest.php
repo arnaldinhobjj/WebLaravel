@@ -63,18 +63,26 @@ class McpTest extends TestCase
         $this->rpc('initialize', ['protocolVersion' => '2025-06-18', 'capabilities' => (object) [], 'clientInfo' => ['name' => 'test', 'version' => '1']])
             ->assertOk()->assertJsonPath('result.serverInfo.name', 'Fort Vale');
 
-        $tools = collect($this->rpc('tools/list')->assertOk()->json('result.tools'))->pluck('name')->all();
-        $this->assertEqualsCanonicalizing(
-            ['search_tickets', 'get_ticket', 'create_ticket', 'reply_to_ticket', 'search_files', 'read_file', 'list_actions', 'run_action'],
-            $tools,
-        );
+        $tools = collect($this->rpc('tools/list')->assertOk()->json('result.tools'))->keyBy('name');
+        foreach (['tickets_search', 'tickets_get', 'tickets_create', 'tickets_reply', 'files_search', 'files_read', 'actions_list', 'actions_run', 'people_me', 'home_summary'] as $name) {
+            $this->assertTrue($tools->has($name), "{$name} is offered");
+        }
+        $this->assertTrue($tools['tickets_search']['annotations']['readOnlyHint']);
+        $this->assertTrue($tools['tickets_create']['annotations']['destructiveHint']);
+        $this->assertSame(['ticket'], $tools['tickets_get']['inputSchema']['required']);
+
+        // Recipes are MCP prompts.
+        $prompts = collect($this->rpc('prompts/list')->assertOk()->json('result.prompts'))->pluck('name');
+        $this->assertContains('recipes_summarise_ticket', $prompts);
 
         // With fewer permissions, fewer tools.
         Tag::everyone()->update(['permissions' => ['tickets.view']]);
         $tools = collect($this->rpc('tools/list')->json('result.tools'))->pluck('name')->all();
-        $this->assertEqualsCanonicalizing(['search_tickets', 'get_ticket'], $tools);
+        $this->assertContains('tickets_search', $tools);
+        $this->assertNotContains('tickets_create', $tools);
+        $this->assertNotContains('files_search', $tools);
         // A tool that isn't offered can't be called either.
-        $this->rpc('tools/call', ['name' => 'create_ticket', 'arguments' => ['subject' => 'x', 'description' => 'x']])->assertJsonStructure(['error' => ['message']]);
+        $this->rpc('tools/call', ['name' => 'tickets_create', 'arguments' => ['subject' => 'x', 'description' => 'x']])->assertJsonStructure(['error' => ['message']]);
         $this->assertSame(0, Ticket::count());
     }
 
@@ -96,29 +104,29 @@ class McpTest extends TestCase
         $mine->addComment('Still broken this morning.', $this->alex);
         $other = Ticket::factory()->create(['subject' => 'Badge reader in HR']);
 
-        $found = json_decode($this->useTool('search_tickets', ['search' => 'badge'])['text'], true);
+        $found = json_decode($this->useTool('tickets_search', ['search' => 'badge'])['text'], true);
         $this->assertSame([$mine->id], array_column($found['tickets'], 'id'));
 
-        $ticket = json_decode($this->useTool('get_ticket', ['ticket' => $mine->id])['text'], true);
+        $ticket = json_decode($this->useTool('tickets_get', ['ticket' => $mine->id])['text'], true);
         $this->assertSame('Still broken this morning.', $ticket['replies'][0]['text']);
 
-        $hidden = $this->useTool('get_ticket', ['ticket' => $other->id]);
+        $hidden = $this->useTool('tickets_get', ['ticket' => $other->id]);
         $this->assertTrue($hidden['error']);
         $this->assertStringContainsString("wasn't found", $hidden['text']);
-        $this->assertTrue($this->useTool('reply_to_ticket', ['ticket' => $other->id, 'text' => 'Hi'])['error']);
+        $this->assertTrue($this->useTool('tickets_reply', ['ticket' => $other->id, 'text' => 'Hi'])['error']);
         $this->assertSame(0, $other->comments()->count());
     }
 
     public function test_creating_and_replying_act_as_the_person(): void
     {
-        $created = json_decode($this->useTool('create_ticket', ['subject' => 'Printer jams', 'description' => 'Floor 2', 'category' => 'it', 'priority' => 'high'])['text'], true);
-        $ticket = Ticket::findOrFail($created['ticket']);
+        $created = json_decode($this->useTool('tickets_create', ['subject' => 'Printer jams', 'description' => 'Floor 2', 'category' => 'it', 'priority' => 'high'])['text'], true);
+        $ticket = Ticket::findOrFail($created['id']);
         $this->assertSame([$this->alex->id, 'it', 'high'], [$ticket->requester_id, $ticket->category, $ticket->priority->value]);
 
-        $this->useTool('reply_to_ticket', ['ticket' => $ticket->id, 'text' => 'Paper tray replaced.']);
+        $this->useTool('tickets_reply', ['ticket' => $ticket->id, 'text' => 'Paper tray replaced.']);
         $this->assertSame($this->alex->id, $ticket->comments()->sole()->user_id);
 
-        $invalid = $this->useTool('create_ticket', ['subject' => 'x', 'description' => 'x', 'category' => 'nonsense']);
+        $invalid = $this->useTool('tickets_create', ['subject' => 'x', 'description' => 'x', 'category' => 'nonsense']);
         $this->assertTrue($invalid['error']);
     }
 
@@ -132,13 +140,13 @@ class McpTest extends TestCase
         $store->upload($this->alex, $hr, UploadedFile::fake()->createWithContent('badge salaries.txt', 'secret'));
         $store->upload($this->alex, $open, UploadedFile::fake()->createWithContent('photo.png', base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==')));
 
-        $found = json_decode($this->useTool('search_files', ['search' => 'badge'])['text'], true);
+        $found = json_decode($this->useTool('files_search', ['search' => 'badge'])['text'], true);
         $this->assertSame(['badge manual.txt'], array_column($found['files'], 'name'));
 
         $manual = StoredFile::where('name', 'badge manual.txt')->sole();
-        $this->assertSame('Hold the button for 10 seconds.', $this->useTool('read_file', ['file' => $manual->id])['text']);
-        $this->assertTrue($this->useTool('read_file', ['file' => StoredFile::where('name', 'badge salaries.txt')->sole()->id])['error']);
-        $this->assertStringContainsString("isn't a text file", $this->useTool('read_file', ['file' => StoredFile::where('name', 'photo.png')->sole()->id])['text']);
+        $this->assertSame('Hold the button for 10 seconds.', json_decode($this->useTool('files_read', ['file' => $manual->id])['text'], true)['text']);
+        $this->assertTrue($this->useTool('files_read', ['file' => StoredFile::where('name', 'badge salaries.txt')->sole()->id])['error']);
+        $this->assertStringContainsString("isn't a text file", $this->useTool('files_read', ['file' => StoredFile::where('name', 'photo.png')->sole()->id])['text']);
     }
 
     public function test_actions_can_be_listed_and_run_as_the_person(): void
@@ -146,28 +154,27 @@ class McpTest extends TestCase
         $action = Action::factory()->for($this->alex)->yaml("name: Say hello\non:\n  run:\n    inputs:\n      who: { required: true }\nsteps:\n  - uses: message/show\n    with: { text: \"Hello \${{ inputs.who }} from \${{ actor.name }}\" }")->create();
         Action::factory()->yaml("name: Not mine\non: { run: }\nsteps:\n  - uses: message/show\n    with: { text: x }")->create();
 
-        $listed = json_decode($this->useTool('list_actions')['text'], true)['actions'];
+        $listed = json_decode($this->useTool('actions_list')['text'], true)['actions'];
         $this->assertSame(['Say hello'], array_column($listed, 'name'));
 
-        $this->assertStringContainsString('needs the input “who”', $this->useTool('run_action', ['key' => $action->key()])['text']);
-        $result = json_decode($this->useTool('run_action', ['key' => $action->key(), 'inputs' => ['who' => 'Sam']])['text'], true);
-        $this->assertTrue($result['succeeded']);
+        $this->assertStringContainsString('needs the input “who”', $this->useTool('actions_run', ['key' => $action->key()])['text']);
+        $result = json_decode($this->useTool('actions_run', ['key' => $action->key(), 'inputs' => ['who' => 'Sam']])['text'], true);
         $this->assertSame('Hello Sam from Alex Morgan', $result['message']);
 
-        $this->assertTrue($this->useTool('run_action', ['key' => 'personal:999999'])['error']);
+        $this->assertTrue($this->useTool('actions_run', ['key' => 'personal:999999'])['error']);
     }
 
     public function test_calls_are_logged_on_the_token_and_rate_limited(): void
     {
-        $this->useTool('search_tickets');
-        $this->useTool('get_ticket', ['ticket' => 999999]);
+        $this->useTool('tickets_search');
+        $this->useTool('tickets_get', ['ticket' => 999999]);
 
         $calls = AiTokenCall::orderBy('id')->get();
-        $this->assertSame(['search_tickets', 'get_ticket'], $calls->pluck('tool')->all());
+        $this->assertSame(['tickets_search', 'tickets_get'], $calls->pluck('tool')->all());
         $this->assertSame([true, false], $calls->pluck('ok')->all());
         $this->assertNotNull(AiToken::sole()->last_used_at);
 
-        $this->actingAs($this->alex)->get(route('ai.index'))->assertSee('search_tickets')->assertSee("Ticket #999999 wasn't found.");
+        $this->actingAs($this->alex)->get(route('ai.index'))->assertSee('tickets_search')->assertSee("Ticket #999999 wasn't found.");
 
         for ($i = 0; $i < 58; $i++) {
             $this->rpc('tools/list');

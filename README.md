@@ -308,28 +308,60 @@ FILES_BUCKET=fortvale
 
 ## AI
 
-The **AI** page (`/ai`, in the sidebar) connects your own local AI to Fort Vale, both ways. Everything on it is per person: your connection, your chats and your tokens. Nobody else can see your chats, administrators included.
+The **AI** page (`/ai`, in the sidebar) connects AIs to Fort Vale, both ways. Everything is per person: your AIs, your chats, your tokens and your skill switches. Nobody else can see your chats, administrators included.
 
-### Chat with your AI
+### Chat with any AI
 
-- **Any OpenAI-compatible local AI works:** Ollama, LM Studio, llama.cpp, vLLM, Jan… Under *Connect your AI*, enter its address (Ollama `http://localhost:11434/v1`, LM Studio `http://localhost:1234/v1`). Then *Test connection*, pick a model and save. An API key is optional and stored encrypted.
-- **Your browser talks to your AI directly.** It runs on your computer, and answers stream in as they're written. So your AI must allow this page to call it (CORS):
-  - **Ollama:** `OLLAMA_ORIGINS=http://127.0.0.1:8000 ollama serve` (or set `OLLAMA_ORIGINS` for the Ollama app), then e.g. `ollama pull llama3.2`;
-  - **LM Studio:** Developer tab → start the server, turn on *Enable CORS*.
-- **Chats are saved:** each exchange is saved as it happens. Your chats are listed on the left; rename or delete them there. A chat is titled from its first message.
+- **Your AIs:** add as many AIs as you like under *Your AIs*, local or cloud. There are ready-made presets for Ollama, LM Studio, OpenAI, Anthropic Claude, Google Gemini, OpenRouter and Groq.
+  - Each has an address, a model (*Test connection* lists them) and an optional API key, stored encrypted and only sent to your own browser.
+  - Pick which AI to talk to above the message box.
+- **Your browser talks to the AI directly**, so answers stream in. Cloud AIs allow this already; local ones must allow this page (CORS):
+  - **Ollama:** `OLLAMA_ORIGINS=http://127.0.0.1:8000 ollama serve`;
+  - **LM Studio:** Developer tab → *Enable CORS*.
+- **Chats are saved** as they happen, including any skills used, and listed on the left.
+- **Instructions for your AIs** (a system prompt) are sent at the start of every chat.
 
-### Let your AI use Fort Vale (MCP)
+### Skills
 
-Fort Vale is an MCP server at `/mcp/fortvale`.
+Skills are what any AI can do in Fort Vale. Each is written once (`app/Ai/Skills/`) and offered to every kind of AI. A skill always acts **as you**, within your permissions, and never more.
 
-- **Connecting:** under *Let your AI use Fort Vale*, create a token (shown once), then add Fort Vale to your AI app with header `Authorization: Bearer <token>`. The page shows a ready-made `mcp.json` for LM Studio and Claude Desktop.
-- **What your AI can do:** `search_tickets`, `get_ticket`, `create_ticket`, `reply_to_ticket`, `search_files`, `read_file` (text files), `list_actions`, `run_action`. It acts **as you**, with your permissions, never more: it only sees tickets and folders you can see, and only gets the tools your tags allow.
-- **Tokens:**
-  - 60 calls a minute per token.
-  - Every call is logged; the token list shows the recent ones.
-  - *Revoke* stops a token at once.
+- **30 abilities:**
+  - tickets: search, read, my queue, history, stale, open, reply, change, assign;
+  - people and departments;
+  - files: search, recent, list a folder, read, details/versions, create a folder, save a text file, trash;
+  - email: templates, sent, send;
+  - actions: list, explain, recent runs, check YAML, run;
+  - today's summary.
+- **10 recipes**, ready-made instructions an AI follows: summarise a ticket, draft a reply, triage my tickets, my day, weekly ticket report, find a document, write an action, email an update about a ticket, handover notes, what can I do.
+- **In the chat:**
+  - **The AI uses skills by itself**, when the model supports tool calling (most current ones; tiny models choose poorly, so `qwen2.5:7b` or larger works much better than `llama3.2:1b`). Skills that change something (open, reply, send, run, save, delete…) ask you first.
+  - **You can call them yourself:** type `/` or press **Skills**, pick an ability (it runs at once and the AI sees the result) or a recipe (sent to your AI).
+- **The Skills page** (`/ai/skills`) lists everything, with *Try it* forms:
+  - **Switch any skill off for your own AIs.** People with *AI: Switch skills off for everyone* can switch one off for everybody.
+  - **Switches apply everywhere:** chat, MCP and the API.
 
-**Permissions:** *AI: Chat with my AI* (the Everyone tag has it) and *AI: Connect my AI to Fort Vale* (tokens; the Administrator tag has it).
+### Let other AI apps use Fort Vale
+
+Create a token under *Let your AI use Fort Vale* (it needs *AI: Connect my AI to Fort Vale*). The token acts as you.
+
+- **MCP apps** (Claude Desktop, Claude Code, Cursor, LM Studio, Open WebUI, Jan…):
+  - server `/mcp/fortvale` with header `Authorization: Bearer <token>`;
+  - every ability is a tool (e.g. `tickets_search`) marked read-only or changing, and every recipe is a prompt.
+- **Anything else**, using the same token:
+  - **OpenAI-style tool calling, custom GPT actions, your own agents:**
+    - `GET /api/ai/skills`: tools in OpenAI format, plus the recipes;
+    - `GET /api/ai/openapi.json`: an OpenAPI 3.1 spec;
+    - `POST /api/ai/skills/{name}`: JSON in, `{ok, summary, data}` out;
+    - `GET /api/ai/recipes/{name}?…`: a recipe's instructions.
+  - **Limits:** 60 calls a minute per token, every call is logged on the token, and *Revoke* stops it.
+
+**Adding a skill:**
+1. Write a class in `app/Ai/Skills/Abilities/` (name, description, JSON Schema inputs, permissions, `run()`), or a recipe in `app/Ai/Skills/Recipes/`.
+2. List it in `SkillRegistry`.
+
+It then appears in the chat, on the Skills page, over MCP and in the API.
+
+**Permissions:** *AI: Chat with my AI* (Everyone), *Connect my AI to Fort Vale* and *Switch skills off for everyone* (Administrator).
 
 ## Email
 
@@ -489,7 +521,8 @@ php artisan test
 | `app/Http/Controllers/LoginController.php` | Sign in and out |
 | `app/Http/Controllers/TagController.php`, `DepartmentController.php`, `PersonController.php`, `resources/views/tags` | Tags page: tags, departments, people |
 | `resources/views/files/workspace.blade.php`, `workspace-trash.blade.php`, `resources/views/files/partials/` (folder and file icons, Finder sidebar) | The Finder-style Workspace Files pages |
-| `app/Http/Controllers/AiController.php`, `resources/views/ai`, `app/Mcp/` (server and tools), `routes/ai.php`, `app/Http/Middleware/AuthenticateAiToken.php` | The AI page, saved chats, and Fort Vale as an MCP server |
+| `app/Ai/Skills/` (abilities, recipes, `SkillRegistry`), `app/Mcp/`, `app/Http/Controllers/SkillApiController.php`, `routes/ai.php` | AI skills, and the MCP and HTTP adapters that offer them to any AI |
+| `app/Http/Controllers/AiController.php`, `AiSkillController.php`, `resources/views/ai`, `public/js/ai-chat.js` | The AI page: connections, saved chats, skills in the chat, the Skills page |
 | `app/Services/Files/`, `app/Support/Attachables.php`, `resources/views/components/attachments.blade.php`, `app/Http/Controllers/FileController.php`, `AttachmentController.php`, `FileSettingsController.php`, `resources/views/files`, `app/Models/Folder.php`, `StoredFile.php`, `FileVersion.php`, `FolderAccess.php` | Files: storage, access rules, limits, trash and the file pages |
 | `app/Services/Email/Mailer.php`, `app/Listeners/SendTicketEmails.php`, `app/Http/Controllers/Email*Controller.php`, `resources/views/emails` | Sending email, ticket emails, the Email, templates and settings pages, the email layout |
 | `app/Support/PagePermissions.php`, `app/Models/Tag.php`, `app/Models/Department.php`, `app/Support/AccessGuard.php` | Pages and their permissions, tags, departments, and the check that someone can always manage access |
