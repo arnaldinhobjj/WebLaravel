@@ -10,6 +10,7 @@ use App\Support\CurrentUser;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -67,7 +68,8 @@ class TicketController extends Controller
         ]);
 
         $actor = CurrentUser::get();
-        $assignee = $data['assignee_id'] ?? null;
+        // Without the assign permission the field isn't shown, so a value is ignored.
+        $assignee = $actor->can('tickets.assign') ? ($data['assignee_id'] ?? null) : null;
         unset($data['assignee_id']);
 
         $ticket = Ticket::open($data, $actor);
@@ -100,7 +102,11 @@ class TicketController extends Controller
             'assignee_id' => ['sometimes', 'nullable', Rule::exists(User::class, 'id')],
         ]);
 
+        if (array_intersect_key($data, array_flip(['status', 'priority', 'category'])) !== []) {
+            Gate::authorize('tickets.edit');
+        }
         if (array_key_exists('assignee_id', $data)) {
+            Gate::authorize('tickets.assign');
             $data['assignee_id'] = $data['assignee_id'] ? (int) $data['assignee_id'] : null;
         }
 
@@ -116,6 +122,10 @@ class TicketController extends Controller
             'body' => ['required', 'string', 'max:10000'],
             'status' => ['nullable', Rule::enum(TicketStatus::class)],
         ]);
+
+        if (! empty($data['status'])) {
+            Gate::authorize('tickets.edit');
+        }
 
         $actor = CurrentUser::get();
         $ticket->addComment($data['body'], $actor);

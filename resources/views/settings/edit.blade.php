@@ -106,7 +106,9 @@
     <section class="card settings-section" aria-labelledby="home-title">
         <div class="settings-intro">
             <h3 id="home-title" class="sub-title">Home screen</h3>
-            <p class="muted">Your own actions are managed on the <a href="{{ route('actions.index', $user) }}">actions page</a>.</p>
+            @can('actions-page')
+                <p class="muted">Your own actions are managed on the <a href="{{ route('actions.index', $user) }}">actions page</a>.</p>
+            @endcan
         </div>
         <div class="settings-fields settings-row">
             <p>Put favorites back to the defaults, clear action run times and bring back dismissed mentions.</p>

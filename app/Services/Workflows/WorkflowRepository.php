@@ -86,15 +86,21 @@ class WorkflowRepository
     }
 
     /**
-     * Run-button actions to show on a person's home screen: shared first, then theirs.
+     * Run-button actions to show on a person's home screen: shared first, then
+     * theirs, each only if they may run that kind.
      *
      * @return Collection<int, Workflow>
      */
     public function forHome(User $person): Collection
     {
-        $personal = $person->actions()->where('show_on_home', true)->get()->map(fn (Action $action): Workflow => $action->workflow());
+        $personal = $person->hasPermission('actions.run')
+            ? $person->actions()->where('show_on_home', true)->get()->map(fn (Action $action): Workflow => $action->workflow())
+            : collect();
+        $shared = $person->hasPermission('shared_actions.run')
+            ? $this->shared()->filter(fn (Workflow $workflow): bool => $workflow->showOnHome())->values()
+            : collect();
 
-        return $this->shared()->filter(fn (Workflow $workflow): bool => $workflow->showOnHome())->values()->concat($personal);
+        return $shared->concat($personal);
     }
 
     /**
@@ -108,7 +114,9 @@ class WorkflowRepository
         $owners = array_filter([$ticket->requester_id, $ticket->assignee_id]);
         $personal = Action::whereJsonContains('triggers', 'ticket')
             ->whereIn('user_id', $owners)
+            ->with('user')
             ->get()
+            ->filter(fn (Action $action): bool => $action->user->hasPermission('actions.run'))
             ->map(fn (Action $action): Workflow => $action->workflow());
 
         return $this->shared()->values()->concat($personal)
@@ -124,7 +132,9 @@ class WorkflowRepository
      */
     public function scheduled(): array
     {
-        $personal = Action::whereJsonContains('triggers', 'schedule')->get()->map(fn (Action $action): Workflow => $action->workflow());
+        $personal = Action::whereJsonContains('triggers', 'schedule')->with('user')->get()
+            ->filter(fn (Action $action): bool => $action->user->hasPermission('actions.run'))
+            ->map(fn (Action $action): Workflow => $action->workflow());
 
         return $this->shared()->filter(fn (Workflow $workflow): bool => $workflow->schedules !== [])
             ->values()->concat($personal)->values()->all();

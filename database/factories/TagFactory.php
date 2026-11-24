@@ -2,8 +2,8 @@
 
 namespace Database\Factories;
 
-use App\Enums\Permission;
 use App\Models\Tag;
+use App\Support\PagePermissions;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -21,8 +21,11 @@ class TagFactory extends Factory
         return ['name' => fake()->unique()->word(), 'description' => null, 'permissions' => []];
     }
 
-    public function granting(Permission ...$permissions): static
+    /**
+     * A tag that grants these "page.ability" permissions (View is added where needed).
+     */
+    public function granting(string ...$permissions): static
     {
-        return $this->state(['permissions' => array_map(fn (Permission $permission) => $permission->value, $permissions)]);
+        return $this->state(['permissions' => PagePermissions::normalize($permissions)]);
     }
 }

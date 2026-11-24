@@ -2,14 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\Permission;
 use App\Models\Department;
 use App\Models\Tag;
 use App\Models\User;
 use App\Support\AccessGuard;
+use App\Support\PagePermissions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 /**
@@ -21,7 +22,7 @@ class TagController extends Controller
     public function index(): View
     {
         return view('tags.index', [
-            'tags' => Tag::with('departments')->withCount('users')->orderBy('name')->get(),
+            'tags' => Tag::with('departments')->withCount('users')->orderByDesc('is_everyone')->orderBy('name')->get(),
             'departments' => Department::with(['tags', 'users'])->orderBy('name')->get(),
             'people' => User::with(['tags', 'department.tags'])->orderBy('name')->get(),
         ]);
@@ -47,6 +48,9 @@ class TagController extends Controller
     public function update(Request $request, Tag $tag): RedirectResponse
     {
         $data = $this->validated($request, $tag);
+        if ($tag->is_everyone) {
+            $data['name'] = $tag->name;
+        }
         AccessGuard::keepAManager(fn () => $tag->update($data));
 
         return redirect()->route('tags.index')->with('status', "Tag “{$tag->name}” saved.");
@@ -54,6 +58,10 @@ class TagController extends Controller
 
     public function destroy(Tag $tag): RedirectResponse
     {
+        if ($tag->is_everyone) {
+            throw ValidationException::withMessages(['permissions' => 'The Everyone tag can’t be deleted. Untick its permissions instead.']);
+        }
+
         AccessGuard::keepAManager(fn () => $tag->delete());
 
         return redirect()->route('tags.index')->with('status', "Tag “{$tag->name}” deleted.");
@@ -68,13 +76,13 @@ class TagController extends Controller
             'name' => ['required', 'string', 'max:40', Rule::unique(Tag::class)->ignore($tag)],
             'description' => ['nullable', 'string', 'max:160'],
             'permissions' => ['array'],
-            'permissions.*' => [Rule::enum(Permission::class)],
+            'permissions.*' => ['string', Rule::in(array_keys(PagePermissions::all()))],
         ]);
 
         return [
             'name' => $data['name'],
             'description' => $data['description'] ?? null,
-            'permissions' => array_values(array_unique($data['permissions'] ?? [])),
+            'permissions' => PagePermissions::normalize($data['permissions'] ?? []),
         ];
     }
 }

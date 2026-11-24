@@ -2,7 +2,6 @@
 
 namespace App\Support;
 
-use App\Enums\Permission;
 use App\Models\User;
 use Closure;
 use Illuminate\Support\Facades\DB;
@@ -10,7 +9,7 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * Stops changes to tags, departments and people that would leave nobody able
- * to open the Tags page, which would lock everyone out of managing access.
+ * to edit tags and people, which would lock everyone out of managing access.
  */
 class AccessGuard
 {
@@ -28,11 +27,11 @@ class AccessGuard
             $result = $change();
 
             $someoneCanManage = User::with(['tags', 'department.tags'])->get()
-                ->contains(fn (User $user): bool => $user->hasPermission(Permission::ManagePeople));
+                ->contains(fn (User $user): bool => $user->hasPermission('tags.edit') && $user->hasPermission('people.edit'));
 
             if (! $someoneCanManage) {
                 throw ValidationException::withMessages([
-                    $errorField => 'This would leave nobody who can manage tags and people, so it wasn’t saved.',
+                    $errorField => 'This would leave nobody who can edit both tags and people, so it wasn’t saved.',
                 ]);
             }
 

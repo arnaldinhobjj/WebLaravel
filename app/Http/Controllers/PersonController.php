@@ -56,7 +56,7 @@ class PersonController extends Controller
         return [
             'person' => $person,
             'departments' => Department::with('tags')->orderBy('name')->get(),
-            'tags' => Tag::orderBy('name')->get(),
+            'tags' => Tag::assignable()->orderBy('name')->get(),
         ];
     }
 
@@ -71,7 +71,7 @@ class PersonController extends Controller
             'job_title' => ['nullable', 'string', 'max:80'],
             'department_id' => ['nullable', 'integer', Rule::exists(Department::class, 'id')],
             'tags' => ['array'],
-            'tags.*' => ['integer', Rule::exists(Tag::class, 'id')],
+            'tags.*' => ['integer', Rule::exists(Tag::class, 'id')->where('is_everyone', false)],
             'password' => [$person ? 'nullable' : 'required', 'string', Password::defaults()],
         ]);
 

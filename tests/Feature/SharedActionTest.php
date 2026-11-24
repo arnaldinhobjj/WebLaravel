@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Enums\Permission;
 use App\Models\ActionRun;
 use App\Models\Ticket;
 use App\Models\User;
@@ -22,7 +21,7 @@ class SharedActionTest extends TestCase
     {
         parent::setUp();
 
-        $this->alex = User::factory()->withPermissions(Permission::EditSharedActions)->create(['name' => 'Alex Morgan', 'username' => 'alex.morgan']);
+        $this->alex = User::factory()->withPermissions('shared_actions.edit')->create(['name' => 'Alex Morgan', 'username' => 'alex.morgan']);
         $this->actingAs($this->alex);
 
         $this->folder = storage_path('framework/testing/actions-'.uniqid());

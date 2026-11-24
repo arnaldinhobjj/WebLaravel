@@ -12,13 +12,16 @@
             <h2 class="section-title">Actions <x-icon name="workflow" :size="28" class="title-icon" /></h2>
             <p class="page-sub">Actions are YAML files, like GitHub Actions: a name, what starts them (<code>on:</code>) and the <code>steps</code> they run.</p>
         </div>
-        <a href="{{ route('actions.create', $user) }}" class="btn btn-primary"><x-icon name="plus" :size="16" /> New action</a>
+        @can('actions.create')
+            <a href="{{ route('actions.create', $user) }}" class="btn btn-primary"><x-icon name="plus" :size="16" /> New action</a>
+        @endcan
     </div>
 
     {{-- Shared actions --}}
+    @can('shared_actions.view')
     <section aria-labelledby="shared-title">
         <h3 id="shared-title" class="sub-title">Shared actions</h3>
-        <p class="muted section-note">From the <code>actions/</code> folder in the project. Everyone can run them; edit them in the repository.</p>
+        <p class="muted section-note">From the <code>actions/</code> folder in the project. @can('shared_actions.edit') Click one to change it. @else You can read them; changing them needs a tag that allows it. @endcan</p>
 
         @if ($shared === [])
             <p class="muted">No shared actions yet. Add a <code>.yml</code> file to <code>actions/</code>.</p>
@@ -44,8 +47,8 @@
                                 <span class="muted small">{{ count($workflow->steps) }} {{ Str::plural('step', count($workflow->steps)) }}</span>
                             </p>
                             <div class="action-card-foot">
-                                <span class="muted small">Click to view or edit the YAML</span>
-                                @if ($workflow->canRunManually())
+                                <span class="muted small">Click to {{ $user->can('shared_actions.edit') ? 'view or edit' : 'view' }} the YAML</span>
+                                @if ($workflow->canRunManually() && $user->can('shared_actions.run'))
                                     @include('actions.partials.run-button', ['workflow' => $workflow, 'url' => $workflow->inputs() ? route('actions.shared.run.form', $slug) : route('actions.shared.run', $slug)])
                                 @endif
                             </div>
@@ -54,7 +57,7 @@
                                 <span class="action-card-icon action-card-icon-error"><x-icon name="x" :size="20" /></span>
                                 <div class="action-card-title">
                                     <h3><a href="{{ route('actions.shared.show', $slug) }}" class="action-card-link"><code>actions/{{ $slug }}.yml</code></a></h3>
-                                    <p class="muted">This file has mistakes and can't run. Click to fix it:</p>
+                                    <p class="muted">This file has mistakes and can't run.@can('shared_actions.edit') Click to fix it:@endcan</p>
                                 </div>
                             </div>
                             <ul class="yaml-errors">
@@ -68,8 +71,10 @@
             </ul>
         @endif
     </section>
+    @endcan
 
     {{-- My actions --}}
+    @can('actions.view')
     <section aria-labelledby="mine-title" class="actions-section">
         <h3 id="mine-title" class="sub-title">My actions</h3>
 
@@ -78,7 +83,9 @@
                 <x-icon name="workflow" :size="40" />
                 <p><strong>You haven’t made any actions yet.</strong></p>
                 <p>Start from a template: open a page, start a ticket, react to ticket events, call a webhook, or run on a schedule.</p>
-                <a href="{{ route('actions.create', $user) }}" class="btn btn-primary"><x-icon name="plus" :size="16" /> Create your first action</a>
+                @can('actions.create')
+                    <a href="{{ route('actions.create', $user) }}" class="btn btn-primary"><x-icon name="plus" :size="16" /> Create your first action</a>
+                @endcan
             </div>
         @else
             <ul class="action-cards">
@@ -88,7 +95,13 @@
                         <div class="action-card-head">
                             <span class="action-card-icon"><x-icon name="workflow" :size="20" /></span>
                             <div class="action-card-title">
-                                <h3><a href="{{ route('actions.edit', [$user, $action]) }}" class="action-card-link">{{ $workflow->name }}</a></h3>
+                                <h3>
+                                    @can('actions.edit')
+                                        <a href="{{ route('actions.edit', [$user, $action]) }}" class="action-card-link">{{ $workflow->name }}</a>
+                                    @else
+                                        {{ $workflow->name }}
+                                    @endcan
+                                </h3>
                                 @if ($workflow->description)
                                     <p class="muted">{{ $workflow->description }}</p>
                                 @endif
@@ -106,13 +119,17 @@
                         <div class="action-card-foot">
                             <span class="muted small">{{ $action->last_run_at ? 'Last run '.$action->last_run_at->diffForHumans() : 'Never run' }}</span>
                             <div class="action-card-buttons">
-                                <form method="POST" action="{{ route('actions.destroy', [$user, $action]) }}" data-confirm="Delete “{{ $action->name }}”?">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="btn btn-ghost-danger">Delete</button>
-                                </form>
-                                <a href="{{ route('actions.edit', [$user, $action]) }}" class="btn">Edit</a>
-                                @if ($workflow->canRunManually())
+                                @can('actions.delete')
+                                    <form method="POST" action="{{ route('actions.destroy', [$user, $action]) }}" data-confirm="Delete “{{ $action->name }}”?">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-ghost-danger">Delete</button>
+                                    </form>
+                                @endcan
+                                @can('actions.edit')
+                                    <a href="{{ route('actions.edit', [$user, $action]) }}" class="btn">Edit</a>
+                                @endcan
+                                @if ($workflow->canRunManually() && $user->can('actions.run'))
                                     @include('actions.partials.run-button', ['workflow' => $workflow, 'url' => $workflow->inputs() ? route('actions.custom.run.form', [$user, $action]) : route('actions.custom.run', [$user, $action])])
                                 @endif
                             </div>
@@ -122,6 +139,7 @@
             </ul>
         @endif
     </section>
+    @endcan
 
     {{-- Recent runs --}}
     <section aria-labelledby="runs-title" class="actions-section">

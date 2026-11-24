@@ -208,26 +208,41 @@ If you used the app before Oracle support, add the `DB_*` and `TICKETS_DB_CONNEC
 
 ## People, departments and tags
 
-Who may do what is set on the **Tags** page (`/tags`), which only people allowed to manage tags and people can open.
+Who may do what is set per page on the **Tags** page (`/tags`).
 
-- **Tags** hold permissions:
-  - *Manage tags and people*: open the Tags page, add people, change their department, tags and password.
-  - *Edit shared actions*: save `actions/*.yml` in the browser. Everyone else sees them read-only but can still run them.
-  - *See and work on every ticket*: without it, people only see tickets they opened or are assigned to. Other tickets answer "not found". Give it to whoever picks up new tickets (the seeded *Helpdesk* tag on IT).
-- **Departments** carry tags: everyone in a department gets its tags. Each person is in at most one department.
-- **People** can also get extra tags of their own. The People list shows what each person can do in the end, so you can see why.
-- **You can't lock yourself out.** Any change that would leave nobody able to manage tags and people is refused.
-- **Adding someone:** *Add person* on the Tags page, with their email and a first password. They sign in with those and can change the password under *Settings*.
-- **Upgrading an older install:** `php artisan migrate` adds these tables and makes the first person in the users table Administrator.
+- **Tags hold permissions, page by page.** The tag form is a grid: pages down the side, **View / Create / Edit / Delete** across, and page-specific extras at the end. A page only offers the abilities it really has.
 
-Seed data: departments Operations (tag *Action editors*), Facilities and IT (tag *Helpdesk*); Alex Morgan also has *Administrator*.
+  | Page | View | Create | Edit | Delete | Extras |
+  | --- | --- | --- | --- | --- | --- |
+  | Tickets | list and open tickets | new ticket | status, priority, category | — | Reply, Assign people, See everyone's tickets |
+  | My actions | actions page | new action | edit YAML | delete | Run them |
+  | Shared actions | read the YAML | — | save the YAML | — | Run them |
+  | Tags / Departments | their section | new | edit | delete | — |
+  | People | People section | add person | edit, set password | — | — |
+
+  Ticking anything on a page also ticks View. Without *See everyone's tickets*, people only see tickets they opened or are assigned to; other tickets answer "not found".
+- **Everyone** is a built-in tag that every person has. Edit it to set what everyone may do. It can't be deleted or renamed. Out of the box it allows what everyone could do before: tickets (view, create, edit, reply, assign), their own actions, and viewing and running shared actions. Without any tag, a person can still sign in, see the home screen and change their own settings.
+- **Departments** carry tags: everyone in a department gets its tags. **People** can also get extra tags of their own. The People list shows what each person can do in the end.
+- **You can't lock yourself out.** Any change that would leave nobody able to edit both tags and people is refused.
+- **Adding someone:** *Add person*, with their email and a first password. They can change it under *Settings*.
+- **Search** with the box at the top: it filters tags, departments and people as you type.
+- **Upgrading an older install:** `php artisan migrate` converts the old permissions (for example "Manage tags and people" becomes every ability on Tags, Departments and People) and creates the Everyone tag.
+
+### Adding a page or functionality
+
+1. Add it to `PAGES` in `app/Support/PagePermissions.php`: its label, which of view/create/edit/delete it has, and any extras.
+2. Protect its routes with `->middleware('can:page.ability')` (for example `can:reports.view`), and wrap its buttons in `@can('page.ability')`.
+
+The tag grid and the Tags page pick it up by themselves.
+
+Seed data: departments Operations (tag *Action editors*), Facilities and IT (tag *Helpdesk*: see and assign every ticket); Alex Morgan also has *Administrator* (everything).
 
 ## Actions (YAML)
 
 Actions work like GitHub Actions: each one is a YAML document with a `name`, what starts it (`on:`) and the `steps` it runs.
 
 - **Shared actions** are files in the [`actions/`](actions/) folder, one `.yml` per action, like `.github/workflows`. Everyone can run them.
-  - Edit them in the repository, or in the browser if one of your tags allows it: click the action, change the YAML and save. Saving checks the YAML first, writes the file, and refuses to overwrite a file someone else changed since you opened it.
+  - Edit them in the repository, or in the browser if one of your tags allows *Shared actions: Edit*: click the action, change the YAML and save. Saving checks the YAML first, writes the file, and refuses to overwrite a file someone else changed since you opened it.
   - Changes made in the browser show up as changed files in git; commit them like any other change.
 - **Personal actions** are written in the browser on `/{username}/actions` and stored per person. The editor starts from a template and lists every mistake with where it is (for example `steps[1].with.url: …`).
 - **Click an action** (on the actions page or the home screen) to open its YAML; the play button runs it.
@@ -311,7 +326,7 @@ Values are plain text substitution; nothing in an action is ever run as code. Th
 - It refuses `localhost`, this server, the local network and cloud metadata addresses (the host name is looked up first).
 - It doesn't follow redirects, and gives up after at most 10 seconds.
 - For development against a local service you can set `FORTVALE_ACTIONS_ALLOW_PRIVATE_HOSTS=true` in `.env`; keep it off in production.
-- **Shared actions can read secrets**, so anyone allowed to edit shared actions could add a step that sends a secret elsewhere. Give the *Edit shared actions* permission only to people you'd trust with the secrets in `.env`.
+- **Shared actions can read secrets**, so anyone allowed to edit shared actions could add a step that sends a secret elsewhere. Give *Shared actions: Edit* only to people you'd trust with the secrets in `.env`.
 
 ## Tests
 
@@ -339,7 +354,7 @@ php artisan test
 | `app/Http/Controllers/DashboardController.php` | Home screen, reset |
 | `app/Http/Controllers/LoginController.php` | Sign in and out |
 | `app/Http/Controllers/TagController.php`, `DepartmentController.php`, `PersonController.php`, `resources/views/tags` | Tags page: tags, departments, people |
-| `app/Enums/Permission.php`, `app/Models/Tag.php`, `app/Models/Department.php`, `app/Support/AccessGuard.php` | Permissions, and the check that someone can always manage people |
+| `app/Support/PagePermissions.php`, `app/Models/Tag.php`, `app/Models/Department.php`, `app/Support/AccessGuard.php` | Pages and their permissions, tags, departments, and the check that someone can always manage access |
 | `app/Http/Controllers/TicketController.php` | Ticket list, create, view, update, reply |
 | `app/Http/Controllers/SettingsController.php` | Settings page |
 | `actions/` | Shared actions (YAML) |

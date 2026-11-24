@@ -47,7 +47,9 @@
             <h2 class="section-title" id="actions-title">
                 Actions <x-icon name="workflow" :size="30" class="title-icon" />
             </h2>
-            <a href="{{ route('actions.index', $currentUser) }}" class="link-btn section-link">Manage</a>
+            @can('actions-page')
+                <a href="{{ route('actions.index', $currentUser) }}" class="link-btn section-link">Manage</a>
+            @endcan
             <x-carousel-controls label="actions" />
         </div>
 
@@ -63,11 +65,18 @@
                     @unless ($homeAction->inputs())
                         @csrf
                     @endunless
-                    <a href="{{ $homeAction->isShared() ? route('actions.shared.show', str($homeAction->key)->after(':')->toString()) : route('actions.edit', [$currentUser, str($homeAction->key)->after(':')->toString()]) }}"
-                       class="action-label" title="{{ $homeAction->description ? $homeAction->description.' · ' : '' }}Open the YAML">
-                        <x-icon name="{{ $homeAction->isShared() ? 'list-checks' : 'workflow' }}" :size="20" />
-                        <span>{{ $homeAction->name }}</span>
-                    </a>
+                    @if ($homeAction->isShared() || $currentUser->can('actions.edit'))
+                        <a href="{{ $homeAction->isShared() ? route('actions.shared.show', str($homeAction->key)->after(':')->toString()) : route('actions.edit', [$currentUser, str($homeAction->key)->after(':')->toString()]) }}"
+                           class="action-label" title="{{ $homeAction->description ? $homeAction->description.' · ' : '' }}Open the YAML">
+                            <x-icon name="{{ $homeAction->isShared() ? 'list-checks' : 'workflow' }}" :size="20" />
+                            <span>{{ $homeAction->name }}</span>
+                        </a>
+                    @else
+                        <span class="action-label" @if ($homeAction->description) title="{{ $homeAction->description }}" @endif>
+                            <x-icon name="workflow" :size="20" />
+                            <span>{{ $homeAction->name }}</span>
+                        </span>
+                    @endif
                     <button type="submit" class="action-run" title="Run “{{ $homeAction->name }}”">
                         <x-icon name="play" :size="24" />
                         <span class="sr-only">Run {{ $homeAction->name }}</span>
@@ -75,9 +84,11 @@
                 </form>
             @endforeach
 
-            <a href="{{ route('actions.create', $currentUser) }}" class="action action-new">
-                <x-icon name="plus" :size="18" /> New action
-            </a>
+            @can('actions.create')
+                <a href="{{ route('actions.create', $currentUser) }}" class="action action-new">
+                    <x-icon name="plus" :size="18" /> New action
+                </a>
+            @endcan
         </div>
         <p class="empty" data-search-empty hidden>No actions match your search.</p>
     </section>

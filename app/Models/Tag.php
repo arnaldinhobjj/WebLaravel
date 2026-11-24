@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
-use App\Enums\Permission;
 use Database\Factories\TagFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -28,12 +28,30 @@ class Tag extends Model
      */
     protected function casts(): array
     {
-        return ['permissions' => 'array'];
+        return ['permissions' => 'array', 'is_everyone' => 'boolean'];
     }
 
-    public function grants(Permission $permission): bool
+    /**
+     * The built-in tag every person has.
+     */
+    public static function everyone(): ?self
     {
-        return in_array($permission->value, $this->permissions ?? [], true);
+        return static::where('is_everyone', true)->first();
+    }
+
+    /**
+     * Tags that can be given to departments and people (all but Everyone).
+     *
+     * @param  Builder<Tag>  $query
+     */
+    public function scopeAssignable(Builder $query): void
+    {
+        $query->where('is_everyone', false);
+    }
+
+    public function grants(string $permission): bool
+    {
+        return in_array($permission, $this->permissions ?? [], true);
     }
 
     /**

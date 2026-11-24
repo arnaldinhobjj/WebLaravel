@@ -1,6 +1,5 @@
 <?php
 
-use App\Enums\Permission;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -50,7 +49,8 @@ return new class extends Migration
             $tag = DB::table('tags')->insertGetId([
                 'name' => 'Administrator',
                 'description' => 'Every permission.',
-                'permissions' => json_encode(array_column(Permission::cases(), 'value')),
+                // The permissions as they were named at the time; a later migration makes them page based.
+                'permissions' => json_encode(['people.manage', 'actions.shared.edit', 'tickets.view_all']),
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);

@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Enums\Permission;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -116,18 +115,27 @@ class User extends Authenticatable
         return $this->tags->concat($this->department?->tags ?? [])->unique('id')->sortBy('name')->values();
     }
 
+    /** @var list<string>|null Worked out once per loaded person. */
+    private ?array $permissionCache = null;
+
     /**
-     * @return list<Permission>
+     * Everything this person may do ("page.ability"): the Everyone tag plus
+     * their own and their department's tags.
+     *
+     * @return list<string>
      */
     public function permissions(): array
     {
-        return array_values(array_filter(
-            Permission::cases(),
-            fn (Permission $permission): bool => $this->allTags()->contains(fn (Tag $tag): bool => $tag->grants($permission)),
-        ));
+        return $this->permissionCache ??= $this->allTags()
+            ->push(Tag::everyone())
+            ->filter()
+            ->flatMap(fn (Tag $tag): array => $tag->permissions ?? [])
+            ->unique()
+            ->values()
+            ->all();
     }
 
-    public function hasPermission(Permission $permission): bool
+    public function hasPermission(string $permission): bool
     {
         return in_array($permission, $this->permissions(), true);
     }

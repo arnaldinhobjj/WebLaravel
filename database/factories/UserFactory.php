@@ -2,7 +2,6 @@
 
 namespace Database\Factories;
 
-use App\Enums\Permission;
 use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -51,7 +50,7 @@ class UserFactory extends Factory
     /**
      * Give the person a tag of their own that grants these permissions.
      */
-    public function withPermissions(Permission ...$permissions): static
+    public function withPermissions(string ...$permissions): static
     {
         return $this->hasAttached(Tag::factory()->granting(...$permissions));
     }

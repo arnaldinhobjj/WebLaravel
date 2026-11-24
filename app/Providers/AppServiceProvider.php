@@ -2,11 +2,11 @@
 
 namespace App\Providers;
 
-use App\Enums\Permission;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Services\Workspace;
 use App\Support\CurrentUser;
+use App\Support\PagePermissions;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
@@ -23,9 +23,10 @@ class AppServiceProvider extends ServiceProvider
     {
         Paginator::defaultView('partials.pagination');
 
-        foreach (Permission::cases() as $permission) {
-            Gate::define($permission->value, fn (User $user): bool => $user->hasPermission($permission));
-        }
+        // Every "page.ability" in PagePermissions is checked against the person's tags.
+        Gate::before(fn (User $user, string $ability): ?bool => PagePermissions::exists($ability) ? $user->hasPermission($ability) : null);
+        Gate::define('actions-page', fn (User $user): bool => $user->hasPermission('actions.view') || $user->hasPermission('shared_actions.view'));
+        Gate::define('tags-page', fn (User $user): bool => $user->hasPermission('tags.view') || $user->hasPermission('departments.view') || $user->hasPermission('people.view'));
 
         // Data every page's sidebar and title bar needs.
         View::composer('layouts.app', function ($view) {

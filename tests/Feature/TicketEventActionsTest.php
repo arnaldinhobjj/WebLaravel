@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\TicketStatus;
 use App\Models\Action;
 use App\Models\ActionRun;
+use App\Models\Tag;
 use App\Models\Ticket;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -41,6 +42,18 @@ class TicketEventActionsTest extends TestCase
 
         $this->alex = User::factory()->create(['name' => 'Alex Morgan', 'username' => 'alex.morgan']);
         $this->derek = User::factory()->create(['name' => 'Derek Lamar', 'username' => 'derek.lamar']);
+    }
+
+    public function test_personal_actions_do_not_run_automatically_once_their_owner_may_not_run_actions(): void
+    {
+        Action::factory()->for($this->alex)->yaml(self::ACKNOWLEDGE_CCTV)->create();
+        Tag::everyone()->update(['permissions' => ['tickets.view', 'tickets.create']]);
+
+        $this->actingAs($this->alex)
+            ->post('/ticket', ['subject' => 'Camera 9 offline', 'description' => 'No picture', 'category' => 'cctv', 'priority' => 'high']);
+
+        $this->assertSame(0, Ticket::where('subject', 'Camera 9 offline')->sole()->comments()->count());
+        $this->assertSame(0, ActionRun::count());
     }
 
     public function test_runs_a_personal_action_when_its_owner_opens_a_matching_ticket(): void

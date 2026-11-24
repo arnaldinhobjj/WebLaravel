@@ -41,15 +41,15 @@ class Workspace
         ['label' => 'Reports', 'items' => ['Sales', 'Compliance', 'Exports']],
         ['label' => 'Workspace', 'open' => true, 'items' => [
             ['label' => 'Home', 'route' => 'dashboard'],
-            ['label' => 'Tickets', 'route' => 'tickets.index', 'badge' => 'active_tickets'],
-            ['label' => 'My tickets', 'route' => 'tickets.index', 'params' => ['assignee' => 'me'], 'badge' => 'my_tickets'],
+            ['label' => 'Tickets', 'route' => 'tickets.index', 'badge' => 'active_tickets', 'can' => 'tickets.view'],
+            ['label' => 'My tickets', 'route' => 'tickets.index', 'params' => ['assignee' => 'me'], 'badge' => 'my_tickets', 'can' => 'tickets.view'],
             'Approvals',
-            ['label' => 'Tags', 'route' => 'tags.index', 'can' => 'people.manage'],
+            ['label' => 'Tags', 'route' => 'tags.index', 'can' => 'tags-page'],
         ]],
     ];
 
     public const FOOTER_NAVIGATION = ['label' => 'Help', 'open' => true, 'items' => [
-        ['label' => 'Support center', 'route' => 'tickets.create', 'params' => ['category' => 'general']],
+        ['label' => 'Support center', 'route' => 'tickets.create', 'params' => ['category' => 'general'], 'can' => 'tickets.create'],
     ]];
 
     public function __construct(private Session $session) {}

@@ -31,7 +31,7 @@
                 @forelse ($tags as $tag)
                     <label class="check">
                         <input type="checkbox" name="tags[]" value="{{ $tag->id }}" @checked(in_array($tag->id, $selected, true))>
-                        <span>{{ $tag->name }}<small>{{ collect($tag->permissions)->map(fn ($value) => \App\Enums\Permission::tryFrom($value)?->label())->filter()->join(', ') ?: 'Grants nothing yet' }}</small></span>
+                        <span>{{ $tag->name }}<small>{{ collect(\App\Support\PagePermissions::summary($tag->permissions ?? []))->map(fn ($abilities, $page) => $page.': '.implode(', ', $abilities))->join(' · ') ?: 'Grants nothing yet' }}</small></span>
                     </label>
                 @empty
                     <p class="muted">No tags yet. <a href="{{ route('tags.create') }}">Create one first.</a></p>

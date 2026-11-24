@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Enums\Permission;
 use App\Enums\TicketPriority;
 use App\Enums\TicketStatus;
 use App\Events\TicketChanged;
@@ -92,7 +91,7 @@ class Ticket extends Model
      */
     public function scopeVisibleTo(Builder $query, User $person): void
     {
-        if ($person->hasPermission(Permission::ViewAllTickets)) {
+        if ($person->hasPermission('tickets.view_all')) {
             return;
         }
 
@@ -101,7 +100,7 @@ class Ticket extends Model
 
     public function isVisibleTo(User $person): bool
     {
-        return $person->hasPermission(Permission::ViewAllTickets)
+        return $person->hasPermission('tickets.view_all')
             || $this->requester_id === $person->id
             || $this->assignee_id === $person->id;
     }

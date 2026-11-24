@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Enums\Permission;
 use App\Models\Action;
 use App\Models\Ticket;
 use App\Models\User;
@@ -76,7 +75,7 @@ class MultipleDatabasesTest extends TestCase
         $ticket = Ticket::factory()->create();
         $missingPersonId = User::max('id') + 1000;
 
-        $this->actingAs(User::factory()->withPermissions(Permission::ViewAllTickets)->create())->patch(route('tickets.update', $ticket), ['assignee_id' => $missingPersonId])
+        $this->actingAs(User::factory()->withPermissions('tickets.view_all')->create())->patch(route('tickets.update', $ticket), ['assignee_id' => $missingPersonId])
             ->assertSessionHasErrors('assignee_id');
 
         $this->assertNull($ticket->fresh()->assignee_id);

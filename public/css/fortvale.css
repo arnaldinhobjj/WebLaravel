@@ -1182,3 +1182,10 @@ a.action-label:hover { color: var(--accent); }
 .access-section .page-head { margin-bottom: 10px; }
 .narrow-form { max-width: 720px; display: flex; flex-direction: column; gap: 16px; }
 .narrow-form .card { display: flex; flex-direction: column; gap: 16px; padding: 20px; }
+.permission-grid-wrap { margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 8px; }
+.permission-grid-wrap legend { font-size: 14px; font-weight: 500; color: var(--text-muted); margin-bottom: 4px; }
+.permission-grid th[scope="row"] { color: var(--text); font-weight: 600; white-space: nowrap; }
+.permission-grid td, .permission-grid thead th { text-align: center; }
+.permission-grid td:last-child, .permission-grid thead th:last-child, .permission-grid th[scope="row"] { text-align: left; }
+.permission-grid input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--accent); }
+.permission-grid .check { margin: 2px 0; }

@@ -2,13 +2,13 @@
 
 namespace Database\Seeders;
 
-use App\Enums\Permission;
 use App\Models\Department;
 use App\Models\Tag;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Services\Workflows\Workflow;
 use App\Services\Workflows\WorkflowParser;
+use App\Support\PagePermissions;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
@@ -159,10 +159,10 @@ class DatabaseSeeder extends Seeder
     {
         $administrator = Tag::firstOrCreate(['name' => 'Administrator'], [
             'description' => 'Every permission.',
-            'permissions' => array_column(Permission::cases(), 'value'),
+            'permissions' => array_keys(PagePermissions::all()),
         ]);
-        $helpdesk = Tag::create(['name' => 'Helpdesk', 'description' => 'Picks up and works on every ticket.', 'permissions' => [Permission::ViewAllTickets->value]]);
-        $editors = Tag::create(['name' => 'Action editors', 'description' => 'Maintains the shared actions.', 'permissions' => [Permission::EditSharedActions->value]]);
+        $helpdesk = Tag::create(['name' => 'Helpdesk', 'description' => 'Picks up and works on every ticket.', 'permissions' => ['tickets.view', 'tickets.view_all', 'tickets.assign']]);
+        $editors = Tag::create(['name' => 'Action editors', 'description' => 'Maintains the shared actions.', 'permissions' => ['shared_actions.view', 'shared_actions.edit']]);
 
         $departments = [
             'Operations' => [[$editors], ['Alex Morgan', 'Derek Lamar', 'Priya Natarajan']],

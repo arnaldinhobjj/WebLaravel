@@ -17,7 +17,7 @@ class DepartmentController extends Controller
 {
     public function create(): View
     {
-        return view('tags.department-form', ['department' => new Department, 'tags' => Tag::orderBy('name')->get()]);
+        return view('tags.department-form', ['department' => new Department, 'tags' => Tag::assignable()->orderBy('name')->get()]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -31,7 +31,7 @@ class DepartmentController extends Controller
 
     public function edit(Department $department): View
     {
-        return view('tags.department-form', ['department' => $department->load('users'), 'tags' => Tag::orderBy('name')->get()]);
+        return view('tags.department-form', ['department' => $department->load('users'), 'tags' => Tag::assignable()->orderBy('name')->get()]);
     }
 
     public function update(Request $request, Department $department): RedirectResponse
@@ -61,7 +61,7 @@ class DepartmentController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:60', Rule::unique(Department::class)->ignore($department)],
             'tags' => ['array'],
-            'tags.*' => ['integer', Rule::exists(Tag::class, 'id')],
+            'tags.*' => ['integer', Rule::exists(Tag::class, 'id')->where('is_everyone', false)],
         ]);
 
         return ['name' => $data['name'], 'tags' => array_map('intval', $data['tags'] ?? [])];

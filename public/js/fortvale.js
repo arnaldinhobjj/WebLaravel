@@ -289,3 +289,18 @@ function highlightYaml(text) {
         return escape(m[1]) + span('key', m[2] || '') + span('key', escape(m[3])) + m[4] + value(m[5]) + comment;
     }).join('\n');
 }
+
+// Tag permission grid: ticking anything on a page also ticks View; unticking View clears the row.
+document.querySelectorAll('[data-permission-row]').forEach((row) => {
+    const view = row.querySelector('[data-permission-view]');
+    if (!view) return;
+    row.querySelectorAll('input[type="checkbox"]').forEach((box) => {
+        box.addEventListener('change', () => {
+            if (box === view && !view.checked) {
+                row.querySelectorAll('input[type="checkbox"]').forEach((other) => { other.checked = false; });
+            } else if (box !== view && box.checked) {
+                view.checked = true;
+            }
+        });
+    });
+});

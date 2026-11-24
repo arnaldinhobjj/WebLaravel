@@ -17,7 +17,8 @@
             <div class="field-row field-row-2">
                 <label class="field">
                     <span>Name</span>
-                    <input type="text" name="name" value="{{ old('name', $tag->name) }}" required maxlength="40" @error('name') aria-invalid="true" @enderror>
+                    <input type="text" name="name" value="{{ old('name', $tag->name) }}" required maxlength="40" @readonly($tag->is_everyone) @error('name') aria-invalid="true" @enderror>
+                    @if ($tag->is_everyone) <small class="muted">Built in: everyone has this tag. Its name can’t change.</small> @endif
                     @error('name') <p class="field-error">{{ $message }}</p> @enderror
                 </label>
                 <label class="field">
@@ -27,15 +28,50 @@
                 </label>
             </div>
 
-            <fieldset class="check-list">
-                <legend>Allows</legend>
-                @foreach (\App\Enums\Permission::cases() as $permission)
-                    <label class="check">
-                        <input type="checkbox" name="permissions[]" value="{{ $permission->value }}" @checked(in_array($permission->value, old('permissions', $tag->permissions ?? []), true))>
-                        <span>{{ $permission->label() }}<small>{{ $permission->description() }}</small></span>
-                    </label>
-                @endforeach
+            @php $granted = old('permissions', $tag->permissions ?? []); @endphp
+            <fieldset class="permission-grid-wrap">
+                <legend>What this tag allows, page by page</legend>
+                <p class="muted small">Ticking anything on a page also ticks View, since the page has to open first.</p>
+                <div class="table-scroll">
+                    <table class="access-table permission-grid">
+                        <thead>
+                            <tr>
+                                <th scope="col">Page</th>
+                                @foreach (\App\Support\PagePermissions::STANDARD as $label)
+                                    <th scope="col">{{ $label }}</th>
+                                @endforeach
+                                <th scope="col">Also</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (\App\Support\PagePermissions::PAGES as $page => $definition)
+                                <tr data-permission-row>
+                                    <th scope="row">{{ $definition['label'] }}</th>
+                                    @foreach (\App\Support\PagePermissions::STANDARD as $ability => $label)
+                                        <td>
+                                            @if (in_array($ability, $definition['abilities'], true))
+                                                <input type="checkbox" name="permissions[]" value="{{ $page }}.{{ $ability }}"
+                                                       aria-label="{{ $definition['label'] }}: {{ $label }}"
+                                                       @if ($ability === 'view') data-permission-view @endif
+                                                       @checked(in_array("{$page}.{$ability}", $granted, true))>
+                                            @endif
+                                        </td>
+                                    @endforeach
+                                    <td>
+                                        @foreach ($definition['extras'] ?? [] as $ability => $label)
+                                            <label class="check">
+                                                <input type="checkbox" name="permissions[]" value="{{ $page }}.{{ $ability }}" @checked(in_array("{$page}.{$ability}", $granted, true))>
+                                                {{ $label }}
+                                            </label>
+                                        @endforeach
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
                 @error('permissions') <p class="field-error">{{ $message }}</p> @enderror
+                @error('permissions.*') <p class="field-error">{{ $message }}</p> @enderror
             </fieldset>
         </div>
 
@@ -45,7 +81,7 @@
         </div>
     </form>
 
-    @if ($tag->exists)
+    @if ($tag->exists && ! $tag->is_everyone && auth()->user()->can('tags.delete'))
         <form method="POST" action="{{ route('tags.destroy', $tag) }}" data-confirm="Delete the tag “{{ $tag->name }}”? Everyone who has it loses its permissions." class="narrow-form">
             @csrf
             @method('DELETE')
