@@ -32,8 +32,9 @@ class EmailController extends Controller
 
     public function create(Request $request): View
     {
-        $template = $request->integer('template') ? EmailTemplate::find($request->integer('template')) : null;
         $me = CurrentUser::get();
+        $canUseTemplates = $me->hasPermission('email_templates.view');
+        $template = $canUseTemplates && $request->integer('template') ? EmailTemplate::find($request->integer('template')) : null;
         $chosenIds = array_map('intval', (array) $request->old('stored_files', []));
 
         return view('emails.compose', [
@@ -41,7 +42,7 @@ class EmailController extends Controller
             'chosen' => $this->pickableFiles($me)->whereKey($chosenIds)->get(),
             'templateFiles' => $template ? Attachables::filesFor('email_template', $template->id) : collect(),
             'people' => User::orderBy('name')->get(),
-            'templates' => EmailTemplate::orderBy('name')->get(),
+            'templates' => $canUseTemplates ? EmailTemplate::orderBy('name')->get() : collect(),
             'template' => $template,
             'sent' => SentEmail::where('user_id', $me->id)->where('source', 'compose')->latest('id')->limit(20)->get(),
         ]);
@@ -133,6 +134,8 @@ class EmailController extends Controller
         }
 
         if (! empty($data['template_id'])) {
+            // A template's files are only for people who may see templates.
+            abort_unless($me->hasPermission('email_templates.view'), 403);
             array_push($files, ...Mailer::templateAttachments(EmailTemplate::find($data['template_id'])));
         }
 

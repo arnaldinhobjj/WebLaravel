@@ -122,6 +122,9 @@ class FileStore
     public function rename(StoredFile|Folder $item, string $name): void
     {
         $name = $this->cleanName($name);
+        if ($item instanceof StoredFile) {
+            $this->checkExtension($name, 'name');
+        }
         $siblings = $item instanceof StoredFile
             ? StoredFile::where('folder_id', $item->folder_id)
             : Folder::where('parent_id', $item->parent_id);
@@ -217,6 +220,31 @@ class FileStore
     }
 
     /**
+     * Permanently deletes these trashed folders (with everything in them) and
+     * files, including their stored content. Returns how many files went.
+     *
+     * @param  list<Folder>  $folders
+     * @param  list<StoredFile>  $files
+     */
+    public function purgeItems(array $folders, array $files): int
+    {
+        $removed = 0;
+        foreach ($files as $file) {
+            $removed += $this->forceDeleteFile($file);
+        }
+        foreach ($folders as $folder) {
+            foreach ($this->subtreeIds($folder, true) as $folderId) {
+                foreach (StoredFile::withTrashed()->where('folder_id', $folderId)->get() as $file) {
+                    $removed += $this->forceDeleteFile($file);
+                }
+            }
+            Folder::withTrashed()->whereKey($folder->id)->first()?->forceDelete();
+        }
+
+        return $removed;
+    }
+
+    /**
      * Bytes used: by one person's private area, or by everything.
      */
     public function usage(?User $owner = null): int
@@ -289,14 +317,19 @@ class FileStore
         return 1;
     }
 
-    private function checkLimits(string $name, string $mime, int $size, ?Folder $folder): void
+    private function checkExtension(string $name, string $errorKey = 'files'): void
     {
         $extension = strtolower(pathinfo($name, PATHINFO_EXTENSION));
         $blocked = array_map('strtolower', (array) self::setting('files.blocked_extensions'));
 
         if ($extension !== '' && in_array($extension, $blocked, true)) {
-            throw ValidationException::withMessages(['files' => "“{$name}”: .{$extension} files aren’t allowed."]);
+            throw ValidationException::withMessages([$errorKey => "“{$name}”: .{$extension} files aren’t allowed."]);
         }
+    }
+
+    private function checkLimits(string $name, string $mime, int $size, ?Folder $folder): void
+    {
+        $this->checkExtension($name);
         if (in_array($mime, self::EXECUTABLE_TYPES, true)) {
             throw ValidationException::withMessages(['files' => "“{$name}” is a program, which isn’t allowed, whatever its name says."]);
         }

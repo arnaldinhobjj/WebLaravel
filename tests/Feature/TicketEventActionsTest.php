@@ -40,7 +40,7 @@ class TicketEventActionsTest extends TestCase
         $this->withoutDefer();
         config(['fortvale.actions.path' => storage_path('framework/testing/no-shared-actions')]);
 
-        $this->alex = User::factory()->create(['name' => 'Alex Morgan', 'username' => 'alex.morgan']);
+        $this->alex = User::factory()->withPermissions('tickets.edit')->create(['name' => 'Alex Morgan', 'username' => 'alex.morgan']);
         $this->derek = User::factory()->create(['name' => 'Derek Lamar', 'username' => 'derek.lamar']);
     }
 

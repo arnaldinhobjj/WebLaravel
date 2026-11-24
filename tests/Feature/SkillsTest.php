@@ -39,7 +39,7 @@ class SkillsTest extends TestCase
         Mail::fake();
         config(['fortvale.actions.path' => storage_path('framework/testing/no-shared-actions')]);
         $this->alex = User::factory()->withPermissions(
-            'tickets.view_all', 'departments.view', 'emails.view', 'emails.send', 'email_templates.view', 'files.delete', 'ai.connect',
+            'tickets.view_all', 'tickets.edit', 'tickets.assign', 'departments.view', 'emails.view', 'emails.send', 'email_templates.view', 'files.delete', 'ai.connect',
         )->create(['name' => 'Alex Morgan', 'username' => 'alex.morgan', 'email' => 'alex@fortvale.test']);
         $this->skills = app(SkillRegistry::class);
     }

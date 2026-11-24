@@ -51,6 +51,9 @@ class FileSaveStep extends BaseStep
 
         $folder = $this->paths->folder((string) $with['folder'], $person)
             ?? throw new StepFailed("No folder \"{$with['folder']}\".");
+        if ($folder->isPersonal() && ! $context->mayUseMyFilesOf($person)) {
+            throw new StepFailed('Shared actions may only use the My files of the person running them.');
+        }
 
         $name = trim((string) $with['name']);
         $content = (string) $with['content'];

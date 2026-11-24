@@ -37,7 +37,7 @@ class EmailTest extends TestCase
         $this->withoutDefer();
         config(['fortvale.actions.path' => storage_path('framework/testing/no-shared-actions')]);
 
-        $this->alex = User::factory()->withPermissions(...self::ALL_EMAIL)->create(['name' => 'Alex Morgan', 'username' => 'alex.morgan', 'email' => 'alex@fortvale.test']);
+        $this->alex = User::factory()->withPermissions('tickets.edit', 'tickets.assign', ...self::ALL_EMAIL)->create(['name' => 'Alex Morgan', 'username' => 'alex.morgan', 'email' => 'alex@fortvale.test']);
         $this->sam = User::factory()->create(['name' => 'Sam Okafor', 'username' => 'sam.okafor', 'email' => 'sam@fortvale.test']);
         $this->actingAs($this->alex);
     }

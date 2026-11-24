@@ -54,12 +54,18 @@ class Folder extends Model
     public function ancestry(): array
     {
         $chain = [$this];
+        $seen = [$this->id => true];
         $folder = $this;
-        while ($folder->parent_id !== null && count($chain) < 50) {
+        // No depth limit: access rules live on the top-level folder, so the walk must reach it.
+        while ($folder->parent_id !== null) {
+            if (isset($seen[$folder->parent_id])) {
+                throw new \RuntimeException("Folder {$this->id} is inside a loop of folders.");
+            }
             $folder = static::withTrashed()->find($folder->parent_id);
             if ($folder === null) {
-                break;
+                throw new \RuntimeException("Folder {$this->id} has a missing parent folder.");
             }
+            $seen[$folder->id] = true;
             array_unshift($chain, $folder);
         }
 

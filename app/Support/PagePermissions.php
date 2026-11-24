@@ -55,7 +55,7 @@ class PagePermissions
      * @var list<string>
      */
     public const EVERYONE_DEFAULTS = [
-        'tickets.view', 'tickets.create', 'tickets.edit', 'tickets.reply', 'tickets.assign',
+        'tickets.view', 'tickets.create', 'tickets.reply',
         'actions.view', 'actions.create', 'actions.edit', 'actions.delete', 'actions.run',
         'shared_actions.view', 'shared_actions.run',
         'files.view', 'files.create', 'files.edit',

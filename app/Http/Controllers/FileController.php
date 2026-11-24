@@ -8,6 +8,7 @@ use App\Models\Folder;
 use App\Models\FolderAccess;
 use App\Models\StoredFile;
 use App\Models\Tag;
+use App\Models\User;
 use App\Services\Files\FileAccess;
 use App\Services\Files\FileStore;
 use App\Support\Attachables;
@@ -284,17 +285,8 @@ class FileController extends Controller
     {
         $me = CurrentUser::get();
         $mine = $request->query('area') === 'mine';
-        $root = $mine ? Folder::personalRootFor($me) : Folder::libraryRoot();
         abort_unless($mine ? $me->hasPermission('my_files.delete') : $me->hasPermission('files.delete'), 403);
-
-        $ids = $this->store->subtreeIds($root, true);
-        $canDeleteIn = fn (?Folder $folder): bool => $folder !== null && $this->access->allows($me, $folder, 'delete');
-
-        // Only the top-most trashed items: contents of a trashed folder come back with it.
-        $folders = Folder::onlyTrashed()->whereIn('parent_id', $ids)->get()
-            ->filter(fn (Folder $folder) => ! $folder->parent?->trashed() && $canDeleteIn($folder->parent));
-        $files = StoredFile::onlyTrashed()->whereIn('folder_id', $ids)->with('folder')->get()
-            ->filter(fn (StoredFile $file) => ! $file->folder?->trashed() && $canDeleteIn($file->folder));
+        ['folders' => $folders, 'files' => $files] = $this->trashFor($me, $mine);
 
         return view($view, [
             'mine' => $mine,
@@ -327,9 +319,29 @@ class FileController extends Controller
         $mine = $request->input('area') === 'mine';
         abort_unless($mine ? $me->hasPermission('my_files.delete') : $me->hasPermission('files.empty_trash'), 403);
 
-        $removed = $this->store->purge(null, $mine ? Folder::personalRootFor($me) : Folder::libraryRoot());
+        // Only what this person's trash shows them; items in folders they can't see stay.
+        ['folders' => $folders, 'files' => $files] = $this->trashFor($me, $mine);
+        $removed = $this->store->purgeItems($folders->all(), $files->all());
 
         return back()->with('status', "Trash emptied ({$removed} ".str('file')->plural($removed).' deleted for good).');
+    }
+
+    /**
+     * The top-most trashed folders and files in an area that this person may
+     * delete there (the contents of a trashed folder come back with it).
+     *
+     * @return array{folders: Collection<int, Folder>, files: Collection<int, StoredFile>}
+     */
+    private function trashFor(User $me, bool $mine): array
+    {
+        $root = $mine ? Folder::personalRootFor($me) : Folder::libraryRoot();
+        $ids = $this->store->subtreeIds($root, true);
+        $canDeleteIn = fn (?Folder $folder): bool => $folder !== null && ! $folder->trashed() && $this->access->allows($me, $folder, 'delete');
+
+        return [
+            'folders' => Folder::onlyTrashed()->whereIn('parent_id', $ids)->get()->filter(fn (Folder $folder) => $canDeleteIn($folder->parent))->values(),
+            'files' => StoredFile::onlyTrashed()->whereIn('folder_id', $ids)->with('folder')->get()->filter(fn (StoredFile $file) => $canDeleteIn($file->folder))->values(),
+        ];
     }
 
     private function browse(Request $request, Folder $folder, string $view = 'files.browse'): View

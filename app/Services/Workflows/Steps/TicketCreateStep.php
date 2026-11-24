@@ -40,6 +40,7 @@ class TicketCreateStep extends BaseStep
         }
 
         $requester = $context->person($with['as'] ?? null);
+        $context->ensureAllowed($requester, empty($with['assignee']) ? ['tickets.create'] : ['tickets.create', 'tickets.assign']);
         $ticket = Ticket::open([
             'subject' => mb_substr($subject, 0, 160),
             'description' => trim((string) ($with['description'] ?? '')) ?: $subject,

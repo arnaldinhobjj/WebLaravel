@@ -123,6 +123,9 @@ class EmailSendStep extends BaseStep
         $files = [];
         foreach ($paths as $path) {
             $file = $this->paths->file((string) $path, $person);
+            if ($file !== null && $file->folder?->isPersonal() && ($person === null || ! $context->mayUseMyFilesOf($person))) {
+                throw new StepFailed("Can't attach \"{$path}\": shared actions may only use the My files of the person running them.");
+            }
             if ($file === null || ! $this->paths->canRead($person, $file)) {
                 throw new StepFailed("Can’t attach \"{$path}\": no such file, or this action may not read it.");
             }

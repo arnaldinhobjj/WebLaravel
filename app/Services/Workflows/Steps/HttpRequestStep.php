@@ -61,7 +61,8 @@ class HttpRequestStep extends BaseStep
         }
 
         $host = (string) parse_url($url, PHP_URL_HOST);
-        if (! config('fortvale.actions.allow_private_hosts') && ! $this->resolver->isPublic($host)) {
+        $address = config('fortvale.actions.allow_private_hosts') ? null : $this->resolver->publicAddress($host);
+        if (! config('fortvale.actions.allow_private_hosts') && $address === null) {
             throw new StepFailed("{$host} is not a public internet address, so actions may not call it.");
         }
 
@@ -72,7 +73,9 @@ class HttpRequestStep extends BaseStep
 
         $request = Http::withHeaders($headers)
             ->timeout((int) ($with['timeout'] ?? 10))
-            ->withoutRedirecting();
+            ->withoutRedirecting()
+            // Connect to the address that was checked, so DNS can't change in between.
+            ->withOptions($address !== null ? HostResolver::pinnedTo($url, $address) : []);
 
         try {
             $response = match (true) {
