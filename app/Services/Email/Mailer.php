@@ -4,14 +4,18 @@ namespace App\Services\Email;
 
 use App\Mail\FortValeEmail;
 use App\Models\AppSetting;
+use App\Models\EmailTemplate;
 use App\Models\SentEmail;
+use App\Models\StoredFile;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Services\Workflows\Expressions;
+use App\Support\Attachables;
 use Illuminate\Mail\Mailables\Address;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 use Throwable;
 
 /**
@@ -22,6 +26,9 @@ use Throwable;
 class Mailer
 {
     public const MAX_RECIPIENTS = 20;
+
+    /** Attachments per email, in total. */
+    public const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 
     /**
      * Turns usernames and email addresses into recipients, keyed by address.
@@ -70,8 +77,9 @@ class Mailer
      *
      * @param  array<string, string>  $recipients  address => name
      * @param  array<string, mixed>  $values  placeholder values
+     * @param  list<array{name: string, mime: string, size: int, path?: string, local?: string}>  $files  see FortValeEmail
      */
-    public function send(array $recipients, string $subject, string $body, array $values, string $source, ?User $sender = null, ?string $link = null): int
+    public function send(array $recipients, string $subject, string $body, array $values, string $source, ?User $sender = null, ?string $link = null, array $files = []): int
     {
         $recipients = array_slice($recipients, 0, self::MAX_RECIPIENTS, true);
         if ($recipients === []) {
@@ -95,6 +103,7 @@ class Mailer
                     (string) Expressions::render($body, $personal),
                     $this->sender(),
                     $link,
+                    $files,
                 ));
                 $sent++;
             } catch (Throwable $exception) {
@@ -103,6 +112,45 @@ class Mailer
         }
 
         return $sent;
+    }
+
+    /**
+     * An attachment from a stored file (its current version).
+     *
+     * @return array{name: string, mime: string, size: int, path: string}
+     */
+    public static function attachmentFor(StoredFile $file): array
+    {
+        $version = $file->currentVersion;
+
+        return ['name' => $file->name, 'mime' => $version->mime, 'size' => (int) $version->size, 'path' => $version->path];
+    }
+
+    /**
+     * The files a template always sends with it.
+     *
+     * @return list<array{name: string, mime: string, size: int, path: string}>
+     */
+    public static function templateAttachments(EmailTemplate $template): array
+    {
+        return Attachables::filesFor('email_template', $template->id)
+            ->filter(fn (StoredFile $file): bool => $file->currentVersion !== null)
+            ->map(fn (StoredFile $file): array => self::attachmentFor($file))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Refuses attachments over the per-email limit.
+     *
+     * @param  list<array{size: int}>  $files
+     */
+    public static function assertAttachmentSize(array $files, string $errorKey = 'attachments'): void
+    {
+        $total = array_sum(array_column($files, 'size'));
+        if ($total > self::MAX_ATTACHMENT_BYTES) {
+            throw ValidationException::withMessages([$errorKey => 'Attachments add up to '.number_format($total / 1048576, 1).' MB; an email can carry at most '.(self::MAX_ATTACHMENT_BYTES / 1048576).' MB.']);
+        }
     }
 
     /**

@@ -78,6 +78,6 @@ class SendTicketEmails
         };
         $body = $template->body.($attachments > 0 ? "\n\n{$attachments} attached ".str('file')->plural($attachments).'. Open the ticket to see '.($attachments === 1 ? 'it' : 'them').'.' : '');
 
-        $this->mailer->send($recipients, $template->subject, $body, $values, 'ticket', $actor, route('tickets.show', $ticket));
+        $this->mailer->send($recipients, $template->subject, $body, $values, 'ticket', $actor, route('tickets.show', $ticket), Mailer::templateAttachments($template));
     }
 }

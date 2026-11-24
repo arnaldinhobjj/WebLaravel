@@ -5,7 +5,9 @@ namespace App\Services\Workflows\Steps;
 use App\Models\EmailTemplate;
 use App\Models\User;
 use App\Services\Email\Mailer;
+use App\Services\Files\FilePaths;
 use App\Services\Workflows\RunContext;
+use Illuminate\Validation\ValidationException;
 
 /**
  * `email/send`: emails people (usernames) or addresses, with a template or a
@@ -14,11 +16,11 @@ use App\Services\Workflows\RunContext;
  */
 class EmailSendStep extends BaseStep
 {
-    public function __construct(private Mailer $mailer) {}
+    public function __construct(private Mailer $mailer, private FilePaths $paths) {}
 
     protected function keys(): array
     {
-        return ['to' => true, 'template' => false, 'subject' => false, 'body' => false];
+        return ['to' => true, 'template' => false, 'subject' => false, 'body' => false, 'attachments' => false];
     }
 
     protected function checks(array $with, string $path): array
@@ -37,6 +39,11 @@ class EmailSendStep extends BaseStep
             $errors[] = "{$path}: use either template, or subject and body, not both.";
         } elseif (! $hasTemplate && (! isset($with['subject']) || ! isset($with['body']))) {
             $errors[] = "{$path}: needs a template, or both subject and body.";
+        }
+
+        $attachments = $with['attachments'] ?? null;
+        if ($attachments !== null && ! (is_array($attachments) && array_is_list($attachments) && count($attachments) <= 10 && array_filter($attachments, 'is_string') === $attachments)) {
+            $errors[] = "{$path}.attachments: must be a list of up to 10 file paths, e.g. [\"Library/Quality/Checklist.pdf\"].";
         }
 
         return [
@@ -72,22 +79,56 @@ class EmailSendStep extends BaseStep
         $values = $context->values();
         unset($values['secrets']);
 
+        $files = $this->attachments((array) ($with['attachments'] ?? []), $context);
+
         if (isset($with['template'])) {
             $template = EmailTemplate::where('name', $with['template'])->first()
                 ?? throw new StepFailed("No email template named \"{$with['template']}\".");
             [$subject, $body] = [$template->subject, $template->body];
+            array_push($files, ...Mailer::templateAttachments($template));
         } else {
             // Already filled in by the runner, except recipient.*, which the mailer fills per person.
             [$subject, $body] = [(string) $with['subject'], (string) $with['body']];
             $values = [];
         }
 
-        $sent = $this->mailer->send($recipients, $subject, $body, $values, 'action', $context->actor, $context->ticket ? route('tickets.show', $context->ticket) : null);
+        try {
+            Mailer::assertAttachmentSize($files);
+        } catch (ValidationException $tooBig) {
+            throw new StepFailed($tooBig->getMessage());
+        }
+
+        $sent = $this->mailer->send($recipients, $subject, $body, $values, 'action', $context->actor, $context->ticket ? route('tickets.show', $context->ticket) : null, $files);
 
         if ($sent < count($recipients)) {
             throw new StepFailed("Sent to {$sent} of ".count($recipients).'; check the mail settings.');
         }
 
         return ['sent' => $sent, 'to' => implode(', ', array_keys($recipients))];
+    }
+
+    /**
+     * Files named by path that the action may read (see RunContext::filesPerson).
+     *
+     * @param  list<string>  $paths
+     * @return list<array{name: string, mime: string, size: int, path: string}>
+     */
+    private function attachments(array $paths, RunContext $context): array
+    {
+        if ($paths === []) {
+            return [];
+        }
+
+        $person = $context->filesPerson(null);
+        $files = [];
+        foreach ($paths as $path) {
+            $file = $this->paths->file((string) $path, $person);
+            if ($file === null || ! $this->paths->canRead($person, $file)) {
+                throw new StepFailed("Can’t attach \"{$path}\": no such file, or this action may not read it.");
+            }
+            $files[] = Mailer::attachmentFor($file);
+        }
+
+        return $files;
     }
 }

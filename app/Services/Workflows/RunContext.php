@@ -59,6 +59,21 @@ class RunContext
     }
 
     /**
+     * Whose file access a file step uses. Personal actions always use their
+     * owner's (so they can't reach someone else's files); shared actions use
+     * `as:` or whoever started the run, or nobody for a scheduled run.
+     */
+    public function filesPerson(?string $username): ?User
+    {
+        if (! $this->workflow->isShared()) {
+            return User::find($this->workflow->ownerId)
+                ?? throw new StepFailed('The owner of this action no longer exists.');
+        }
+
+        return ($username !== null && $username !== '') || $this->actor !== null ? $this->person($username) : null;
+    }
+
+    /**
      * The person a step acts as: `as: username` if given, otherwise whoever started the run.
      */
     public function person(?string $username): User
