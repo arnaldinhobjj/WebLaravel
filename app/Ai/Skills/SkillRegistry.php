@@ -207,7 +207,10 @@ class SkillRegistry
 
         $clean = array_map(fn ($value) => Str::limit(trim((string) $value), 2000), array_intersect_key($arguments, $recipe->arguments()));
 
-        return SkillResult::ok($recipe->title(), ['instructions' => $recipe->instructions($clean)]);
+        // Recipes name skills as "tickets.get"; AIs know them by their tool names ("tickets_get").
+        $toolNames = array_map(fn (Skill $skill): string => $skill->toolName(), $this->abilities());
+
+        return SkillResult::ok($recipe->title(), ['instructions' => strtr($recipe->instructions($clean), $toolNames)]);
     }
 
     /**

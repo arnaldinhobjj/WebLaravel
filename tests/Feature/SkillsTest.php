@@ -217,7 +217,8 @@ class SkillsTest extends TestCase
         $result = $this->skills->recipe($this->alex, 'recipes.summarise_ticket', ['ticket' => '37941']);
         $this->assertTrue($result->ok);
         $this->assertStringContainsString('ticket #37941', $result->data['instructions']);
-        $this->assertStringContainsString('tickets.get', $result->data['instructions']);
+        $this->assertStringContainsString('tickets_get', $result->data['instructions'], 'recipes name skills the way AIs see them');
+        $this->assertStringNotContainsString('tickets.get', $result->data['instructions']);
 
         $this->assertFalse($this->skills->recipe($this->alex, 'recipes_summarise_ticket', [])->ok, 'the ticket is required');
         $this->assertStringContainsString('friendly tone', $this->skills->recipe($this->alex, 'recipes.draft_reply', ['ticket' => '1'])->data['instructions']);

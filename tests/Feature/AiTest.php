@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AiConnection;
 use App\Models\AiConversation;
 use App\Models\AiSetting;
 use App\Models\AiToken;
@@ -28,48 +29,65 @@ class AiTest extends TestCase
     public function test_the_page_is_in_the_sidebar_and_needs_the_chat_permission(): void
     {
         $this->get('/')->assertSee('href="'.route('ai.index').'"', false);
-        $this->get(route('ai.index'))->assertOk()->assertSee('Connect your AI')->assertSee('http://localhost:11434/v1');
+        $this->get(route('ai.index'))->assertOk()->assertSee('Your AIs')->assertSee('http://localhost:11434/v1')->assertSee('https://api.anthropic.com/v1');
 
         Tag::everyone()->update(['permissions' => []]);
         $this->actingAs(User::factory()->create())->get(route('ai.index'))->assertForbidden();
     }
 
-    public function test_connection_settings_are_saved_per_person_with_the_key_encrypted(): void
+    public function test_each_person_has_their_own_ais_with_keys_encrypted(): void
     {
-        $this->put(route('ai.settings'), ['base_url' => 'http://localhost:1234/v1/', 'model' => 'qwen2.5', 'api_key' => 'sk-local-123', 'system_prompt' => 'Be brief.'])
-            ->assertSessionHasNoErrors();
+        $this->post(route('ai.connections.store'), ['name' => 'Claude', 'provider' => 'anthropic', 'base_url' => 'https://api.anthropic.com/v1/', 'model' => 'claude-sonnet-5-5', 'api_key' => 'sk-ant-123'])
+            ->assertRedirect();
+        $this->post(route('ai.connections.store'), ['name' => 'Ollama', 'provider' => 'openai', 'base_url' => 'http://localhost:11434/v1', 'model' => 'qwen2.5:7b']);
 
-        $settings = AiSetting::find($this->alex->id);
-        $this->assertSame(['http://localhost:1234/v1', 'qwen2.5', 'sk-local-123'], [$settings->base_url, $settings->model, $settings->api_key]);
-        $this->assertStringNotContainsString('sk-local-123', (string) DB::table('ai_settings')->value('api_key'));
+        $claude = AiConnection::where('name', 'Claude')->sole();
+        $this->assertSame(['anthropic', 'https://api.anthropic.com/v1', 'sk-ant-123'], [$claude->provider, $claude->base_url, $claude->api_key]);
+        $this->assertStringNotContainsString('sk-ant-123', (string) DB::table('ai_connections')->where('id', $claude->id)->value('api_key'));
 
-        // An empty key keeps the saved one; the page hands it only to its owner's browser.
-        $this->put(route('ai.settings'), ['base_url' => 'http://localhost:1234/v1', 'model' => 'qwen2.5', 'api_key' => '']);
-        $this->assertSame('sk-local-123', AiSetting::find($this->alex->id)->api_key);
-        $this->get(route('ai.index'))->assertSee('data-api-key="sk-local-123"', false)->assertSee('data-model="qwen2.5"', false);
+        // An empty key keeps the saved one; the key is only handed to its owner's browser.
+        $this->put(route('ai.connections.update', $claude), ['name' => 'Claude', 'provider' => 'anthropic', 'base_url' => 'https://api.anthropic.com/v1', 'model' => 'claude-opus-5-5', 'api_key' => '']);
+        $this->assertSame(['sk-ant-123', 'claude-opus-5-5'], [$claude->fresh()->api_key, $claude->fresh()->model]);
+        $this->get(route('ai.index'))->assertSee('"api_key":"sk-ant-123"', false)->assertSee('Ollama · qwen2.5:7b');
 
         $sam = User::factory()->create();
-        $this->actingAs($sam)->get(route('ai.index'))->assertDontSee('sk-local-123')->assertSee('data-model=""', false);
+        $this->actingAs($sam)->get(route('ai.index'))->assertDontSee('sk-ant-123')->assertDontSee('Ollama · qwen2.5:7b');
+        $this->put(route('ai.connections.update', $claude), ['name' => 'x', 'provider' => 'openai', 'base_url' => 'http://x.test'])->assertNotFound();
+        $this->delete(route('ai.connections.destroy', $claude))->assertNotFound();
 
-        $this->actingAs($this->alex)->put(route('ai.settings'), ['base_url' => 'not a url'])->assertSessionHasErrors('base_url');
+        $this->actingAs($this->alex)->post(route('ai.connections.store'), ['name' => 'Bad', 'provider' => 'skynet', 'base_url' => 'not a url'])->assertSessionHasErrors(['provider', 'base_url']);
+        $this->delete(route('ai.connections.destroy', $claude))->assertRedirect();
+        $this->assertModelMissing($claude);
+
+        $this->put(route('ai.settings'), ['system_prompt' => 'Be brief.'])->assertSessionHasNoErrors();
+        $this->assertSame('Be brief.', AiSetting::find($this->alex->id)->system_prompt);
     }
 
     public function test_chats_are_saved_and_titled_from_the_first_message(): void
     {
-        $created = $this->postJson(route('ai.conversations.store'))->assertCreated()->json();
+        $connection = AiConnection::create(['user_id' => $this->alex->id, 'name' => 'Ollama', 'provider' => 'openai', 'base_url' => 'http://localhost:11434/v1', 'model' => 'llama3.2:1b']);
+        $created = $this->postJson(route('ai.conversations.store'), ['connection_id' => $connection->id])->assertCreated()->json();
 
-        $this->postJson(url("/ai/conversations/{$created['id']}/messages"), ['user' => "How do I reset\nthe badge reader?", 'assistant' => 'Hold the button for 10 seconds.', 'model' => 'llama3.2:1b'])
-            ->assertOk()->assertJson(['title' => 'How do I reset the badge reader?']);
-        $this->postJson(url("/ai/conversations/{$created['id']}/messages"), ['user' => 'Thanks', 'assistant' => 'You’re welcome.'])
+        $this->postJson(url("/ai/conversations/{$created['id']}/messages"), ['model' => 'llama3.2:1b', 'messages' => [
+            ['role' => 'user', 'content' => "How do I reset\nthe badge reader?"],
+            ['role' => 'assistant', 'content' => '', 'meta' => ['calls' => [['id' => 'call_1', 'name' => 'files_search', 'input' => ['search' => 'badge']]]]],
+            ['role' => 'tool', 'content' => '{"ok":true,"summary":"1 file found."}', 'meta' => ['call_id' => 'call_1', 'name' => 'files_search', 'ok' => true, 'by' => 'ai']],
+            ['role' => 'assistant', 'content' => 'Hold the button for 10 seconds.'],
+        ]])->assertOk()->assertJson(['title' => 'How do I reset the badge reader?']);
+        $this->postJson(url("/ai/conversations/{$created['id']}/messages"), ['messages' => [['role' => 'user', 'content' => 'Thanks'], ['role' => 'assistant', 'content' => 'You’re welcome.']]])
             ->assertJson(['title' => 'How do I reset the badge reader?']);
 
         $chat = AiConversation::sole();
-        $this->assertSame(['user', 'assistant', 'user', 'assistant'], $chat->messages->pluck('role')->all());
-        $this->assertSame('llama3.2:1b', $chat->messages[1]->model);
+        $this->assertSame($connection->id, $chat->connection_id);
+        $this->assertSame(['user', 'assistant', 'tool', 'assistant', 'user', 'assistant'], $chat->messages->pluck('role')->all());
+        $this->assertSame('files_search', $chat->messages[2]->meta['name']);
+        $this->assertSame('llama3.2:1b', $chat->messages[3]->model);
+        $this->postJson(url("/ai/conversations/{$created['id']}/messages"), ['messages' => [['role' => 'system', 'content' => 'x']]])->assertUnprocessable();
 
         $this->get(route('ai.index', ['c' => $chat->id]))
-            ->assertSeeInOrder(['How do I reset the badge reader?', 'Hold the button for 10 seconds.', 'Thanks', 'You’re welcome.'])
-            ->assertSee('"role":"assistant","content":"Hold the button for 10 seconds."', false);
+            ->assertSee('Ollama · llama3.2:1b')
+            ->assertSee('"role":"assistant","content":"Hold the button for 10 seconds."', false)
+            ->assertSee('"name":"files_search"', false);
 
         $this->patch(route('ai.conversations.rename', $chat), ['title' => 'Badge reader'])->assertSessionHasNoErrors();
         $this->assertSame('Badge reader', $chat->fresh()->title);
@@ -85,7 +103,8 @@ class AiTest extends TestCase
         $this->actingAs($admin);
         $this->get(route('ai.index'))->assertDontSee('Private thoughts');
         $this->get(route('ai.index', ['c' => $chat->id]))->assertNotFound();
-        $this->postJson(url("/ai/conversations/{$chat->id}/messages"), ['user' => 'x', 'assistant' => 'y'])->assertNotFound();
+        $this->postJson(url("/ai/conversations/{$chat->id}/messages"), ['messages' => [['role' => 'user', 'content' => 'x']]])->assertNotFound();
+        $this->postJson(route('ai.conversations.store'), ['connection_id' => AiConnection::create(['user_id' => $this->alex->id, 'name' => 'x', 'provider' => 'openai', 'base_url' => 'http://x.test'])->id])->assertNotFound();
         $this->patch(route('ai.conversations.rename', $chat), ['title' => 'Mine now'])->assertNotFound();
         $this->delete(route('ai.conversations.destroy', $chat))->assertNotFound();
         $this->assertSame('Private thoughts', $chat->fresh()->title);

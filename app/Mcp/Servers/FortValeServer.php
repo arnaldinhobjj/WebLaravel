@@ -17,7 +17,7 @@ use Laravel\Mcp\Server\Attributes\Version;
  */
 #[Name('Fort Vale')]
 #[Version('2.0.0')]
-#[Instructions('Fort Vale is an operations workspace with tickets, files, email and actions. You act as the person whose token you use, with their permissions. Look things up before acting. Tools marked destructive create, change, send or delete things: show the person what you will do and get their OK first. Prompts are ready-made recipes for common jobs.')]
+#[Instructions('Fort Vale is an operations workspace with tickets, files, email and actions. You act as the person whose token you use, with their permissions. Look things up before acting. Tools marked destructive create, change, send or delete things: show the person what you will do and get their OK first. Prompts are ready-made recipes for common jobs. If a tool returns an error, tell the person what went wrong; never guess the answer instead.')]
 class FortValeServer extends Server
 {
     /** All skills in one page: some AI apps never ask for a second one. */

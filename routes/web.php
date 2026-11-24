@@ -79,6 +79,9 @@ Route::middleware('auth')->group(function () {
         Route::middleware('can:ai.chat')->group(function () {
             Route::get('/', 'index')->name('index');
             Route::put('/settings', 'saveSettings')->name('settings');
+            Route::post('/connections', 'storeConnection')->name('connections.store');
+            Route::put('/connections/{connection}', 'updateConnection')->name('connections.update');
+            Route::delete('/connections/{connection}', 'destroyConnection')->name('connections.destroy');
             Route::post('/conversations', 'storeConversation')->name('conversations.store');
             Route::post('/conversations/{conversation}/messages', 'storeMessages')->name('messages.store');
             Route::patch('/conversations/{conversation}', 'renameConversation')->name('conversations.rename');
