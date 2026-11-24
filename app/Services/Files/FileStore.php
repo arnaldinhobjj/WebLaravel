@@ -57,12 +57,7 @@ class FileStore
      */
     public function upload(User $person, Folder $folder, UploadedFile $upload): array
     {
-        $name = $this->cleanName($upload->getClientOriginalName());
-        // Read the type from the content itself, never from the name or the browser.
-        $mime = (string) ((new \finfo(FILEINFO_MIME_TYPE))->file($upload->getRealPath()) ?: 'application/octet-stream');
-        $size = (int) $upload->getSize();
-
-        $this->checkLimits($name, $mime, $size, $folder);
+        ['name' => $name, 'mime' => $mime, 'size' => $size] = $this->assertAcceptable($upload, $folder);
 
         $existing = StoredFile::where('folder_id', $folder->id)->where('name', $name)->first();
 
@@ -72,6 +67,43 @@ class FileStore
 
             return ['file' => $file->refresh(), 'newVersion' => $existing !== null];
         });
+    }
+
+    /**
+     * Attaches an upload to a page (see App\Support\Attachables). Attachments
+     * have no versions; the same name twice gives two files.
+     */
+    public function attach(User $person, string $type, string $id, UploadedFile $upload): StoredFile
+    {
+        ['mime' => $mime, 'size' => $size, 'name' => $name] = $this->assertAcceptable($upload);
+
+        return DB::connection(config('fortvale.connections.people'))->transaction(function () use ($person, $type, $id, $upload, $name, $mime, $size) {
+            $file = new StoredFile(['name' => $name, 'created_by' => $person->id]);
+            $file->attachable_type = $type;
+            $file->attachable_id = $id;
+            $file->save();
+            $this->addVersion($file, $upload->getRealPath(), $mime, $size, $person);
+
+            return $file->refresh();
+        });
+    }
+
+    /**
+     * Checks an upload against the limits before anything is stored, so a
+     * form can refuse it before saving anything else.
+     *
+     * @return array{name: string, mime: string, size: int}
+     */
+    public function assertAcceptable(UploadedFile $upload, ?Folder $folder = null): array
+    {
+        $name = $this->cleanName($upload->getClientOriginalName());
+        // Read the type from the content itself, never from the name or the browser.
+        $mime = (string) ((new \finfo(FILEINFO_MIME_TYPE))->file($upload->getRealPath()) ?: 'application/octet-stream');
+        $size = (int) $upload->getSize();
+
+        $this->checkLimits($name, $mime, $size, $folder);
+
+        return ['name' => $name, 'mime' => $mime, 'size' => $size];
     }
 
     /**
@@ -257,7 +289,7 @@ class FileStore
         return 1;
     }
 
-    private function checkLimits(string $name, string $mime, int $size, Folder $folder): void
+    private function checkLimits(string $name, string $mime, int $size, ?Folder $folder): void
     {
         $extension = strtolower(pathinfo($name, PATHINFO_EXTENSION));
         $blocked = array_map('strtolower', (array) self::setting('files.blocked_extensions'));
@@ -277,14 +309,14 @@ class FileStore
         $this->checkQuota($folder, $size);
     }
 
-    private function checkQuota(Folder $folder, int $extraBytes): void
+    private function checkQuota(?Folder $folder, int $extraBytes): void
     {
         $total = (int) self::setting('files.total_quota_mb') * 1024 * 1024;
         if ($total > 0 && $this->usage() + $extraBytes > $total) {
             throw ValidationException::withMessages(['files' => 'Fort Vale’s file storage is full. Ask an administrator to free space or raise the limit.']);
         }
 
-        if ($folder->isPersonal()) {
+        if ($folder?->isPersonal()) {
             $quota = (int) self::setting('files.personal_quota_mb') * 1024 * 1024;
             $owner = User::find($folder->owner_id);
             if ($quota > 0 && $owner !== null && $this->usage($owner) + $extraBytes > $quota) {

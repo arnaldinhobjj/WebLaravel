@@ -277,6 +277,16 @@ FILES_REGION=eu-west-1
 FILES_BUCKET=fortvale
 ```
 
+**Attachments.** Files can also be attached to pages instead of living in a folder:
+
+- **Tickets:** attach files when opening a ticket or replying (they show on the ticket and under the reply), or with the *Attachments* box on the ticket. Whoever can see the ticket can open them. Adding with the box needs *Tickets: Reply*. A file can be removed by whoever added it, or by people with *Tickets: Edit*.
+- **Email templates and shared actions** have a *Files for this …* box. Seeing them needs view permission on that page; adding or removing needs edit.
+- **Ticket emails** say how many files came with a new ticket or reply. The files themselves aren't attached, to keep emails small.
+- **Limits:** the size and type limits apply, and attachments count towards the total quota (not anyone's My files).
+- **Adding attachments to another page:**
+  1. Add a type to `app/Support/Attachables.php`: how to find the record, who may view and add, and its URL.
+  2. Put `<x-attachments type="…" :id="…" />` on the page.
+
 **Trash:** `php artisan files:empty-trash` runs daily from the scheduler (`php artisan schedule:work`) and deletes items older than 30 days, including their stored objects.
 
 ## Email
@@ -431,7 +441,7 @@ php artisan test
 | `app/Http/Controllers/DashboardController.php` | Home screen, reset |
 | `app/Http/Controllers/LoginController.php` | Sign in and out |
 | `app/Http/Controllers/TagController.php`, `DepartmentController.php`, `PersonController.php`, `resources/views/tags` | Tags page: tags, departments, people |
-| `app/Services/Files/`, `app/Http/Controllers/FileController.php`, `FileSettingsController.php`, `resources/views/files`, `app/Models/Folder.php`, `StoredFile.php`, `FileVersion.php`, `FolderAccess.php` | Files: storage, access rules, limits, trash and the file pages |
+| `app/Services/Files/`, `app/Support/Attachables.php`, `resources/views/components/attachments.blade.php`, `app/Http/Controllers/FileController.php`, `AttachmentController.php`, `FileSettingsController.php`, `resources/views/files`, `app/Models/Folder.php`, `StoredFile.php`, `FileVersion.php`, `FolderAccess.php` | Files: storage, access rules, limits, trash and the file pages |
 | `app/Services/Email/Mailer.php`, `app/Listeners/SendTicketEmails.php`, `app/Http/Controllers/Email*Controller.php`, `resources/views/emails` | Sending email, ticket emails, the Email, templates and settings pages, the email layout |
 | `app/Support/PagePermissions.php`, `app/Models/Tag.php`, `app/Models/Department.php`, `app/Support/AccessGuard.php` | Pages and their permissions, tags, departments, and the check that someone can always manage access |
 | `app/Http/Controllers/TicketController.php` | Ticket list, create, view, update, reply |

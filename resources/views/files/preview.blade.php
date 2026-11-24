@@ -3,15 +3,17 @@
 @section('title', $file->name)
 
 @section('content')
-    <a href="{{ $file->folder->isRoot() ? ($file->folder->isPersonal() ? route('files.mine') : route('files.library')) : route('files.folder', $file->folder) }}" class="back-link"><x-icon name="arrow-left" :size="16" /> {{ $file->folder->name }}</a>
+    <a href="{{ $location['url'] }}" class="back-link"><x-icon name="arrow-left" :size="16" /> Back</a>
 
     <div class="page-head">
         <div>
             <h2 class="section-title">{{ $file->name }}</h2>
-            <p class="page-sub">{{ $file->folder->path() }}</p>
+            <p class="page-sub">{{ $location['label'] }}</p>
         </div>
         <div class="page-head-actions">
-            <a href="{{ route('files.history', $file) }}" class="btn">Version history</a>
+            @if ($file->folder_id)
+                <a href="{{ route('files.history', $file) }}" class="btn">Version history</a>
+            @endif
             <a href="{{ route('files.download', $file) }}" class="btn btn-primary">Download</a>
         </div>
     </div>

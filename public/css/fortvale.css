@@ -1228,3 +1228,13 @@ fieldset.card { margin: 0; min-width: 0; }
 .file-preview iframe { width: 100%; height: 75vh; border: 0; }
 .file-text { width: 100%; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; max-height: 75vh; overflow: auto; }
 @media (max-width: 900px) { .files-layout { grid-template-columns: 1fr; } .files-nav { position: static; } }
+.attachments { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.attachment-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.attachment-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+.attachment-list form { display: inline; }
+.link-btn.danger { color: var(--danger); }
+.drop-zone-small { padding: 10px 12px; }
+.reply-files { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: 14px; }
+.reply-files a { display: inline-flex; align-items: center; gap: 6px; }
+.file-picker { font-size: 14px; }
+.attachments-below { margin-top: 16px; max-width: 720px; }

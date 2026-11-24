@@ -37,4 +37,6 @@
         'hidden' => ['hash' => $hash],
         'readonly' => ! $currentUser->can('shared_actions.edit'),
     ])
+
+    <x-attachments type="shared_action" :id="$slug" title="Files for this action" class="attachments-below" />
 @endsection

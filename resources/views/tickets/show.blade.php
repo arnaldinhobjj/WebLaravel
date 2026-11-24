@@ -36,11 +36,13 @@
                 <div class="prose">{!! nl2br(e($ticket->description)) !!}</div>
             </div>
 
+            <x-attachments type="ticket" :id="$ticket->id" />
+
             <h3 class="sub-title">Activity</h3>
             <ol class="timeline">
                 @foreach ($ticket->activities as $activity)
                     @continue($activity->type === 'created')
-                    <li @class(['timeline-item', 'is-comment' => $activity->type === 'comment']) @if ($loop->last) id="latest" @endif>
+                    <li @class(['timeline-item', 'is-comment' => $activity->type === 'comment']) @if ($loop->last) id="latest" @elseif ($activity->type === 'comment') id="reply-{{ $activity->id }}" @endif>
                         @if ($activity->type === 'comment')
                             <div class="card comment">
                                 <div class="comment-head">
@@ -49,6 +51,13 @@
                                     <time class="muted" datetime="{{ $activity->created_at->toIso8601String() }}" title="{{ $activity->created_at->format('j M Y, H:i') }}">{{ $activity->created_at->diffForHumans() }}</time>
                                 </div>
                                 <div class="prose">{!! nl2br(e($activity->body)) !!}</div>
+                                @if ($replyFiles->has((string) $activity->id))
+                                    <p class="reply-files">
+                                        @foreach ($replyFiles[(string) $activity->id] as $file)
+                                            <a href="{{ route('files.preview', $file) }}"><x-icon name="list-checks" :size="14" /> {{ $file->name }}</a>
+                                        @endforeach
+                                    </p>
+                                @endif
                             </div>
                         @else
                             <p class="event">
@@ -62,13 +71,19 @@
             </ol>
 
             @can('tickets.reply')
-            <form method="POST" action="{{ route('tickets.comment', $ticket) }}" class="card reply">
+            <form method="POST" action="{{ route('tickets.comment', $ticket) }}" class="card reply" enctype="multipart/form-data">
                 @csrf
                 <label for="reply-body" class="reply-label">
                     <span class="avatar-initials avatar-sm">{{ $me->initials() }}</span> Reply as {{ $me->name }}
                 </label>
                 <textarea id="reply-body" name="body" rows="4" required placeholder="Write a reply…" @error('body') aria-invalid="true" @enderror>{{ old('body') }}</textarea>
                 @error('body') <p class="field-error">{{ $message }}</p> @enderror
+                <label class="file-picker">
+                    <span class="muted">Attach files</span>
+                    <input type="file" name="files[]" multiple>
+                </label>
+                @error('files') <p class="field-error">{{ $message }}</p> @enderror
+                @error('files.*') <p class="field-error">{{ $message }}</p> @enderror
                 <div class="reply-actions">
                     @can('tickets.edit')
                     <label class="field-inline">

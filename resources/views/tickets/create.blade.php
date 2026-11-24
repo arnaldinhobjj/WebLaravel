@@ -16,7 +16,7 @@
         </div>
     </div>
 
-    <form method="POST" action="{{ route('tickets.store') }}" class="card ticket-form" novalidate>
+    <form method="POST" action="{{ route('tickets.store') }}" class="card ticket-form" enctype="multipart/form-data" novalidate>
         @csrf
 
         <label class="field">
@@ -65,6 +65,13 @@
             <span>Description</span>
             <textarea name="description" rows="8" required placeholder="What happened, where, and what you need." @error('description') aria-invalid="true" @enderror>{{ old('description', $prefill['description'] ?? '') }}</textarea>
             @error('description') <p class="field-error">{{ $message }}</p> @enderror
+        </label>
+
+        <label class="field">
+            <span>Attach files <small>(optional)</small></span>
+            <input type="file" name="files[]" multiple class="file-picker">
+            @error('files') <p class="field-error">{{ $message }}</p> @enderror
+            @error('files.*') <p class="field-error">{{ $message }}</p> @enderror
         </label>
 
         <div class="form-actions">

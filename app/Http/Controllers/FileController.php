@@ -10,6 +10,7 @@ use App\Models\StoredFile;
 use App\Models\Tag;
 use App\Services\Files\FileAccess;
 use App\Services\Files\FileStore;
+use App\Support\Attachables;
 use App\Support\CurrentUser;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -152,6 +153,7 @@ class FileController extends Controller
 
         return view('files.preview', [
             'file' => $file,
+            'location' => $this->locationOf($file),
             'kind' => match (true) {
                 str_starts_with($version->mime, 'image/') && in_array($version->mime, FileStore::PREVIEWABLE, true) => 'image',
                 $version->mime === 'application/pdf' => 'pdf',
@@ -168,7 +170,8 @@ class FileController extends Controller
 
         return view('files.history', [
             'file' => $file->load('versions.uploader'),
-            'canEdit' => $this->access->allows(CurrentUser::get(), $file->folder, 'edit'),
+            'location' => $this->locationOf($file),
+            'canEdit' => $file->folder !== null && $this->access->allows(CurrentUser::get(), $file->folder, 'edit'),
         ]);
     }
 
@@ -351,10 +354,41 @@ class FileController extends Controller
         abort_unless($this->access->allows($me, $folder, $ability), 403);
     }
 
+    /**
+     * Files in folders follow the folder's rules; attachments follow their page
+     * (view it to download; delete if you added it or may edit the page).
+     */
     private function authorizeFile(StoredFile $file, string $ability): void
     {
-        abort_if($file->folder === null || $file->currentVersion === null, 404);
+        abort_if($file->currentVersion === null, 404);
+
+        if ($file->attachable_type !== null) {
+            $me = CurrentUser::get();
+            abort_unless(Attachables::canView($me, $file->attachable_type, (string) $file->attachable_id), 404);
+            abort_unless($ability === 'view' || ($ability === 'delete' && Attachables::canDelete($me, $file)), 403);
+
+            return;
+        }
+
+        abort_if($file->folder === null, 404);
         $this->authorizeFolder($file->folder, $ability);
+    }
+
+    /**
+     * Where a file lives, for "back" links: its folder or the page it's attached to.
+     *
+     * @return array{url: string, label: string}
+     */
+    private function locationOf(StoredFile $file): array
+    {
+        if ($file->attachable_type !== null) {
+            return [
+                'url' => Attachables::url($file->attachable_type, (string) $file->attachable_id),
+                'label' => 'Attached to a '.strtolower(Attachables::TYPES[$file->attachable_type] ?? 'page'),
+            ];
+        }
+
+        return ['url' => $this->folderUrl($file->folder), 'label' => $file->folder->path()];
     }
 
     private function authorizeTopLevelAccess(Folder $folder): void
