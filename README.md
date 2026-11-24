@@ -221,7 +221,7 @@ Who may do what is set per page on the **Tags** page (`/tags`).
   | People | People section | add person | edit, set password | — | — |
 
   Ticking anything on a page also ticks View. Without *See everyone's tickets*, people only see tickets they opened or are assigned to; other tickets answer "not found".
-- **Everyone** is a built-in tag that every person has. Edit it to set what everyone may do. It can't be deleted or renamed. Out of the box it allows: tickets (view, create, reply), their own actions, viewing and running shared actions, files, and AI chat and web search. Changing a ticket's status, priority or category and reassigning it are for the Helpdesk tag and administrators. Without any tag, a person can still sign in, see the home screen and change their own settings.
+- **Everyone** is a built-in tag that every person has. Edit it to set what everyone may do. It can't be deleted or renamed. Out of the box it allows: tickets (view, create, reply), their own actions, viewing and running shared actions, files, and AI chat and web search. Changing a ticket's status, priority or category and reassigning it are for tags that see every ticket (the Helpdesk tag) and administrators. Without any tag, a person can still sign in, see the home screen and change their own settings.
 - **Departments** carry tags: everyone in a department gets its tags. **People** can also get extra tags of their own. The People list shows what each person can do in the end.
 - **You can't lock yourself out.** Any change that would leave nobody able to edit both tags and people is refused.
 - **Adding someone:** *Add person*, with their email and a first password. They can change it under *Settings*.
@@ -481,6 +481,7 @@ steps:
 - Give a step an `id` to use its outputs later: `${{ steps.<id>.ticket }}`.
 - **Personal actions always act as their owner**, within the owner's permissions: they can only touch tickets the owner can see, and changing, assigning or replying needs the owner's matching ticket permissions. `as:` isn't allowed in personal actions.
 - **Shared actions** act as the person who started the run (Run button, or whoever caused the ticket event), unless they say `as: <username>`. They may only use the *My files* of the person running them.
+- **When someone runs a shared action** (Run button, or an AI as them), its ticket steps and email templates need **that person's** permissions, even with `as:`. Shared actions started by a ticket event or a schedule are trusted, because only people allowed to edit shared actions write them.
 
 ### Values (`${{ … }}`)
 

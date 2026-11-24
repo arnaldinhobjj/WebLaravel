@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Ai\Skills\SkillRegistry;
 use App\Models\ActionRun;
 use App\Models\Department;
 use App\Models\EmailTemplate;
@@ -180,5 +181,82 @@ class ReviewFixesTest extends TestCase
         $helpdesk = User::factory()->withPermissions('tickets.view_all', 'tickets.edit', 'tickets.assign')->create();
         $this->actingAs($helpdesk)->patch(route('tickets.update', $ticket), ['status' => 'in_progress', 'assignee_id' => $helpdesk->id])->assertSessionHasNoErrors();
         $this->assertSame([$helpdesk->id, 'in_progress'], [$ticket->fresh()->assignee_id, $ticket->fresh()->status->value]);
+    }
+
+    // Second review
+
+    public function test_a_trashed_restricted_top_level_folder_stays_hidden_from_outsiders(): void
+    {
+        Storage::fake('files');
+        $outsider = User::factory()->withPermissions('files.delete', 'files.empty_trash')->create();
+        $hrDept = Department::factory()->create();
+        $insider = User::factory()->for($hrDept)->withPermissions('files.delete')->create();
+        $hr = Folder::factory()->create(['name' => 'HR']);
+        $hr->access()->create(['department_id' => $hrDept->id, 'abilities' => ['view', 'upload', 'delete']]);
+        $payroll = app(FileStore::class)->upload($insider, $hr, UploadedFile::fake()->createWithContent('payroll.txt', 'x'))['file'];
+        $hr->delete();
+
+        $this->actingAs($outsider);
+        $this->get(route('files.trash'))->assertDontSee('HR');
+        $this->post(route('files.trash.restore', ['folder', $hr->id]))->assertNotFound();
+        $this->post(route('files.trash.empty'), ['area' => 'library']);
+        $this->assertNotNull(Folder::withTrashed()->find($hr->id));
+        $this->assertNotNull(StoredFile::find($payroll->id));
+
+        $this->actingAs($insider)->get(route('files.trash'))->assertSee('HR');
+        $this->post(route('files.trash.restore', ['folder', $hr->id]))->assertRedirect();
+        $this->assertFalse($hr->fresh()->trashed());
+    }
+
+    public function test_template_files_need_template_permission_in_skills_and_personal_actions(): void
+    {
+        Mail::fake();
+        EmailTemplate::create(['name' => 'Secret pack', 'subject' => 'x', 'body' => 'x']);
+        $sender = User::factory()->withPermissions('emails.send')->create();
+
+        $skill = app(SkillRegistry::class)->run($sender, 'email.send', ['to' => ['x@example.com'], 'template' => 'Secret pack']);
+        $this->assertFalse($skill->ok);
+
+        $run = $this->runPersonal($sender, "name: Pack\non: { run: }\nsteps:\n  - uses: email/send\n    with: { to: x@example.com, template: Secret pack }");
+        $this->assertFalse($run->succeeded());
+        Mail::assertNothingSent();
+    }
+
+    public function test_ai_skills_cannot_read_files_in_the_trash(): void
+    {
+        Storage::fake('files');
+        $me = User::factory()->create();
+        $folder = Folder::factory()->create(['name' => 'Old']);
+        $file = app(FileStore::class)->upload($me, $folder, UploadedFile::fake()->createWithContent('notes.txt', 'secret'))['file'];
+        $skills = app(SkillRegistry::class);
+        $this->assertTrue($skills->run($me, 'files.read', ['file' => $file->id])->ok);
+
+        $folder->delete();
+        $this->assertFalse($skills->run($me, 'files.read', ['file' => $file->id])->ok);
+        $this->assertFalse($skills->run($me, 'files.details', ['file' => $file->id])->ok);
+    }
+
+    public function test_running_a_shared_action_needs_the_runners_ticket_permissions(): void
+    {
+        $folder = storage_path('framework/testing/actions-'.uniqid());
+        File::ensureDirectoryExists($folder);
+        config(['fortvale.actions.path' => $folder]);
+        $ticket = Ticket::factory()->create(['subject' => 'Printer']);
+        File::put("{$folder}/close.yml", "name: Close it\non:\n  run:\n    inputs:\n      ticket: { required: true }\nsteps:\n  - uses: ticket/update\n    with: { ticket: \"\${{ inputs.ticket }}\", status: closed, as: admin.person }\n");
+        User::factory()->withPermissions('tickets.view_all', 'tickets.edit')->create(['username' => 'admin.person']);
+
+        $this->actingAs(User::factory()->create())->post(route('actions.shared.run', 'close'), ['inputs' => ['ticket' => (string) $ticket->id]]);
+        $this->assertSame('open', $ticket->fresh()->status->value, 'as: someone powerful does not lend their permissions');
+
+        $this->actingAs(User::factory()->withPermissions('tickets.view_all', 'tickets.edit')->create())->post(route('actions.shared.run', 'close'), ['inputs' => ['ticket' => (string) $ticket->id]]);
+        $this->assertSame('closed', $ticket->fresh()->status->value);
+
+        File::deleteDirectory($folder);
+    }
+
+    public function test_ipv4_compatible_addresses_are_refused(): void
+    {
+        $this->assertFalse(HostResolver::isPublicAddress('::a00:1'));
+        $this->assertFalse(HostResolver::isPublicAddress('::7f00:1'));
     }
 }

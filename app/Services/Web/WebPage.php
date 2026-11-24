@@ -3,6 +3,7 @@
 namespace App\Services\Web;
 
 use App\Services\Workflows\HostResolver;
+use GuzzleHttp\Exception\RequestException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
@@ -15,6 +16,9 @@ use RuntimeException;
 class WebPage
 {
     public const MAX_TEXT = 40000;
+
+    /** Bytes of a page read at most. */
+    public const MAX_DOWNLOAD = 3_000_000;
 
     private const MAX_REDIRECTS = 3;
 
@@ -32,9 +36,19 @@ class WebPage
                 $response = Http::withHeaders(['User-Agent' => 'Mozilla/5.0 (compatible; FortVale/1.0)', 'Accept' => 'text/html,text/plain,application/json;q=0.9,*/*;q=0.1'])
                     ->timeout(10)->withoutRedirecting()
                     // Connect to the address that was checked, so DNS can't change in between.
-                    ->withOptions(HostResolver::pinnedTo($url, $address))
+                    ->withOptions(HostResolver::pinnedTo($url, $address) + [
+                        // Stop downloading once the page is bigger than we'd read anyway.
+                        'progress' => function ($total, int $downloaded): void {
+                            if ($downloaded > self::MAX_DOWNLOAD) {
+                                throw new RuntimeException('too large');
+                            }
+                        },
+                    ])
                     ->get($url);
-            } catch (ConnectionException $exception) {
+            } catch (ConnectionException|RequestException $exception) {
+                if (str_contains($exception->getMessage(), 'too large') || str_contains((string) $exception->getPrevious()?->getMessage(), 'too large')) {
+                    throw new RuntimeException("{$url} is larger than ".(self::MAX_DOWNLOAD / 1_000_000).' MB, too big to read.');
+                }
                 throw new RuntimeException("Couldn't reach {$url}: {$exception->getMessage()}");
             }
 
@@ -52,7 +66,7 @@ class WebPage
                 throw new RuntimeException("{$url} isn't a web page ({$type}), so it can't be read as text.");
             }
 
-            return $this->toText($url, substr($response->body(), 0, 3_000_000), str_contains($type, 'html') || $type === '');
+            return $this->toText($url, substr($response->body(), 0, self::MAX_DOWNLOAD), str_contains($type, 'html') || $type === '');
         }
 
         throw new RuntimeException('Too many redirects.');

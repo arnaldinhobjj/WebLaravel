@@ -59,15 +59,23 @@ class RunContext
     }
 
     /**
-     * Personal actions may only do what their owner may: see the ticket and
-     * have the page permissions. Shared actions are written by people trusted
-     * to edit them, so they aren't limited here.
+     * Checks that a step is allowed:
+     * - personal actions: their owner must see the ticket and have the permissions;
+     * - shared actions someone runs (Run button, or an AI as that person): the
+     *   person running it must, even when the step acts `as:` someone else;
+     * - shared actions started by a ticket event or a schedule: trusted, since
+     *   only people allowed to edit shared actions write them.
      *
      * @param  list<string>  $permissions
      */
     public function ensureAllowed(User $person, array $permissions, ?Ticket $ticket = null): void
     {
-        if ($this->workflow->isShared()) {
+        $person = match (true) {
+            ! $this->workflow->isShared() => $person,
+            $this->trigger === 'run' && $this->actor !== null => $this->actor,
+            default => null,
+        };
+        if ($person === null) {
             return;
         }
 

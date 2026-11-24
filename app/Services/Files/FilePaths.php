@@ -54,8 +54,14 @@ class FilePaths
     public function canRead(?User $person, StoredFile $file): bool
     {
         $folder = $file->folder;
-        if ($folder === null || $file->currentVersion === null) {
+        if ($folder === null || $file->currentVersion === null || $file->trashed()) {
             return false;
+        }
+        // Things in the trash (or inside a trashed folder) aren't readable, as on the Files pages.
+        foreach ($folder->ancestry() as $step) {
+            if ($step->trashed()) {
+                return false;
+            }
         }
 
         if ($person === null) {
