@@ -44,6 +44,7 @@ class Workspace
             ['label' => 'Tickets', 'route' => 'tickets.index', 'badge' => 'active_tickets', 'can' => 'tickets.view'],
             ['label' => 'My tickets', 'route' => 'tickets.index', 'params' => ['assignee' => 'me'], 'badge' => 'my_tickets', 'can' => 'tickets.view'],
             'Approvals',
+            ['label' => 'Workspace', 'route' => 'workspace.index', 'can' => 'workspace'],
             ['label' => 'Files', 'route' => 'files.library', 'can' => 'files.view'],
             ['label' => 'My files', 'route' => 'files.mine', 'can' => 'my_files.view'],
             ['label' => 'Email', 'route' => 'emails.create', 'can' => 'emails.view'],
