@@ -70,7 +70,7 @@ class EmailTemplateController extends Controller
             'inputs' => [],
         ];
 
-        $sent = $mailer->send([strtolower($me->email) => $me->name], $emailTemplate->subject, $emailTemplate->body, $values, 'compose', $me);
+        $sent = $mailer->send([strtolower($me->email) => $me->name], $emailTemplate->subject, $emailTemplate->body, $values, 'compose', $me, null, Mailer::templateAttachments($emailTemplate));
 
         return back()->with('status', $sent ? "Test sent to {$me->email}." : 'The test couldn’t be sent; check the mail settings in .env.');
     }

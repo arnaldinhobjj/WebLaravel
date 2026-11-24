@@ -287,6 +287,15 @@ FILES_BUCKET=fortvale
   1. Add a type to `app/Support/Attachables.php`: how to find the record, who may view and add, and its URL.
   2. Put `<x-attachments type="…" :id="…" />` on the page.
 
+**Files in email and actions.**
+
+- **Email page:** attach files from Files (anything you may open), or upload new ones (sent, not stored), up to 10 MB in total. Starting from a template also sends the template's files.
+- **Email templates:** files in a template's *Files for this template* box go with every email that uses it: the Email page, the template's test send, actions, and the built-in ticket emails.
+- **Actions:** `email/send` takes `attachments:` (paths such as `Library/Quality/Checklist.pdf` or `My files/notes.txt`), and `file/save` writes text into a folder. Both use the access of:
+  - **personal actions:** their owner;
+  - **shared actions:** whoever runs them, or `as:`;
+  - **scheduled shared actions without `as:`:** only library folders without access rules.
+
 **Trash:** `php artisan files:empty-trash` runs daily from the scheduler (`php artisan schedule:work`) and deletes items older than 30 days, including their stored objects.
 
 ## Email
@@ -383,7 +392,8 @@ steps:
 | `ticket/create` | Opens a ticket. Output: `ticket` (its number) | `subject` (required), `description`, `category`, `priority`, `assignee` (username), `as` (username to open it as) |
 | `ticket/update` | Changes a ticket | `ticket` (number; defaults to the triggering ticket), `status`, `priority`, `category`, `assignee` (username or `none`), `as` |
 | `ticket/reply` | Adds a reply | `ticket`, `body` (required), `as` |
-| `email/send` | Sends an email, one copy per recipient. Outputs: `sent`, `to` | `to` (required: usernames and/or addresses, up to 20), and either `template` (an email template's name) or `subject` + `body`. `${{ recipient.name }}` is filled in per person. Personal actions need their owner to have *Email: Send emails* |
+| `email/send` | Sends an email, one copy per recipient. Outputs: `sent`, `to` | `to` (required: usernames and/or addresses, up to 20), and either `template` (an email template's name) or `subject` + `body`. `${{ recipient.name }}` is filled in per person. `attachments`: up to 10 file paths (`Library/…` or `My files/…`), 10 MB in total. Personal actions need their owner to have *Email: Send emails* |
+| `file/save` | Saves text as a file; the same name gets a new version. Outputs: `file` (its path), `version` | `folder` (required, `Library/…` or `My files/…`), `name` (required), `content` (required, up to 1 MB), `as` |
 | `http/request` | Calls a web address, e.g. a Slack or Teams webhook. Outputs: `status`, `body` | `url` (required), `method` (GET, POST, PUT, PATCH, DELETE; POST when there's a body), `headers`, `body` (text, or a map sent as JSON), `timeout` (1–10 s) |
 | `message/show` | The message shown after a Run-button run | `text` (required) |
 | `page/open` | Sends you to a Fort Vale page (`/ticket?…`) or a website | `url` (required) |

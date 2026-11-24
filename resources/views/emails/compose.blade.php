@@ -23,8 +23,11 @@
             </nav>
         @endif
 
-        <form method="POST" action="{{ route('emails.store') }}" class="narrow-form compose-form">
+        <form method="POST" action="{{ route('emails.store') }}" class="narrow-form compose-form" enctype="multipart/form-data">
             @csrf
+            @if ($template)
+                <input type="hidden" name="template_id" value="{{ $template->id }}">
+            @endif
             <div class="card">
                 <fieldset class="check-list">
                     <legend>To</legend>
@@ -53,6 +56,34 @@
                     <textarea name="body" rows="10" required maxlength="10000" @error('body') aria-invalid="true" @enderror>{{ old('body', $template?->body) }}</textarea>
                     @error('body') <p class="field-error">{{ $message }}</p> @enderror
                 </label>
+
+                <fieldset class="check-list">
+                    <legend>Attachments <small class="muted">(up to {{ \App\Services\Email\Mailer::MAX_ATTACHMENT_BYTES / 1048576 }} MB in total)</small></legend>
+                    @if ($templateFiles->isNotEmpty())
+                        <p class="muted small">The “{{ $template->name }}” template also sends: {{ $templateFiles->pluck('name')->join(', ') }}.</p>
+                    @endif
+                    <label class="file-picker">
+                        <span class="muted">Upload from this computer</span>
+                        <input type="file" name="uploads[]" multiple>
+                    </label>
+                    @if ($pickable->isNotEmpty())
+                        <details class="file-pick">
+                            <summary>Attach from Files ({{ $pickable->count() }})</summary>
+                            <div class="file-pick-list">
+                                @foreach ($pickable as $file)
+                                    <label class="check">
+                                        <input type="checkbox" name="stored_files[]" value="{{ $file->id }}" @checked(in_array($file->id, array_map('intval', old('stored_files', [])), true))>
+                                        <span>{{ $file->name }}<small>{{ $file->folder->path() }}</small></span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </details>
+                    @endif
+                    @error('attachments') <p class="field-error">{{ $message }}</p> @enderror
+                    @error('stored_files') <p class="field-error">{{ $message }}</p> @enderror
+                    @error('uploads.*') <p class="field-error">{{ $message }}</p> @enderror
+                    @error('files') <p class="field-error">{{ $message }}</p> @enderror
+                </fieldset>
             </div>
             <div class="form-actions">
                 <button type="submit" class="btn btn-primary"><x-icon name="message" :size="16" /> Send</button>

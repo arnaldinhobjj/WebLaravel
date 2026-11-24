@@ -47,11 +47,13 @@
             <dd><code>- cron: "0 9 * * 1"</code> (Mondays 09:00).</dd>
             <dt>Steps (<code>uses:</code>)</dt>
             <dd>
-                <code>ticket/create</code>, <code>ticket/update</code>, <code>ticket/reply</code>, <code>http/request</code>, <code>email/send</code>, <code>message/show</code>,
+                <code>ticket/create</code>, <code>ticket/update</code>, <code>ticket/reply</code>, <code>http/request</code>, <code>email/send</code>, <code>file/save</code>, <code>message/show</code>,
                 and as the last step of a Run-button action <code>page/open</code> or <code>ticket/open-form</code>.
             </dd>
             <dt><code>email/send</code></dt>
-            <dd><code>to: [sam.okafor, x@example.com]</code> and either <code>template: Name</code> or <code>subject:</code> + <code>body:</code>. <code>${{ '{{' }} recipient.name }}</code> is filled in per person.</dd>
+            <dd><code>to: [sam.okafor, x@example.com]</code> and either <code>template: Name</code> or <code>subject:</code> + <code>body:</code>. <code>${{ '{{' }} recipient.name }}</code> is filled in per person. <code>attachments: ["Library/Quality/Checklist.pdf"]</code> attaches files.</dd>
+            <dt><code>file/save</code></dt>
+            <dd><code>folder: Library/Reports</code>, <code>name: weekly.txt</code>, <code>content:</code> (text, up to 1 MB). Same name → new version.</dd>
             <dt>Values</dt>
             <dd><code>${{ '{{' }} inputs.name }}</code>, <code>${{ '{{' }} ticket.id }}</code>, <code>${{ '{{' }} actor.name }}</code>, <code>${{ '{{' }} steps.&lt;id&gt;.ticket }}</code>; shared actions also <code>${{ '{{' }} secrets.NAME }}</code></dd>
         </dl>
