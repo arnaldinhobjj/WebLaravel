@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', $folder ? $folder->name.' · Files' : 'Files')
+@section('title', $folder ? $folder->name.' · Workspace Files' : 'Workspace Files')
 
 @php
     $parent = $folder && ! $folder->isRoot() ? $folder->parent : null;
@@ -19,7 +19,7 @@
                     </a>
                 @endif
                 <nav class="finder-path" aria-label="Folder path">
-                    <a href="{{ route('workspace.index') }}">Files</a>
+                    <a href="{{ route('workspace.index') }}">Workspace Files</a>
                     @foreach ($ancestry as $step)
                         <span aria-hidden="true">›</span>
                         @if ($loop->last)
@@ -32,7 +32,7 @@
                 <div class="finder-actions">
                     @if ($newIn->isNotEmpty())
                         <details class="menu finder-new">
-                            <summary class="btn btn-primary"><x-icon name="plus" :size="16" /> New</summary>
+                            <summary class="btn">New</summary>
                             <div class="menu-list finder-new-menu">
                                 @foreach ($newIn as $target)
                                     <form method="POST" action="{{ route('files.folders.store', $target) }}" class="finder-new-folder">
@@ -72,7 +72,7 @@
                 <div class="finder-grid-wrap">
             @endif
 
-                <ul class="finder-grid" aria-label="{{ $folder ? 'Contents of '.$folder->name : 'Files' }}">
+                <ul class="finder-grid" aria-label="{{ $folder ? 'Contents of '.$folder->name : 'Workspace Files' }}">
                     @foreach ($areas ?? [] as $area)
                         <li>
                             <a href="{{ route('workspace.folder', $area) }}" class="finder-item">

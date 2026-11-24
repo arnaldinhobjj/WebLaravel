@@ -1302,9 +1302,11 @@ fieldset.card { margin: 0; min-width: 0; }
 .finder-new label.menu-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 6px; cursor: pointer; font-size: 14px; }
 .finder-new label.menu-item:hover { background: var(--surface-2); }
 .finder-new summary { list-style: none; }
+/* Same look as the other toolbar buttons (List view), not the dropdown style. */
+.finder-new summary.btn, .finder-new[open] summary.btn { border-radius: 8px; background: var(--surface); color: inherit; }
+.finder-new summary.btn:hover, .finder-new[open] summary.btn { border-color: var(--accent); color: var(--accent); }
 .finder-new summary::-webkit-details-marker { display: none; }
 .finder-trashed { cursor: default; }
 .finder-trashed .finder-folder, .finder-trashed .finder-doc { opacity: .75; }
 .finder-meta { font-size: 11.5px; }
-.finder-empty .icon { opacity: .5; }
 @media (max-width: 760px) { .finder-sidebar { border-radius: var(--radius) var(--radius) 0 0; } }
