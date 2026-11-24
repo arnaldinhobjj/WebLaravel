@@ -61,6 +61,7 @@
                 @endforeach
             </ol>
 
+            @can('tickets.reply')
             <form method="POST" action="{{ route('tickets.comment', $ticket) }}" class="card reply">
                 @csrf
                 <label for="reply-body" class="reply-label">
@@ -69,6 +70,7 @@
                 <textarea id="reply-body" name="body" rows="4" required placeholder="Write a reply…" @error('body') aria-invalid="true" @enderror>{{ old('body') }}</textarea>
                 @error('body') <p class="field-error">{{ $message }}</p> @enderror
                 <div class="reply-actions">
+                    @can('tickets.edit')
                     <label class="field-inline">
                         <span>and set status to</span>
                         <select name="status">
@@ -79,18 +81,22 @@
                             @endforeach
                         </select>
                     </label>
+                    @endcan
                     <button type="submit" class="btn btn-primary"><x-icon name="message" :size="16" /> Post reply</button>
                 </div>
             </form>
+            @endcan
         </article>
 
         <aside class="ticket-sidebar">
+            @canany(['tickets.edit', 'tickets.assign'])
             <div class="card">
                 <h3 class="sub-title">Details</h3>
                 <form method="POST" action="{{ route('tickets.update', $ticket) }}" class="details-form">
                     @csrf
                     @method('PATCH')
 
+                    @can('tickets.edit')
                     <label class="field">
                         <span>Status</span>
                         <select name="status">
@@ -108,7 +114,9 @@
                             @endforeach
                         </select>
                     </label>
+                    @endcan
 
+                    @can('tickets.assign')
                     <label class="field">
                         <span>Assignee</span>
                         <select name="assignee_id">
@@ -118,7 +126,9 @@
                             @endforeach
                         </select>
                     </label>
+                    @endcan
 
+                    @can('tickets.edit')
                     <label class="field">
                         <span>Category</span>
                         <select name="category">
@@ -127,19 +137,21 @@
                             @endforeach
                         </select>
                     </label>
+                    @endcan
 
                     <button type="submit" class="btn btn-block">Save changes</button>
                 </form>
             </div>
 
             <div class="card quick-actions">
-                @if ($ticket->assignee_id !== $me->id)
+                @if ($ticket->assignee_id !== $me->id && $me->can('tickets.assign'))
                     <form method="POST" action="{{ route('tickets.update', $ticket) }}">
                         @csrf @method('PATCH')
                         <input type="hidden" name="assignee_id" value="{{ $me->id }}">
                         <button type="submit" class="btn btn-block">Assign to me</button>
                     </form>
                 @endif
+                @can('tickets.edit')
                 <form method="POST" action="{{ route('tickets.update', $ticket) }}">
                     @csrf @method('PATCH')
                     @if ($ticket->status->isActive())
@@ -150,7 +162,9 @@
                         <button type="submit" class="btn btn-block"><x-icon name="rotate" :size="16" /> Reopen</button>
                     @endif
                 </form>
+                @endcan
             </div>
+            @endcanany
 
             <dl class="card facts">
                 <div><dt>Requester</dt><dd>{{ $ticket->requester->name }}</dd></div>

@@ -74,16 +74,34 @@
         update();
     });
 
-    // Action form: show only the fields for the chosen type.
-    document.querySelectorAll('[data-action-form]').forEach((form) => {
-        const sync = () => {
-            const chosen = form.querySelector('[data-type-choice]:checked')?.value;
-            form.querySelectorAll('[data-type-fields]').forEach((group) => {
-                group.hidden = group.dataset.typeFields !== chosen;
-            });
+    // YAML editor: colored text drawn behind a transparent textarea; Tab inserts two spaces.
+    document.querySelectorAll('[data-yaml-editor]').forEach((editor) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'yaml-code';
+        const highlight = document.createElement('pre');
+        highlight.className = 'yaml-highlight';
+        highlight.setAttribute('aria-hidden', 'true');
+        editor.before(wrapper);
+        wrapper.append(highlight, editor);
+
+        const render = () => {
+            highlight.innerHTML = highlightYaml(editor.value) + '\n ';
+            highlight.scrollTop = editor.scrollTop;
+            highlight.scrollLeft = editor.scrollLeft;
         };
-        form.querySelectorAll('[data-type-choice]').forEach((radio) => radio.addEventListener('change', sync));
-        sync();
+        editor.addEventListener('input', render);
+        editor.addEventListener('scroll', () => {
+            highlight.scrollTop = editor.scrollTop;
+            highlight.scrollLeft = editor.scrollLeft;
+        });
+        render();
+
+        editor.addEventListener('keydown', (event) => {
+            if (event.key !== 'Tab' || event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) return;
+            event.preventDefault();
+            editor.setRangeText('  ', editor.selectionStart, editor.selectionEnd, 'end');
+            render();
+        });
     });
 
     // Ask before destructive submits.
@@ -224,3 +242,65 @@
 
     document.querySelectorAll('[data-toast]').forEach(dismissLater);
 })();
+
+/**
+ * Turns YAML text into HTML with colored keys, strings, literals, ${{ }} values and comments.
+ * shortcut: line-based, not a full YAML parser; good enough for action files.
+ */
+function highlightYaml(text) {
+    const escape = (s) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
+    const span = (kind, s) => (s ? `<span class="y-${kind}">${s}</span>` : '');
+    const withExpressions = (s) => s.split(/(\$\{\{.*?\}\})/).map((part, i) => (i % 2 ? span('expr', escape(part)) : escape(part))).join('');
+    const value = (s) => {
+        if (/^\s*(true|false|null|~|-?\d+(\.\d+)?)\s*$/.test(s)) return span('lit', escape(s));
+        return s.split(/(\$\{\{.*?\}\}|"(?:[^"\\]|\\.)*"?|'[^']*'?|[A-Za-z_][\w.-]*(?=:(?:\s|$)))/).map((part, i) => {
+            if (i % 2 === 0) return escape(part);
+            if (part.startsWith('${{')) return span('expr', escape(part));
+            if (part[0] === '"' || part[0] === "'") return span('str', withExpressions(part));
+            return span('key', escape(part));
+        }).join('');
+    };
+    const commentStart = (line) => {
+        let quote = null;
+        for (let i = 0; i < line.length; i++) {
+            const c = line[i];
+            if (quote) { if (c === quote) quote = null; continue; }
+            if (c === '"' || c === "'") quote = c;
+            else if (c === '#' && (i === 0 || /\s/.test(line[i - 1]))) return i;
+        }
+        return -1;
+    };
+
+    let blockIndent = -1; // indentation of the line that opened a | or > block
+    return text.split('\n').map((line) => {
+        const indent = line.match(/^\s*/)[0].length;
+        if (blockIndent >= 0 && (line.trim() === '' || indent > blockIndent)) return span('str', withExpressions(line)) || '';
+        blockIndent = -1;
+
+        const hash = commentStart(line);
+        const code = hash >= 0 ? line.slice(0, hash) : line;
+        const comment = hash >= 0 ? span('comment', escape(line.slice(hash))) : '';
+        const m = code.match(/^(\s*)(-\s+)?([^\s#'"{}\[\],:][^:]*?|"[^"]*"|'[^']*')(:)(?=\s|$)(.*)$/);
+        if (/[|>][-+]?\s*$/.test(code)) blockIndent = indent;
+        if (!m) {
+            const dash = code.match(/^(\s*)(-\s+)(.*)$/);
+            return (dash ? escape(dash[1]) + span('key', dash[2]) + value(dash[3]) : value(code)) + comment;
+        }
+        return escape(m[1]) + span('key', m[2] || '') + span('key', escape(m[3])) + m[4] + value(m[5]) + comment;
+    }).join('\n');
+}
+
+// Tag permission grid: ticking anything on a page also ticks View; unticking View clears the row.
+document.querySelectorAll('[data-permission-row]').forEach((row) => {
+    const view = row.querySelector('[data-permission-view]');
+    if (!view) return;
+    row.querySelectorAll('input[type="checkbox"]').forEach((box) => {
+        box.addEventListener('change', () => {
+            if (box === view && !view.checked) {
+                row.querySelectorAll('input[type="checkbox"]').forEach((other) => { other.checked = false; });
+            } else if (box !== view && box.checked) {
+                view.checked = true;
+            }
+        });
+    });
+});

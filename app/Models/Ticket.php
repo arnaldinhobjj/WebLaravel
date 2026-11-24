@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\TicketPriority;
 use App\Enums\TicketStatus;
+use App\Events\TicketChanged;
 use Database\Factories\TicketFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -84,15 +85,39 @@ class Ticket extends Model
         $query->whereIn('status', array_map(fn ($s) => $s->value, TicketStatus::active()));
     }
 
+    /**
+     * Tickets a person may see: the ones they opened or are assigned to, or
+     * every ticket with the "see every ticket" permission.
+     */
+    public function scopeVisibleTo(Builder $query, User $person): void
+    {
+        if ($person->hasPermission('tickets.view_all')) {
+            return;
+        }
+
+        $query->where(fn (Builder $q) => $q->where('requester_id', $person->id)->orWhere('assignee_id', $person->id));
+    }
+
+    public function isVisibleTo(User $person): bool
+    {
+        return $person->hasPermission('tickets.view_all')
+            || $this->requester_id === $person->id
+            || $this->assignee_id === $person->id;
+    }
+
     /** Creates a ticket and records who opened it. */
     public static function open(array $attributes, User $requester): self
     {
-        return (new self)->getConnection()->transaction(function () use ($attributes, $requester) {
+        $ticket = (new self)->getConnection()->transaction(function () use ($attributes, $requester) {
             $ticket = self::create($attributes + ['requester_id' => $requester->id]);
             $ticket->activities()->create(['type' => 'created', 'user_id' => $requester->id]);
 
             return $ticket;
         });
+
+        TicketChanged::dispatch($ticket, 'created', $requester);
+
+        return $ticket;
     }
 
     /**
@@ -101,7 +126,9 @@ class Ticket extends Model
      */
     public function applyChanges(array $changes, User $actor): int
     {
-        return $this->getConnection()->transaction(function () use ($changes, $actor) {
+        $events = [];
+
+        $changed = $this->getConnection()->transaction(function () use ($changes, $actor, &$events) {
             $changed = 0;
 
             foreach (['status', 'priority', 'assignee_id', 'category'] as $field) {
@@ -125,6 +152,12 @@ class Ticket extends Model
 
                 $this->activities()->create(['type' => $type, 'user_id' => $actor->id, 'from_label' => $from, 'to_label' => $to]);
                 $changed++;
+
+                if ($type === 'status') {
+                    $events[] = 'status_changed';
+                } elseif ($type === 'assignee' && $this->assignee_id !== null) {
+                    $events[] = 'assigned';
+                }
             }
 
             if ($this->isDirty('status')) {
@@ -135,12 +168,20 @@ class Ticket extends Model
 
             return $changed;
         });
+
+        foreach ($events as $event) {
+            TicketChanged::dispatch($this, $event, $actor);
+        }
+
+        return $changed;
     }
 
     public function addComment(string $body, User $author): TicketActivity
     {
         $comment = $this->activities()->create(['type' => 'comment', 'user_id' => $author->id, 'body' => $body]);
         $this->touch();
+
+        TicketChanged::dispatch($this, 'replied', $author);
 
         return $comment;
     }

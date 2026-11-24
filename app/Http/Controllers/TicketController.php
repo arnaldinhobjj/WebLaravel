@@ -10,6 +10,7 @@ use App\Support\CurrentUser;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -21,7 +22,7 @@ class TicketController extends Controller
         $filters = $request->only(['q', 'status', 'priority', 'category', 'assignee', 'requester', 'sort']);
         $status = $filters['status'] ?? 'active';
 
-        $base = Ticket::query()->tap(fn (Builder $query) => $this->applyFilters($query, $filters, $me));
+        $base = Ticket::query()->visibleTo($me)->tap(fn (Builder $query) => $this->applyFilters($query, $filters, $me));
 
         $counts = (clone $base)
             ->selectRaw('status, count(*) as total')
@@ -67,7 +68,8 @@ class TicketController extends Controller
         ]);
 
         $actor = CurrentUser::get();
-        $assignee = $data['assignee_id'] ?? null;
+        // Without the assign permission the field isn't shown, so a value is ignored.
+        $assignee = $actor->can('tickets.assign') ? ($data['assignee_id'] ?? null) : null;
         unset($data['assignee_id']);
 
         $ticket = Ticket::open($data, $actor);
@@ -80,6 +82,7 @@ class TicketController extends Controller
 
     public function show(Ticket $ticket): View
     {
+        $this->ensureVisible($ticket);
         $ticket->load(['requester', 'assignee', 'activities.user']);
 
         return view('tickets.show', [
@@ -91,6 +94,7 @@ class TicketController extends Controller
 
     public function update(Request $request, Ticket $ticket): RedirectResponse
     {
+        $this->ensureVisible($ticket);
         $data = $request->validate([
             'status' => ['sometimes', Rule::enum(TicketStatus::class)],
             'priority' => ['sometimes', Rule::enum(TicketPriority::class)],
@@ -98,7 +102,11 @@ class TicketController extends Controller
             'assignee_id' => ['sometimes', 'nullable', Rule::exists(User::class, 'id')],
         ]);
 
+        if (array_intersect_key($data, array_flip(['status', 'priority', 'category'])) !== []) {
+            Gate::authorize('tickets.edit');
+        }
         if (array_key_exists('assignee_id', $data)) {
+            Gate::authorize('tickets.assign');
             $data['assignee_id'] = $data['assignee_id'] ? (int) $data['assignee_id'] : null;
         }
 
@@ -109,10 +117,15 @@ class TicketController extends Controller
 
     public function comment(Request $request, Ticket $ticket): RedirectResponse
     {
+        $this->ensureVisible($ticket);
         $data = $request->validate([
             'body' => ['required', 'string', 'max:10000'],
             'status' => ['nullable', Rule::enum(TicketStatus::class)],
         ]);
+
+        if (! empty($data['status'])) {
+            Gate::authorize('tickets.edit');
+        }
 
         $actor = CurrentUser::get();
         $ticket->addComment($data['body'], $actor);
@@ -122,6 +135,14 @@ class TicketController extends Controller
         }
 
         return redirect()->to(route('tickets.show', $ticket).'#latest')->with('status', 'Reply posted.');
+    }
+
+    /**
+     * Other people's tickets answer 404 rather than 403, so ticket numbers don't reveal anything.
+     */
+    private function ensureVisible(Ticket $ticket): void
+    {
+        abort_unless($ticket->isVisibleTo(CurrentUser::get()), 404);
     }
 
     private function applyFilters(Builder $query, array $filters, User $me): void

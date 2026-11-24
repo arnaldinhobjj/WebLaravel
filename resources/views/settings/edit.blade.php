@@ -69,15 +69,63 @@
             </fieldset>
         </section>
 
+        <section class="card settings-section" aria-labelledby="email-prefs-title">
+            <div class="settings-intro">
+                <h3 id="email-prefs-title" class="sub-title">Email me when…</h3>
+                <p class="muted">Sent to {{ $user->email }}. You never get an email about your own changes.</p>
+            </div>
+            <fieldset class="settings-fields check-list">
+                <legend class="sr-only">Ticket emails</legend>
+                <input type="hidden" name="email_preferences_shown" value="1">
+                @foreach (\App\Models\User::EMAIL_PREFERENCES as $event => $label)
+                    <label class="check">
+                        <input type="checkbox" name="email_preferences[]" value="{{ $event }}" @checked(old('email_preferences_shown') ? in_array($event, old('email_preferences', []), true) : $user->wantsEmail($event))>
+                        {{ $label }}
+                    </label>
+                @endforeach
+            </fieldset>
+        </section>
+
         <div class="form-actions">
-            <button type="submit" class="btn btn-primary">Save settings</button>
+            <button type="submit" class="btn btn-primary">Save settings</button
+        </div>
+    </form>
+
+    <form method="POST" action="{{ route('settings.password', $user) }}" class="card settings-section" aria-labelledby="password-title">
+        @csrf
+        @method('PUT')
+        <div class="settings-intro">
+            <h3 id="password-title" class="sub-title">Password</h3>
+            <p class="muted">Used to sign in with {{ $user->email }}.</p>
+        </div>
+        <div class="settings-fields">
+            <div class="field-row field-row-2">
+                <label class="field">
+                    <span>Current password</span>
+                    <input type="password" name="current_password" required autocomplete="current-password" @error('current_password', 'password') aria-invalid="true" @enderror>
+                    @error('current_password', 'password') <p class="field-error">{{ $message }}</p> @enderror
+                </label>
+                <span></span>
+                <label class="field">
+                    <span>New password</span>
+                    <input type="password" name="password" required minlength="8" autocomplete="new-password" @error('password', 'password') aria-invalid="true" @enderror>
+                    @error('password', 'password') <p class="field-error">{{ $message }}</p> @enderror
+                </label>
+                <label class="field">
+                    <span>New password again</span>
+                    <input type="password" name="password_confirmation" required autocomplete="new-password">
+                </label>
+            </div>
+            <div><button type="submit" class="btn">Change password</button></div>
         </div>
     </form>
 
     <section class="card settings-section" aria-labelledby="home-title">
         <div class="settings-intro">
             <h3 id="home-title" class="sub-title">Home screen</h3>
-            <p class="muted">Your own actions are managed on the <a href="{{ route('actions.index', $user) }}">actions page</a>.</p>
+            @can('actions-page')
+                <p class="muted">Your own actions are managed on the <a href="{{ route('actions.index', $user) }}">actions page</a>.</p>
+            @endcan
         </div>
         <div class="settings-fields settings-row">
             <p>Put favorites back to the defaults, clear action run times and bring back dismissed mentions.</p>

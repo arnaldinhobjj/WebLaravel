@@ -2,12 +2,10 @@
 
 namespace Tests\Feature;
 
-use App\Enums\ActionType;
-use App\Enums\TicketPriority;
 use App\Models\Action;
+use App\Models\ActionRun;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class ActionTest extends TestCase
@@ -16,18 +14,31 @@ class ActionTest extends TestCase
 
     private User $user;
 
+    private const LINK_ACTION = <<<'YAML'
+        name: Urgent queue
+        description: All urgent tickets
+        on:
+          run:
+            show_on_home: true
+        steps:
+          - uses: page/open
+            with:
+              url: /ticket?priority=urgent
+        YAML;
+
     protected function setUp(): void
     {
         parent::setUp();
 
+        config(['fortvale.actions.path' => storage_path('framework/testing/no-shared-actions')]);
         $this->user = User::factory()->create(['username' => 'alex.morgan']);
-        $this->withSession(['acting_user_id' => $this->user->id]);
+        $this->actingAs($this->user);
     }
 
     public function test_lists_only_the_current_users_actions(): void
     {
-        Action::factory()->for($this->user)->create(['name' => 'My queue']);
-        Action::factory()->create(['name' => 'Not mine']);
+        Action::factory()->for($this->user)->yaml(str_replace('Urgent queue', 'My queue', self::LINK_ACTION))->create();
+        Action::factory()->yaml(str_replace('Urgent queue', 'Not mine', self::LINK_ACTION))->create();
 
         $this->get('/alex.morgan/actions')
             ->assertOk()
@@ -35,121 +46,111 @@ class ActionTest extends TestCase
             ->assertDontSee('Not mine');
     }
 
-    public function test_shows_an_empty_state_without_actions(): void
+    public function test_shows_an_empty_state_and_offers_templates(): void
     {
         $this->get('/alex.morgan/actions')->assertSee('You haven’t made any actions yet.');
+
+        $this->get('/alex.morgan/actions/create?template=webhook')
+            ->assertOk()
+            ->assertSee('uses: http/request')
+            ->assertSee('React to ticket events');
     }
 
-    public function test_creates_a_link_action(): void
+    public function test_creates_an_action_from_yaml_and_caches_its_name_and_triggers(): void
     {
-        $this->post('/alex.morgan/actions', [
-            'name' => 'Urgent queue',
-            'description' => 'All urgent tickets',
-            'type' => 'link',
-            'url' => '/ticket?priority=urgent',
-            'ticket_subject' => 'Ignored for links',
-            'show_on_home' => '1',
-        ])->assertRedirect('/alex.morgan/actions')->assertSessionHas('status', '“Urgent queue” created.');
+        $this->post('/alex.morgan/actions', ['yaml' => self::LINK_ACTION])
+            ->assertRedirect('/alex.morgan/actions')
+            ->assertSessionHas('status', '“Urgent queue” created.');
 
         $action = $this->user->actions()->sole();
-        $this->assertSame(ActionType::Link, $action->type);
-        $this->assertSame('/ticket?priority=urgent', $action->url);
-        $this->assertNull($action->ticket_subject);
+        $this->assertSame('Urgent queue', $action->name);
+        $this->assertSame(['run'], $action->triggers);
         $this->assertTrue($action->show_on_home);
+        $this->assertSame(self::LINK_ACTION, $action->yaml);
     }
 
-    public function test_creates_a_ticket_template_action_hidden_from_home(): void
+    public function test_rejects_invalid_yaml_listing_each_mistake_and_keeping_the_text(): void
     {
-        $this->post('/alex.morgan/actions', [
-            'name' => 'Camera fault',
-            'type' => 'ticket',
-            'url' => '/ignored',
-            'ticket_subject' => 'Camera fault',
-            'ticket_category' => 'cctv',
-            'ticket_priority' => 'urgent',
-            'ticket_description' => 'Which camera?',
-            'show_on_home' => '0',
-        ])->assertRedirect('/alex.morgan/actions');
+        $yaml = "name: Broken\non: { run: }\nsteps:\n  - uses: page/open\n    with: { url: 'javascript:alert(1)' }\n  - uses: shell/run\n";
 
-        $action = $this->user->actions()->sole();
-        $this->assertSame(ActionType::Ticket, $action->type);
-        $this->assertSame(TicketPriority::Urgent, $action->ticket_priority);
-        $this->assertNull($action->url);
-        $this->assertFalse($action->show_on_home);
-    }
+        $this->from('/alex.morgan/actions/create')
+            ->post('/alex.morgan/actions', ['yaml' => $yaml])
+            ->assertRedirect('/alex.morgan/actions/create')
+            ->assertSessionHasErrors('yaml')
+            ->assertSessionHasInput('yaml', rtrim($yaml));
 
-    public function test_rejects_an_action_without_its_required_fields(): void
-    {
-        $this->post('/alex.morgan/actions', [])->assertSessionHasErrors(['name', 'type']);
-
-        $this->post('/alex.morgan/actions', ['name' => 'Link', 'type' => 'link'])
-            ->assertSessionHasErrors(['url' => 'Enter the page or website this action opens.']);
-
-        $this->post('/alex.morgan/actions', ['name' => 'Ticket', 'type' => 'ticket'])
-            ->assertSessionHasErrors(['ticket_subject', 'ticket_category', 'ticket_priority']);
-
+        $errors = session('errors')->get('yaml');
+        $this->assertCount(3, $errors);
+        $this->assertStringStartsWith('steps[0].with.url:', $errors[0]);
         $this->assertSame(0, Action::count());
-    }
 
-    /**
-     * @return array<string, array{string}>
-     */
-    public static function unsafeLinks(): array
-    {
-        return [
-            'javascript scheme' => ['javascript:alert(1)'],
-            'protocol-relative' => ['//evil.example.com'],
-            'plain text' => ['not a link'],
-            'ftp scheme' => ['ftp://files.example.com'],
-        ];
-    }
-
-    #[DataProvider('unsafeLinks')]
-    public function test_rejects_links_that_are_not_a_path_or_web_address(string $url): void
-    {
-        $this->post('/alex.morgan/actions', ['name' => 'Bad', 'type' => 'link', 'url' => $url])
-            ->assertSessionHasErrors(['url' => 'Enter a path that starts with / (like /ticket) or a web address starting with https://.']);
+        $this->post('/alex.morgan/actions', ['yaml' => ''])->assertSessionHasErrors(['yaml' => 'The yaml field is required.']);
     }
 
     public function test_updates_and_deletes_an_action(): void
     {
-        $action = Action::factory()->for($this->user)->create(['name' => 'Old name']);
+        $action = Action::factory()->for($this->user)->yaml(self::LINK_ACTION)->create();
 
-        $this->put("/alex.morgan/actions/{$action->id}", [
-            'name' => 'New name',
-            'type' => 'link',
-            'url' => 'https://example.com/status',
-            'show_on_home' => '0',
-        ])->assertRedirect('/alex.morgan/actions');
+        $this->get("/alex.morgan/actions/{$action->id}/edit")->assertOk()->assertSee('url: /ticket?priority=urgent');
+
+        $this->put("/alex.morgan/actions/{$action->id}", ['yaml' => "name: Renamed\non:\n  ticket:\n    types: [created]\nsteps:\n  - uses: ticket/reply\n    with: { body: hi }\n"])
+            ->assertRedirect('/alex.morgan/actions');
 
         $action->refresh();
-        $this->assertSame('New name', $action->name);
+        $this->assertSame('Renamed', $action->name);
+        $this->assertSame(['ticket'], $action->triggers);
         $this->assertFalse($action->show_on_home);
 
         $this->delete("/alex.morgan/actions/{$action->id}")->assertRedirect('/alex.morgan/actions');
         $this->assertModelMissing($action);
     }
 
-    public function test_running_a_link_action_redirects_and_records_the_run(): void
+    public function test_clicking_a_personal_action_opens_its_yaml_editor(): void
     {
-        $action = Action::factory()->for($this->user)->create(['url' => '/ticket?assignee=me']);
+        $action = Action::factory()->for($this->user)->yaml(self::LINK_ACTION)->create();
 
-        $this->post("/alex.morgan/actions/{$action->id}/run")->assertRedirect('/ticket?assignee=me');
-
-        $this->assertNotNull($action->fresh()->last_run_at);
+        $this->get('/alex.morgan/actions')->assertSee('href="'.route('actions.edit', [$this->user, $action]).'" class="action-card-link"', false);
+        $this->get('/')->assertSee('href="'.route('actions.edit', [$this->user, $action]).'"', false);
     }
 
-    public function test_running_a_ticket_action_opens_the_prefilled_ticket_form(): void
+    public function test_running_an_action_follows_its_last_step_and_records_the_run(): void
     {
-        $action = Action::factory()->for($this->user)->ticketTemplate()->create();
+        $action = Action::factory()->for($this->user)->yaml(self::LINK_ACTION)->create();
 
-        $this->post("/alex.morgan/actions/{$action->id}/run")
-            ->assertRedirect(route('tickets.create', [
-                'subject' => 'Badge reader fault',
-                'category' => 'facilities',
-                'priority' => 'high',
-                'description' => 'Which reader, and what happens when you badge?',
-            ]));
+        $this->post("/alex.morgan/actions/{$action->id}/run")->assertRedirect('/ticket?priority=urgent');
+
+        $this->assertNotNull($action->fresh()->last_run_at);
+        $run = ActionRun::sole();
+        $this->assertSame(["personal:{$action->id}", $action->id, $this->user->id, ActionRun::SUCCESS], [$run->action_key, $run->action_id, $run->owner_id, $run->status]);
+        $this->get('/alex.morgan/actions')->assertSee('Succeeded')->assertSee('Urgent queue');
+    }
+
+    public function test_running_an_action_with_inputs_opens_the_prefilled_ticket_form(): void
+    {
+        $action = Action::factory()->for($this->user)->yaml(<<<'YAML'
+            name: Camera fault
+            on:
+              run:
+                inputs:
+                  camera: { description: Camera number, required: true }
+            steps:
+              - uses: ticket/open-form
+                with: { subject: "Camera ${{ inputs.camera }} fault", category: cctv, priority: high }
+            YAML)->create();
+
+        $this->get("/alex.morgan/actions/{$action->id}/run")->assertOk()->assertSee('Camera number');
+        $this->post("/alex.morgan/actions/{$action->id}/run", ['inputs' => ['camera' => '']])->assertSessionHasErrors('inputs.camera');
+
+        $this->post("/alex.morgan/actions/{$action->id}/run", ['inputs' => ['camera' => '14']])
+            ->assertRedirect(route('tickets.create', ['subject' => 'Camera 14 fault', 'category' => 'cctv', 'priority' => 'high']));
+    }
+
+    public function test_actions_without_a_run_trigger_cannot_be_run_by_hand(): void
+    {
+        $action = Action::factory()->for($this->user)->yaml("name: Events\non: { ticket: { types: [created] } }\nsteps:\n  - uses: ticket/reply\n    with: { body: hi }\n")->create();
+
+        $this->post("/alex.morgan/actions/{$action->id}/run")->assertNotFound();
+        $this->get('/alex.morgan/actions')->assertDontSee(route('actions.custom.run', [$this->user, $action]), false);
     }
 
     public function test_returns_404_for_another_users_action_under_your_username(): void
@@ -169,7 +170,8 @@ class ActionTest extends TestCase
         $theirs = Action::factory()->for($other)->create();
 
         $this->get('/derek.lamar/actions')->assertForbidden();
-        $this->post('/derek.lamar/actions', ['name' => 'X', 'type' => 'link', 'url' => '/'])->assertForbidden();
+        $this->post('/derek.lamar/actions', ['yaml' => self::LINK_ACTION])->assertForbidden();
+        $this->post("/derek.lamar/actions/{$theirs->id}/run")->assertForbidden();
         $this->delete("/derek.lamar/actions/{$theirs->id}")->assertForbidden();
 
         $this->assertModelExists($theirs);
@@ -178,12 +180,12 @@ class ActionTest extends TestCase
 
     public function test_escapes_action_names_on_the_actions_and_home_pages(): void
     {
-        Action::factory()->for($this->user)->create(['name' => '<script>alert("x")</script>']);
+        Action::factory()->for($this->user)->yaml(str_replace('Urgent queue', '"<script>alert(1)</script>"', self::LINK_ACTION))->create();
 
         foreach (['/alex.morgan/actions', '/'] as $page) {
             $this->get($page)
                 ->assertSee('&lt;script&gt;', false)
-                ->assertDontSee('<script>alert("x")</script>', false);
+                ->assertDontSee('<script>alert(1)</script>', false);
         }
     }
 }

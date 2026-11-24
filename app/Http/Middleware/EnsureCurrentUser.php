@@ -23,7 +23,7 @@ class EnsureCurrentUser
         abort_unless(
             $owner instanceof User && $owner->is(CurrentUser::get()),
             403,
-            'This page belongs to someone else. Switch to them from the profile menu to see it.',
+            'This page belongs to someone else.',
         );
 
         return $next($request);

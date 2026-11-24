@@ -47,53 +47,48 @@
             <h2 class="section-title" id="actions-title">
                 Actions <x-icon name="workflow" :size="30" class="title-icon" />
             </h2>
-            <a href="{{ route('actions.index', $currentUser) }}" class="link-btn section-link">Manage</a>
+            @can('actions-page')
+                <a href="{{ route('actions.index', $currentUser) }}" class="link-btn section-link">Manage</a>
+            @endcan
             <x-carousel-controls label="actions" />
         </div>
 
         <div class="actions carousel-track" data-carousel-track tabindex="-1">
-            @foreach ($customActions as $customAction)
-                <form method="POST" action="{{ route('actions.custom.run', [$currentUser, $customAction]) }}" class="action action-custom"
-                      data-search-item="{{ $customAction->name }} {{ $customAction->description }}" @if ($customAction->opensExternalSite()) target="_blank" @endif>
-                    @csrf
-                    <span class="action-label" title="{{ $customAction->description }}">
-                        <x-icon :name="$customAction->type === \App\Enums\ActionType::Link ? 'link' : 'ticket'" :size="20" />
-                        <span>
-                            {{ $customAction->name }}
-                            @if ($customAction->last_run_at)
-                                <small>Last run {{ $customAction->last_run_at->diffForHumans() }}</small>
-                            @endif
+            @foreach ($homeActions as $homeAction)
+                @php
+                    $runUrl = $homeAction->isShared()
+                        ? route($homeAction->inputs() ? 'actions.shared.run.form' : 'actions.shared.run', str($homeAction->key)->after(':')->toString())
+                        : route($homeAction->inputs() ? 'actions.custom.run.form' : 'actions.custom.run', [$currentUser, str($homeAction->key)->after(':')->toString()]);
+                @endphp
+                <form method="{{ $homeAction->inputs() ? 'GET' : 'POST' }}" action="{{ $runUrl }}" class="action @unless ($homeAction->isShared()) action-custom @endunless"
+                      data-search-item="{{ $homeAction->name }} {{ $homeAction->description }}">
+                    @unless ($homeAction->inputs())
+                        @csrf
+                    @endunless
+                    @if ($homeAction->isShared() || $currentUser->can('actions.edit'))
+                        <a href="{{ $homeAction->isShared() ? route('actions.shared.show', str($homeAction->key)->after(':')->toString()) : route('actions.edit', [$currentUser, str($homeAction->key)->after(':')->toString()]) }}"
+                           class="action-label" title="{{ $homeAction->description ? $homeAction->description.' · ' : '' }}Open the YAML">
+                            <x-icon name="{{ $homeAction->isShared() ? 'list-checks' : 'workflow' }}" :size="20" />
+                            <span>{{ $homeAction->name }}</span>
+                        </a>
+                    @else
+                        <span class="action-label" @if ($homeAction->description) title="{{ $homeAction->description }}" @endif>
+                            <x-icon name="workflow" :size="20" />
+                            <span>{{ $homeAction->name }}</span>
                         </span>
-                    </span>
-                    <button type="submit" class="action-run" title="Run “{{ $customAction->name }}”">
+                    @endif
+                    <button type="submit" class="action-run" title="Run “{{ $homeAction->name }}”">
                         <x-icon name="play" :size="24" />
-                        <span class="sr-only">Run {{ $customAction->name }}</span>
+                        <span class="sr-only">Run {{ $homeAction->name }}</span>
                     </button>
                 </form>
             @endforeach
 
-            @foreach ($actions as $slug => $action)
-                <form method="POST" action="{{ route('actions.run', $slug) }}" class="action" data-search-item="{{ $action['name'] }} {{ $action['description'] }}">
-                    @csrf
-                    <span class="action-label" title="{{ $action['description'] }}">
-                        <x-icon name="list-checks" :size="20" />
-                        <span>
-                            {{ $action['name'] }}
-                            @if ($action['last_run'])
-                                <small>Last run {{ $action['last_run']->diffForHumans() }}</small>
-                            @endif
-                        </span>
-                    </span>
-                    <button type="submit" class="action-run" title="Run “{{ $action['name'] }}”">
-                        <x-icon name="play" :size="24" />
-                        <span class="sr-only">Run {{ $action['name'] }}</span>
-                    </button>
-                </form>
-            @endforeach
-
-            <a href="{{ route('actions.create', $currentUser) }}" class="action action-new">
-                <x-icon name="plus" :size="18" /> New action
-            </a>
+            @can('actions.create')
+                <a href="{{ route('actions.create', $currentUser) }}" class="action action-new">
+                    <x-icon name="plus" :size="18" /> New action
+                </a>
+            @endcan
         </div>
         <p class="empty" data-search-empty hidden>No actions match your search.</p>
     </section>

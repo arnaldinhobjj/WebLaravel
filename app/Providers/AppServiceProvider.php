@@ -6,7 +6,9 @@ use App\Models\Ticket;
 use App\Models\User;
 use App\Services\Workspace;
 use App\Support\CurrentUser;
+use App\Support\PagePermissions;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -21,17 +23,21 @@ class AppServiceProvider extends ServiceProvider
     {
         Paginator::defaultView('partials.pagination');
 
+        // Every "page.ability" in PagePermissions is checked against the person's tags.
+        Gate::before(fn (User $user, string $ability): ?bool => PagePermissions::exists($ability) ? $user->hasPermission($ability) : null);
+        Gate::define('actions-page', fn (User $user): bool => $user->hasPermission('actions.view') || $user->hasPermission('shared_actions.view'));
+        Gate::define('tags-page', fn (User $user): bool => $user->hasPermission('tags.view') || $user->hasPermission('departments.view') || $user->hasPermission('people.view'));
+
         // Data every page's sidebar and title bar needs.
         View::composer('layouts.app', function ($view) {
             $me = CurrentUser::get();
             $badges = [
-                'active_tickets' => Ticket::active()->count(),
+                'active_tickets' => Ticket::active()->visibleTo($me)->count(),
                 'my_tickets' => Ticket::active()->where('assignee_id', $me->id)->count(),
             ];
 
             $view->with([
                 'currentUser' => $me,
-                'people' => User::orderBy('name')->get(),
                 'openMentionCount' => count((new Workspace(session()->driver()))->openMentions()),
                 'navigation' => array_map(fn ($group) => $this->buildGroup($group, $badges), Workspace::NAVIGATION),
                 'footerNavigation' => $this->buildGroup(Workspace::FOOTER_NAVIGATION, $badges),
@@ -43,6 +49,11 @@ class AppServiceProvider extends ServiceProvider
     private function buildGroup(array $group, array $badges): array
     {
         $request = request();
+
+        $group['items'] = array_values(array_filter(
+            $group['items'],
+            fn ($item): bool => ! isset($item['can']) || (bool) request()->user()?->can($item['can']),
+        ));
 
         $items = array_map(function ($item) use ($request, $badges) {
             $item = is_string($item) ? ['label' => $item] : $item;

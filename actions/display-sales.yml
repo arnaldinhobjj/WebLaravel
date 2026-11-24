@@ -1,0 +1,9 @@
+name: Display sales
+description: Open the sales report for the current period
+on:
+  run:
+    show_on_home: true
+steps:
+  - uses: message/show
+    with:
+      text: The sales report isn't connected yet. Edit actions/display-sales.yml to point it at your reporting tool with page/open.

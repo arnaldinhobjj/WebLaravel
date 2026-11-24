@@ -28,32 +28,34 @@
                     </span>
                 </div>
 
-                <hr>
-                <a href="{{ route('tickets.index', ['assignee' => 'me']) }}" role="menuitem" class="menu-item"><x-icon name="ticket" :size="16" /> Assigned to me</a>
-                <a href="{{ route('tickets.index', ['requester' => 'me', 'status' => 'all']) }}" role="menuitem" class="menu-item"><x-icon name="inbox" :size="16" /> Tickets I opened</a>
-                <a href="{{ route('tickets.create') }}" role="menuitem" class="menu-item"><x-icon name="plus" :size="16" /> New ticket</a>
+                @canany(['tickets.view', 'tickets.create'])
+                    <hr>
+                @endcanany
+                @can('tickets.view')
+                    <a href="{{ route('tickets.index', ['assignee' => 'me']) }}" role="menuitem" class="menu-item"><x-icon name="ticket" :size="16" /> Assigned to me</a>
+                    <a href="{{ route('tickets.index', ['requester' => 'me', 'status' => 'all']) }}" role="menuitem" class="menu-item"><x-icon name="inbox" :size="16" /> Tickets I opened</a>
+                @endcan
+                @can('tickets.create')
+                    <a href="{{ route('tickets.create') }}" role="menuitem" class="menu-item"><x-icon name="plus" :size="16" /> New ticket</a>
+                @endcan
 
                 <hr>
-                <a href="{{ route('actions.index', $currentUser) }}" role="menuitem" class="menu-item"><x-icon name="list-checks" :size="16" /> My actions</a>
+                @can('actions-page')
+                    <a href="{{ route('actions.index', $currentUser) }}" role="menuitem" class="menu-item"><x-icon name="list-checks" :size="16" /> My actions</a>
+                @endcan
                 <a href="{{ route('settings.edit', $currentUser) }}" role="menuitem" class="menu-item"><x-icon name="settings" :size="16" /> Settings</a>
+                @can('tags-page')
+                    <a href="{{ route('tags.index') }}" role="menuitem" class="menu-item"><x-icon name="tag" :size="16" /> Tags and permissions</a>
+                @endcan
                 <button type="button" role="menuitem" class="menu-item" data-sidebar-toggle>
                     <x-icon name="panel-left" :size="16" /> Show or hide sidebar <kbd>[</kbd>
                 </button>
 
-                @if ($people->count() > 1)
-                    <hr>
-                    <p class="menu-heading">Switch user</p>
-                    @foreach ($people as $person)
-                        @continue($person->is($currentUser))
-                        <form method="POST" action="{{ route('profile.switch', $person) }}">
-                            @csrf
-                            <button type="submit" role="menuitem" class="menu-item">
-                                <span class="avatar-initials avatar-sm">{{ $person->initials() }}</span>
-                                <span class="menu-item-text">{{ $person->name }} <small>{{ $person->job_title }}</small></span>
-                            </button>
-                        </form>
-                    @endforeach
-                @endif
+                <hr>
+                <form method="POST" action="{{ route('logout') }}">
+                    @csrf
+                    <button type="submit" role="menuitem" class="menu-item"><x-icon name="log-out" :size="16" /> Sign out</button>
+                </form>
             </div>
         </details>
     </div>

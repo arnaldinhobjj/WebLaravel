@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use Illuminate\Contracts\Session\Session;
-use Illuminate\Support\Carbon;
 
 /**
  * Holds the data shown on the Fort Vale home screen and the per-user state
@@ -24,12 +23,6 @@ class Workspace
 
     public const DEFAULT_FAVORITES = ['quality', 'nuclear', 'dispatch', 'cctv', 'health'];
 
-    public const ACTIONS = [
-        'display-sales' => ['name' => 'Display sales', 'description' => 'Open the sales report for the current period'],
-        'request-printer-support' => ['name' => 'Request printer support', 'description' => 'Create a support ticket for a printer', 'ticket' => ['subject' => 'Printer support needed', 'category' => 'it']],
-        'book-meeting-room' => ['name' => 'Book a meeting room', 'description' => 'Reserve a room in the main building'],
-    ];
-
     public const MENTIONS = [
         37941 => ['author' => 'Derek Lamar', 'message' => 'Could you please confirm you have reviewed the updated inspection checklist for building C before Friday’s audit? We need sign-off from every team lead.', 'minutes_ago' => 12],
         37902 => ['author' => 'Priya Natarajan', 'message' => 'The dispatch schedule for next week has two overlapping crews on Tuesday. Can you take a look and pick one?', 'minutes_ago' => 95],
@@ -48,14 +41,18 @@ class Workspace
         ['label' => 'Reports', 'items' => ['Sales', 'Compliance', 'Exports']],
         ['label' => 'Workspace', 'open' => true, 'items' => [
             ['label' => 'Home', 'route' => 'dashboard'],
-            ['label' => 'Tickets', 'route' => 'tickets.index', 'badge' => 'active_tickets'],
-            ['label' => 'My tickets', 'route' => 'tickets.index', 'params' => ['assignee' => 'me'], 'badge' => 'my_tickets'],
+            ['label' => 'Tickets', 'route' => 'tickets.index', 'badge' => 'active_tickets', 'can' => 'tickets.view'],
+            ['label' => 'My tickets', 'route' => 'tickets.index', 'params' => ['assignee' => 'me'], 'badge' => 'my_tickets', 'can' => 'tickets.view'],
             'Approvals',
+            ['label' => 'Email', 'route' => 'emails.create', 'can' => 'emails.view'],
+            ['label' => 'Email templates', 'route' => 'email-templates.index', 'can' => 'email_templates.view'],
+            ['label' => 'Email settings', 'route' => 'email-settings.edit', 'can' => 'email_settings.view'],
+            ['label' => 'Tags', 'route' => 'tags.index', 'can' => 'tags-page'],
         ]],
     ];
 
     public const FOOTER_NAVIGATION = ['label' => 'Help', 'open' => true, 'items' => [
-        ['label' => 'Support center', 'route' => 'tickets.create', 'params' => ['category' => 'general']],
+        ['label' => 'Support center', 'route' => 'tickets.create', 'params' => ['category' => 'general'], 'can' => 'tickets.create'],
     ]];
 
     public function __construct(private Session $session) {}
@@ -106,25 +103,6 @@ class Workspace
         $this->session->put('favorites', $favorites);
 
         return true;
-    }
-
-    /** @return array<string, array{name: string, description: string, last_run: ?Carbon, ticket?: array}> */
-    public function actions(): array
-    {
-        $runs = $this->session->get('action_runs', []);
-
-        return collect(self::ACTIONS)
-            ->map(fn (array $action, string $slug) => $action + [
-                'last_run' => isset($runs[$slug]) ? Carbon::createFromTimestamp($runs[$slug]) : null,
-            ])
-            ->all();
-    }
-
-    public function runAction(string $slug): void
-    {
-        $runs = $this->session->get('action_runs', []);
-        $runs[$slug] = now()->getTimestamp();
-        $this->session->put('action_runs', $runs);
     }
 
     /** Mentions that are neither resolved nor dismissed, newest first. */

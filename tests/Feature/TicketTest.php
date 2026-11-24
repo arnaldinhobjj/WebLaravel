@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\TicketStatus;
+use App\Models\Tag;
 use App\Models\Ticket;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -20,9 +21,9 @@ class TicketTest extends TestCase
     {
         parent::setUp();
 
-        $this->me = User::factory()->create(['name' => 'Alex Morgan', 'job_title' => 'Operations lead']);
+        $this->me = User::factory()->withPermissions('tickets.view_all')->create(['name' => 'Alex Morgan', 'job_title' => 'Operations lead']);
         $this->colleague = User::factory()->create(['name' => 'Sam Okafor', 'job_title' => 'IT support']);
-        $this->withSession(['acting_user_id' => $this->me->id]);
+        $this->actingAs($this->me);
     }
 
     public function test_index_lists_active_tickets_by_default(): void
@@ -126,17 +127,51 @@ class TicketTest extends TestCase
         $this->post(route('tickets.comment', $ticket), ['body' => ''])->assertSessionHasErrors('body');
     }
 
-    public function test_switching_user_changes_who_replies(): void
+    public function test_people_only_see_tickets_they_opened_or_are_assigned_to(): void
     {
-        $ticket = Ticket::factory()->create();
+        $opened = Ticket::factory()->create(['subject' => 'Opened by Sam', 'requester_id' => $this->colleague->id]);
+        $assigned = Ticket::factory()->create(['subject' => 'Assigned to Sam', 'assignee_id' => $this->colleague->id]);
+        $other = Ticket::factory()->create(['subject' => 'Someone else’s ticket']);
 
-        $this->post(route('profile.switch', $this->colleague))
-            ->assertSessionHas('status', 'You are now working as Sam Okafor.');
+        $this->actingAs($this->colleague);
 
-        $this->post(route('tickets.comment', $ticket), ['body' => 'Fixed the cable.']);
+        $this->get('/ticket?status=all')
+            ->assertSee('Opened by Sam')
+            ->assertSee('Assigned to Sam')
+            ->assertDontSee('Someone else’s ticket');
+        $this->get(route('tickets.show', $opened))->assertOk();
+        $this->get(route('tickets.show', $assigned))->assertOk();
+        $this->get(route('tickets.show', $other))->assertNotFound();
+        $this->patch(route('tickets.update', $other), ['status' => 'closed'])->assertNotFound();
+        $this->post(route('tickets.comment', $other), ['body' => 'Hi'])->assertNotFound();
+        $this->assertSame(0, $other->comments()->count());
+    }
 
-        $this->assertSame($this->colleague->id, $ticket->comments()->first()->user_id);
-        $this->get('/ticket?assignee=me')->assertSee('Sam Okafor');
+    public function test_choosing_the_assignee_needs_the_assign_permission(): void
+    {
+        Tag::everyone()->update(['permissions' => ['tickets.view', 'tickets.create', 'tickets.edit']]);
+        $ticket = Ticket::factory()->create(['requester_id' => $this->colleague->id]);
+        $this->actingAs($this->colleague);
+
+        $this->get(route('tickets.create'))->assertDontSee('name="assignee_id"', false);
+        $this->get(route('tickets.show', $ticket))->assertDontSee('name="assignee_id"', false)->assertSee('name="status"', false);
+
+        $this->post(route('tickets.store'), ['subject' => 'Printer', 'description' => 'Jams', 'category' => 'it', 'priority' => 'normal', 'assignee_id' => $this->me->id]);
+        $this->assertNull(Ticket::where('subject', 'Printer')->sole()->assignee_id);
+
+        $this->patch(route('tickets.update', $ticket), ['assignee_id' => $this->me->id])->assertForbidden();
+        $this->patch(route('tickets.update', $ticket), ['status' => 'closed'])->assertSessionHasNoErrors();
+        $this->assertNull($ticket->fresh()->assignee_id);
+    }
+
+    public function test_seeing_every_ticket_comes_from_a_tag(): void
+    {
+        $ticket = Ticket::factory()->create(['subject' => 'Someone else’s ticket']);
+
+        $this->actingAs($this->colleague)->get(route('tickets.show', $ticket))->assertNotFound();
+
+        $this->colleague->tags()->attach(Tag::factory()->granting('tickets.view_all')->create());
+        $this->actingAs($this->colleague->fresh())->get(route('tickets.show', $ticket))->assertOk();
     }
 
     public function test_unknown_ticket_returns_404(): void

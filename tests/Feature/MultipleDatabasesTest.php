@@ -59,12 +59,12 @@ class MultipleDatabasesTest extends TestCase
         ]);
         $ticket->addComment('Switch in cabinet N2 has failed.', $assignee);
 
-        $this->withSession(['acting_user_id' => $assignee->id])
+        $this->actingAs($assignee)
             ->get(route('tickets.show', $ticket))
             ->assertOk()
             ->assertSeeInOrder(['Camera 14 offline', 'Opened by', 'Derek Lamar', 'Sam Okafor', 'Switch in cabinet N2 has failed.']);
 
-        $this->withSession(['acting_user_id' => $assignee->id])
+        $this->actingAs($assignee)
             ->get('/ticket?assignee=me')
             ->assertSee('Camera 14 offline')
             ->assertSee('Derek Lamar');
@@ -75,7 +75,7 @@ class MultipleDatabasesTest extends TestCase
         $ticket = Ticket::factory()->create();
         $missingPersonId = User::max('id') + 1000;
 
-        $this->patch(route('tickets.update', $ticket), ['assignee_id' => $missingPersonId])
+        $this->actingAs(User::factory()->withPermissions('tickets.view_all')->create())->patch(route('tickets.update', $ticket), ['assignee_id' => $missingPersonId])
             ->assertSessionHasErrors('assignee_id');
 
         $this->assertNull($ticket->fresh()->assignee_id);

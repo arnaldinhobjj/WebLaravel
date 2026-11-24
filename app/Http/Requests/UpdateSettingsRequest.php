@@ -34,6 +34,8 @@ class UpdateSettingsRequest extends FormRequest
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user)],
             'job_title' => ['nullable', 'string', 'max:80'],
             'theme' => ['required', Rule::in(array_keys(User::THEMES))],
+            'email_preferences' => ['array'],
+            'email_preferences.*' => ['string', Rule::in(array_keys(User::EMAIL_PREFERENCES))],
         ];
     }
 

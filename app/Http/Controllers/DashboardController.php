@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
+use App\Services\Workflows\WorkflowRepository;
 use App\Services\Workspace;
 use App\Support\CurrentUser;
 use Illuminate\Http\RedirectResponse;
@@ -20,8 +20,7 @@ class DashboardController extends Controller
             'currentUser' => $currentUser,
             'favorites' => $workspace->favorites(),
             'otherModules' => $workspace->otherModules(),
-            'actions' => $workspace->actions(),
-            'customActions' => $currentUser->actions()->where('show_on_home', true)->get(),
+            'homeActions' => app(WorkflowRepository::class)->forHome($currentUser),
             'mentions' => $workspace->openMentions(),
             'handledMentions' => $workspace->handledMentionCount(),
         ]);
@@ -35,19 +34,6 @@ class DashboardController extends Controller
         $name = Workspace::MODULES[$module]['name'];
 
         return back()->with('status', $added ? "{$name} added to favorites." : "{$name} removed from favorites.");
-    }
-
-    public function runAction(Request $request, string $action): RedirectResponse
-    {
-        abort_unless(isset(Workspace::ACTIONS[$action]), 404);
-
-        (new Workspace($request->session()))->runAction($action);
-
-        if ($prefill = Workspace::ACTIONS[$action]['ticket'] ?? null) {
-            return redirect()->route('tickets.create', $prefill);
-        }
-
-        return back()->with('status', '“'.Workspace::ACTIONS[$action]['name'].'” started.');
     }
 
     public function resolveMention(Request $request, int $ticket): RedirectResponse
@@ -75,39 +61,10 @@ class DashboardController extends Controller
         return back()->with('status', 'All mentions restored.');
     }
 
-    public function switchUser(User $user): RedirectResponse
-    {
-        $previous = CurrentUser::get();
-        CurrentUser::switchTo($user);
-
-        return redirect()
-            ->to($this->pageAfterSwitching($previous, $user))
-            ->with('status', "You are now working as {$user->name}.");
-    }
-
     public function resetHome(Request $request): RedirectResponse
     {
-        $request->session()->forget(['favorites', 'action_runs', 'handled_mentions']);
+        $request->session()->forget(['favorites', 'handled_mentions']);
 
         return redirect()->route('dashboard')->with('status', 'Home screen reset to its defaults.');
-    }
-
-    /**
-     * Personal pages only open for their owner, so switching from one moves to
-     * the same kind of page for the new person; other pages are kept.
-     */
-    private function pageAfterSwitching(User $from, User $to): string
-    {
-        $previousUrl = url()->previous();
-        $path = '/'.ltrim((string) parse_url($previousUrl, PHP_URL_PATH), '/');
-        $personalPrefix = '/'.$from->username.'/';
-
-        if (! str_starts_with($path, $personalPrefix)) {
-            return $previousUrl;
-        }
-
-        return str_starts_with($path, $personalPrefix.'settings')
-            ? route('settings.edit', $to)
-            : route('actions.index', $to);
     }
 }

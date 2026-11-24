@@ -30,7 +30,9 @@
                 @endif
             </p>
         </div>
-        <a href="{{ route('tickets.create') }}" class="btn btn-primary"><x-icon name="plus" :size="16" /> New ticket</a>
+        @can('tickets.create')
+            <a href="{{ route('tickets.create') }}" class="btn btn-primary"><x-icon name="plus" :size="16" /> New ticket</a>
+        @endcan
     </div>
 
     <nav class="tabs" aria-label="Filter by status">

@@ -47,6 +47,7 @@
                 @error('priority') <p class="field-error">{{ $message }}</p> @enderror
             </label>
 
+            @can('tickets.assign')
             <label class="field">
                 <span>Assignee <small>(optional)</small></span>
                 <select name="assignee_id">
@@ -57,6 +58,7 @@
                 </select>
                 @error('assignee_id') <p class="field-error">{{ $message }}</p> @enderror
             </label>
+            @endcan
         </div>
 
         <label class="field">

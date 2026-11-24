@@ -1,0 +1,20 @@
+# Shared actions live in this folder, one .yml file per action, like
+# .github/workflows. See "Actions (YAML)" in the README for every option.
+name: Request printer support
+description: Create a support ticket for a printer
+on:
+  run:
+    show_on_home: true
+    inputs:
+      printer:
+        description: Which printer? (e.g. "Floor 2, next to room 2B")
+        required: true
+steps:
+  - name: Open the new ticket form
+    uses: ticket/open-form
+    with:
+      subject: "Printer support needed: ${{ inputs.printer }}"
+      category: it
+      description: |
+        Printer: ${{ inputs.printer }}
+        What happens:

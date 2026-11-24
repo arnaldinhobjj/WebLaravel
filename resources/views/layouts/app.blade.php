@@ -14,7 +14,7 @@
         } catch (e) {}
     </script>
 </head>
-<body data-new-ticket-url="{{ route('tickets.create') }}">
+<body @can('tickets.create') data-new-ticket-url="{{ route('tickets.create') }}" @endcan>
 <div class="window">
     @include('partials.sidebar')
 
