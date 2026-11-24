@@ -60,6 +60,8 @@ An action can have any combination of the three triggers, and needs at least one
 | `ticket/create` | Opens a ticket; output `ticket` (its number) | `subject` (required), `description`, `category`, `priority`, `assignee` (username), `as` |
 | `ticket/update` | Changes a ticket | `ticket` (defaults to the triggering ticket), `status`, `priority`, `category`, `assignee` (username or `none`), `as` |
 | `ticket/reply` | Adds a reply | `ticket`, `body` (required), `as` |
+
+`as` (act as another person) is for **shared** actions only. Personal actions always act as their owner and can only do what the owner may: touch tickets the owner can see, and change, assign or reply with the owner's ticket permissions (by default only the Helpdesk tag and administrators may change status, priority, category or assignee).
 | `http/request` | Calls a web address (webhook); outputs `status`, `body` | `url` (required, public http/https only), `method`, `headers`, `body` (text or a map sent as JSON), `timeout` (1–10 s) |
 | `email/send` | Emails people, one copy each; outputs `sent`, `to` | `to` (required: usernames and/or addresses, up to 20), either `template` (an email template's name) or `subject` + `body`, `attachments` (up to 10 paths, 10 MB total) |
 | `file/save` | Saves text as a file (same name: new version); outputs `file`, `version` | `folder` (required, `Library/…` or `My files/…`), `name` (required), `content` (required, ≤ 1 MB), `as` |
