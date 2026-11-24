@@ -334,7 +334,7 @@ Skills are what any AI can do in Fort Vale. Each is written once (`app/Ai/Skills
   - today's summary.
 - **10 recipes**, ready-made instructions an AI follows: summarise a ticket, draft a reply, triage my tickets, my day, weekly ticket report, find a document, write an action, email an update about a ticket, handover notes, what can I do.
 - **In the chat:**
-  - **The AI uses skills by itself**, when the model supports tool calling (most current ones; tiny models choose poorly, so `qwen2.5:7b` or larger works much better than `llama3.2:1b`). Skills that change something (open, reply, send, run, save, delete…) ask you first.
+  - **The AI uses skills by itself**, when the model supports tool calling (most current ones; small models choose poorly, so use something like `qwen2.5:14b`, which this Mac uses, or a cloud AI). Skills that change something (open, reply, send, run, save, delete…) ask you first.
   - **You can call them yourself:** type `/` or press **Skills**, pick an ability (it runs at once and the AI sees the result) or a recipe (sent to your AI).
 - **The Skills page** (`/ai/skills`) lists everything, with *Try it* forms:
   - **Switch any skill off for your own AIs.** People with *AI: Switch skills off for everyone* can switch one off for everybody.
