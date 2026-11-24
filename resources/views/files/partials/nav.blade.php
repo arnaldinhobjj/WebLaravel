@@ -12,10 +12,10 @@
             <li><a href="{{ route('files.mine') }}" @class(['is-active' => $area === 'mine'])><x-icon name="user" :size="16" /> My files</a></li>
         @endcan
         @can('files.delete')
-            <li><a href="{{ route('files.trash') }}" @class(['is-active' => $area === 'trash'])><x-icon name="x" :size="16" /> Library trash</a></li>
+            <li><a href="{{ route('files.trash') }}" @class(['is-active' => $area === 'trash'])><x-icon name="trash" :size="16" /> Library trash</a></li>
         @endcan
         @can('my_files.delete')
-            <li><a href="{{ route('files.trash', ['area' => 'mine']) }}" @class(['is-active' => $area === 'trash-mine'])><x-icon name="x" :size="16" /> My trash</a></li>
+            <li><a href="{{ route('files.trash', ['area' => 'mine']) }}" @class(['is-active' => $area === 'trash-mine'])><x-icon name="trash" :size="16" /> My trash</a></li>
         @endcan
         @can('file_settings.view')
             <li><a href="{{ route('file-settings.edit') }}" @class(['is-active' => $area === 'settings'])><x-icon name="settings" :size="16" /> File settings</a></li>

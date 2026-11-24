@@ -59,7 +59,7 @@ class AppServiceProvider extends ServiceProvider
         $items = array_map(function ($item) use ($request, $badges) {
             $item = is_string($item) ? ['label' => $item] : $item;
             $params = $item['params'] ?? [];
-            $routeMatches = isset($item['route']) && $request->routeIs($item['route']);
+            $routeMatches = isset($item['route']) && $request->routeIs($item['active'] ?? $item['route']);
             $paramsMatch = collect($params)->every(fn ($value, $key) => $request->query($key) === $value);
 
             return [
