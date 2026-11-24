@@ -544,7 +544,10 @@ document.querySelectorAll('[data-ai-connection-form]').forEach((form) => {
         result.textContent = 'Connecting…';
         try {
             const response = await fetch(`${base}/models`, { headers });
-            if (!response.ok) throw new Error(`answered ${response.status}${response.status === 401 ? ' (check the API key)' : ''}`);
+            if (!response.ok) {
+                const hint = !key && !/localhost|127\.0\.0\.1/.test(base) ? ' — add your API key first' : (response.status === 401 || response.status === 403 ? ' (check the API key)' : '');
+                throw new Error(`answered ${response.status}${hint}`);
+            }
             const models = ((await response.json()).data || []).map((model) => model.id).sort();
             if (!models.length) { result.textContent = 'Connected, but there are no models yet (e.g. run “ollama pull qwen2.5:7b”).'; return; }
             const select = field('model-select');
