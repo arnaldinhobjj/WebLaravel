@@ -1302,9 +1302,10 @@ fieldset.card { margin: 0; min-width: 0; }
 .finder-new label.menu-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 6px; cursor: pointer; font-size: 14px; }
 .finder-new label.menu-item:hover { background: var(--surface-2); }
 .finder-new summary { list-style: none; }
-/* Same look as the other toolbar buttons (List view), not the dropdown style. */
-.finder-new summary.btn, .finder-new[open] summary.btn { border-radius: 8px; background: var(--surface); color: inherit; }
-.finder-new summary.btn:hover, .finder-new[open] summary.btn { border-color: var(--accent); color: var(--accent); }
+/* Dropdown buttons styled as .btn (New, Rename, New folder, …) look exactly like
+   other buttons, not like the 44px icon buttons of the mentions menu. */
+.menu > summary.btn { display: inline-flex; align-items: center; width: auto; height: auto; border-radius: 8px; background: var(--surface); color: inherit; }
+.menu > summary.btn:hover, .menu[open] > summary.btn { border-color: var(--accent); color: var(--accent); background: var(--surface); }
 .finder-new summary::-webkit-details-marker { display: none; }
 .finder-trashed { cursor: default; }
 .finder-trashed .finder-folder, .finder-trashed .finder-doc { opacity: .75; }
