@@ -3,6 +3,7 @@
 use App\Http\Controllers\ActionController;
 use App\Http\Controllers\ActionRunController;
 use App\Http\Controllers\AiController;
+use App\Http\Controllers\AiSkillController;
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
@@ -82,6 +83,12 @@ Route::middleware('auth')->group(function () {
             Route::post('/conversations/{conversation}/messages', 'storeMessages')->name('messages.store');
             Route::patch('/conversations/{conversation}', 'renameConversation')->name('conversations.rename');
             Route::delete('/conversations/{conversation}', 'destroyConversation')->name('conversations.destroy');
+        });
+        Route::middleware('can:ai.chat')->controller(AiSkillController::class)->group(function () {
+            Route::get('/skills', 'index')->name('skills');
+            Route::put('/skills/{name}/switch', 'toggle')->where('name', '[A-Za-z0-9_.-]+')->name('skills.toggle');
+            Route::post('/skills/{name}/run', 'run')->where('name', '[A-Za-z0-9_.-]+')->middleware('throttle:ai-chat-skills')->name('skills.run');
+            Route::post('/recipes/{name}', 'recipe')->where('name', '[A-Za-z0-9_.-]+')->name('recipes.show');
         });
         Route::middleware('can:ai.connect')->group(function () {
             Route::post('/tokens', 'storeToken')->name('tokens.store');

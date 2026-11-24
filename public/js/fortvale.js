@@ -527,3 +527,8 @@ document.querySelectorAll('[data-ai-settings]').forEach((form) => {
         }
     });
 });
+
+// Buttons that really change things ask first.
+document.querySelectorAll('[data-confirm-click]').forEach((button) => {
+    button.addEventListener('click', (event) => { if (!window.confirm(button.dataset.confirmClick)) event.preventDefault(); });
+});

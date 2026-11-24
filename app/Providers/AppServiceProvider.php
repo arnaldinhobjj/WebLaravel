@@ -27,6 +27,7 @@ class AppServiceProvider extends ServiceProvider
         Paginator::defaultView('partials.pagination');
 
         // People's AI apps using Fort Vale (MCP): 60 calls a minute per token.
+        RateLimiter::for('ai-chat-skills', fn (Request $request) => Limit::perMinute(120)->by('ai-chat:'.($request->user()?->id ?? $request->ip())));
         RateLimiter::for('ai-mcp', fn (Request $request) => Limit::perMinute(60)->by('ai-token:'.($request->attributes->get('ai_token_id') ?? $request->ip())));
 
         // Every "page.ability" in PagePermissions is checked against the person's tags.

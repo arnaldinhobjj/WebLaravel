@@ -256,4 +256,47 @@ class SkillsTest extends TestCase
         $this->getJson('/api/ai/skills')->assertUnauthorized();
         $this->getJson('/api/ai/skills', ['Authorization' => 'Bearer fv_nope'])->assertUnauthorized();
     }
+
+    // The Skills page
+
+    public function test_the_skills_page_lists_everything_and_switches_skills_off(): void
+    {
+        $this->actingAs($this->alex);
+        $this->get(route('ai.index'))->assertSee(route('ai.skills'));
+        $page = $this->get(route('ai.skills'))->assertOk();
+        foreach ($this->skills->abilities() + $this->skills->recipes() as $skill) {
+            $page->assertSee('id="'.$skill->toolName().'"', false);
+        }
+        $page->assertDontSee('Switch off for everyone');
+
+        $this->put(route('ai.skills.toggle', 'email_send'), ['for' => 'me', 'on' => 0])->assertRedirect();
+        $this->assertSame(['email.send'], $this->skills->switchedOffBy($this->alex));
+        $this->get(route('ai.skills'))->assertSee('Off for your AIs');
+        $this->put(route('ai.skills.toggle', 'email_send'), ['for' => 'me', 'on' => 1]);
+        $this->assertSame([], $this->skills->switchedOffBy($this->alex));
+
+        $this->put(route('ai.skills.toggle', 'email_send'), ['for' => 'everyone', 'on' => 0])->assertForbidden();
+        $admin = User::factory()->withPermissions('ai.manage_skills')->create();
+        $this->actingAs($admin)->put(route('ai.skills.toggle', 'email_send'), ['for' => 'everyone', 'on' => 0])->assertRedirect();
+        $this->assertSame(['email.send'], $this->skills->switchedOffForEveryone());
+        $this->get(route('ai.skills'))->assertSee('Off for everyone')->assertSee('Switch on for everyone');
+    }
+
+    public function test_try_it_and_the_chat_run_skills_as_you(): void
+    {
+        $this->actingAs($this->alex);
+
+        $this->post(route('ai.skills.run', 'tickets_create'), ['input' => ['subject' => 'Tried it', 'description' => 'From the form', 'priority' => 'high']])
+            ->assertRedirect()->assertSessionHas('skill_result.ok', true);
+        $this->assertSame([$this->alex->id, 'high'], [Ticket::where('subject', 'Tried it')->sole()->requester_id, Ticket::where('subject', 'Tried it')->sole()->priority->value]);
+        $this->get(route('ai.skills'))->assertSee('tickets.create:')->assertSee('opened.');
+
+        $this->postJson(route('ai.skills.run', 'people_me'))->assertOk()->assertJsonPath('data.username', 'alex.morgan');
+        $this->postJson(route('ai.skills.run', 'email_send'), ['to' => ['nobody']])->assertStatus(422)->assertJsonPath('ok', false);
+        $this->post(route('ai.recipes.show', 'recipes_summarise_ticket'), ['arguments' => ['ticket' => '42']])->assertSessionHas('skill_result.data.instructions');
+        $this->postJson(route('ai.recipes.show', 'recipes_my_day'))->assertOk()->assertJsonStructure(['data' => ['instructions']]);
+
+        Tag::everyone()->update(['permissions' => []]);
+        $this->actingAs(User::factory()->create())->get(route('ai.skills'))->assertForbidden();
+    }
 }

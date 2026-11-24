@@ -8,6 +8,7 @@
             <h2 class="section-title">AI</h2>
             <p class="page-sub">Chat with your own local AI. Your browser talks to it directly; chats are saved here and only you can see them.</p>
         </div>
+        <a href="{{ route('ai.skills') }}" class="btn">Skills</a>
     </div>
 
     <div class="ai-layout">
