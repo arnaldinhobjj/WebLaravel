@@ -365,6 +365,7 @@
         if (!text || controller) return;
         if (!menu.hidden && shown.length) { pick(); return; }
         input.value = '';
+        dismissed = false;
         closeMenu();
         converse(text);
     });
@@ -469,7 +470,7 @@
     });
     input.addEventListener('input', () => {
         selected = 0;
-        if (!input.value.startsWith('/')) dismissed = false;
+        if (!input.value.startsWith('/') || input.value === '/') dismissed = false;
         showMenu();
     });
     input.addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== input) closeMenu(); }, 150));

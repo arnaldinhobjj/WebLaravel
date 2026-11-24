@@ -56,9 +56,6 @@ class ActionTemplates
                   - uses: ticket/reply
                     with:
                       body: "Thanks ${{ actor.name }}, I'm on it (ticket #${{ ticket.id }})."
-                  - uses: ticket/update
-                    with:
-                      status: in_progress
                 YAML,
         ],
         'webhook' => [
