@@ -28,7 +28,7 @@
     const stop = chat.querySelector('[data-ai-stop]');
     const picker = chat.querySelector('[data-ai-connection]');
     const menu = chat.querySelector('[data-skill-menu]');
-    const menuFilter = chat.querySelector('[data-skill-filter]');
+    const menuHead = chat.querySelector('[data-skill-menu-head]');
     const menuList = chat.querySelector('[data-skill-list]');
     const skillForm = chat.querySelector('[data-skill-form]');
 
@@ -363,68 +363,110 @@
         event.preventDefault();
         const text = input.value.trim();
         if (!text || controller) return;
-        if (text.startsWith('/')) { openMenu(text.slice(1)); return; }
+        if (text.startsWith('/')) { pick(); return; }
         input.value = '';
+        closeMenu();
         converse(text);
     });
-    input.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); form.requestSubmit(); }
-        if (event.key === 'Escape') closeMenu();
-    });
-    input.addEventListener('input', () => {
-        if (input.value.startsWith('/') && !input.value.includes('\n')) openMenu(input.value.slice(1));
-        else if (!menu.hidden && !input.value.startsWith('/')) closeMenu();
-    });
 
-    // ---------- Calling skills yourself: the "/" menu ----------
+    // ---------- Calling skills yourself: type "/" ----------
+    // Typing "/" at the start of the message opens the menu; every letter after
+    // it narrows the list. ↑ ↓ move, Enter or Tab picks, Esc closes.
 
     const entries = [
         ...skills.abilities.map((skill) => ({ kind: 'skill', ...skill })),
         ...skills.recipes.map((recipe) => ({ kind: 'recipe', ...recipe })),
     ];
+    let shown = [];
+    let selected = 0;
 
-    function openMenu(filter = '') {
-        skillForm.hidden = true;
-        menu.hidden = false;
-        if (document.activeElement !== input) menuFilter.value = filter;
-        showMenu(filter);
+    const query = () => (input.value.startsWith('/') && !input.value.includes('\n') ? input.value.slice(1) : null);
+
+    function closeMenu() {
+        menu.hidden = true;
+        input.removeAttribute('aria-activedescendant');
     }
 
-    function closeMenu() { menu.hidden = true; }
+    // Best matches first: the start of the name or title, then a word inside, then the description.
+    function matches(words) {
+        if (!words) return entries;
+        const rank = (entry) => {
+            const name = entry.name.toLowerCase();
+            const title = entry.title.toLowerCase();
+            if (name.startsWith(words) || title.startsWith(words)) return 0;
+            if (name.includes(words) || title.includes(words)) return 1;
+            if (words.split(/\s+/).every((word) => `${name} ${title} ${entry.description.toLowerCase()}`.includes(word))) return 2;
+            return 9;
+        };
+        return entries.map((entry) => [rank(entry), entry]).filter(([score]) => score < 9).sort((a, b) => a[0] - b[0]).map(([, entry]) => entry);
+    }
 
-    function showMenu(filter) {
-        const words = filter.toLowerCase().trim();
-        const matches = entries.filter((entry) => !words || `${entry.name} ${entry.title} ${entry.description}`.toLowerCase().includes(words));
-        menuList.replaceChildren(...matches.slice(0, 40).map((entry) => {
+    function showMenu() {
+        const words = query();
+        if (words === null || controller) { closeMenu(); return; }
+        skillForm.hidden = true;
+        shown = matches(words.toLowerCase().trim()).slice(0, 40);
+        selected = Math.min(selected, Math.max(shown.length - 1, 0));
+        menuHead.textContent = words.trim() ? `Skills and recipes matching “${words.trim()}”` : 'Skills and recipes: keep typing to narrow them down';
+
+        menuList.replaceChildren(...shown.map((entry, index) => {
             const item = document.createElement('li');
             const button = document.createElement('button');
             button.type = 'button';
+            button.id = `skill-option-${index}`;
             button.className = 'ai-skill-choice';
             button.setAttribute('role', 'option');
+            button.setAttribute('aria-selected', index === selected ? 'true' : 'false');
             const title = document.createElement('strong');
             title.textContent = entry.title;
             const meta = document.createElement('small');
-            meta.textContent = entry.kind === 'recipe' ? 'Recipe' : (entry.changes ? `${entry.name} · changes things` : entry.name);
+            meta.textContent = entry.kind === 'recipe' ? 'Recipe' : (entry.changes ? `/${entry.name} · changes things` : `/${entry.name}`);
             const about = document.createElement('span');
             about.textContent = entry.description;
             button.append(title, meta, about);
-            button.addEventListener('click', () => openForm(entry));
+            button.addEventListener('mousedown', (event) => event.preventDefault()); // keep focus in the message box
+            button.addEventListener('click', () => { selected = index; pick(); });
             item.append(button);
             return item;
         }));
-        if (!matches.length) {
+        if (!shown.length) {
             const item = document.createElement('li');
-            item.className = 'muted small';
-            item.textContent = entries.length ? 'No skill matches.' : 'No skills are available to you.';
+            item.className = 'muted small ai-skill-none';
+            item.textContent = entries.length ? 'No skill or recipe matches. Delete letters to see more.' : 'No skills are available to you.';
             menuList.replaceChildren(item);
+        }
+        menu.hidden = false;
+        if (shown.length) {
+            input.setAttribute('aria-activedescendant', `skill-option-${selected}`);
+            menuList.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' });
         }
     }
 
-    chat.querySelector('[data-skill-open]').addEventListener('click', () => {
-        if (menu.hidden) { openMenu(''); menuFilter.focus(); } else closeMenu();
+    function move(step) {
+        if (!shown.length) return;
+        selected = (selected + step + shown.length) % shown.length;
+        showMenu();
+    }
+
+    function pick() {
+        const entry = shown[selected];
+        if (!entry) return;
+        closeMenu();
+        openForm(entry);
+    }
+
+    input.addEventListener('keydown', (event) => {
+        if (!menu.hidden) {
+            if (event.key === 'ArrowDown') { event.preventDefault(); move(1); return; }
+            if (event.key === 'ArrowUp') { event.preventDefault(); move(-1); return; }
+            if ((event.key === 'Enter' && !event.shiftKey) || event.key === 'Tab') { event.preventDefault(); pick(); return; }
+            if (event.key === 'Escape') { event.preventDefault(); closeMenu(); input.value = ''; return; }
+        }
+        if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); form.requestSubmit(); }
     });
-    menuFilter.addEventListener('input', () => showMenu(menuFilter.value));
-    menuFilter.addEventListener('keydown', (event) => { if (event.key === 'Escape') { closeMenu(); input.focus(); } });
+    input.addEventListener('input', () => { selected = 0; showMenu(); });
+    input.addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== input) closeMenu(); }, 150));
+    input.addEventListener('focus', showMenu);
 
     function field(name, schema, required) {
         const label = document.createElement('label');
