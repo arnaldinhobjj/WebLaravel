@@ -80,7 +80,7 @@
     </form>
 
     @can('delete', $dashboard)
-        <form method="POST" action="{{ route('dashboards.destroy', $dashboard) }}" class="card ticket-form" data-confirm="Delete “{{ $dashboard->name }}”?{{ $dashboard->isShared() ? ' It disappears for everyone.' : '' }}">
+        <form method="POST" action="{{ route('dashboards.destroy', $dashboard) }}" class="card ticket-form dashboard-delete" data-confirm="Delete “{{ $dashboard->name }}”?{{ $dashboard->isShared() ? ' It disappears for everyone.' : '' }}">
             @csrf @method('DELETE')
             <h3 class="sub-title">Delete dashboard</h3>
             <div class="form-actions">

@@ -4,7 +4,7 @@
     @error('name') <p class="field-error">{{ $message }}</p> @enderror
 </label>
 
-<fieldset class="field">
+<fieldset class="field check-list">
     <legend>Who can see it</legend>
     @foreach (\App\Enums\DashboardVisibility::cases() as $visibility)
         @continue($visibility === \App\Enums\DashboardVisibility::Shared && ! auth()->user()->can('dashboards.share') && ! $dashboard->isShared())

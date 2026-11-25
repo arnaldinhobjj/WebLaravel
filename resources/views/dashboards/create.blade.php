@@ -16,7 +16,7 @@
         @csrf
         @include('dashboards._fields')
 
-        <fieldset class="field">
+        <fieldset class="field check-list">
             <legend>Start with</legend>
             <label class="check"><input type="radio" name="start_with" value="recommended" @checked(old('start_with', 'recommended') === 'recommended')> Recommended widgets</label>
             <label class="check"><input type="radio" name="start_with" value="empty" @checked(old('start_with') === 'empty')> An empty dashboard</label>
