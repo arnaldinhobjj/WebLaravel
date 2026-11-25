@@ -34,17 +34,33 @@
         showStatus.timer = window.setTimeout(() => { status.hidden = true; }, isError ? 8000 : 2500);
     };
 
+    // One save at a time. Moves made while a save is on its way are sent
+    // once it finishes, as the order at that moment, so an older order can
+    // never arrive after (and overwrite) a newer one.
+    let saving = false;
+    let saveAgain = false;
     const saveOrder = async () => {
+        if (saving) {
+            saveAgain = true;
+            return;
+        }
+        saving = true;
         try {
-            const response = await fetch(canvas.dataset.reorderUrl, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': csrf },
-                body: JSON.stringify({ order: orderOf() }),
-            });
-            if (!response.ok) throw new Error(String(response.status));
+            do {
+                saveAgain = false;
+                const response = await fetch(canvas.dataset.reorderUrl, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': csrf },
+                    body: JSON.stringify({ order: orderOf() }),
+                });
+                if (!response.ok) throw new Error(String(response.status));
+            } while (saveAgain);
             showStatus('Order saved.');
         } catch {
+            saveAgain = false;
             showStatus('Couldn’t save the new order. Reload the page and try again.', true);
+        } finally {
+            saving = false;
         }
     };
 
