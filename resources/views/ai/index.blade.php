@@ -3,6 +3,13 @@
 @section('title', $conversation?->title ?? 'AI')
 
 @section('content')
+    <div class="page-head">
+        <div>
+            <h2 class="section-title">AI</h2>
+            <p class="page-sub">Chat with your own local AI. Your browser talks to it directly; chats are saved here and only you can see them.</p>
+        </div>
+    </div>
+
     <div class="ai-layout">
         {{-- Saved chats --}}
         <nav class="card ai-chats" aria-label="Your chats">
