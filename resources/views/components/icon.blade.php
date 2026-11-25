@@ -127,6 +127,12 @@
     @case('expand')
         <path d="M4 6h16M4 12h16M4 18h10"/>
         @break
+    @case('widen')
+        <path d="M3 4v16M21 4v16M7 12h10M10 9l-3 3 3 3M14 9l3 3-3 3"/>
+        @break
+    @case('narrow')
+        <path d="M12 4v16M3 12h6M6 9l3 3-3 3M21 12h-6M18 9l-3 3 3 3"/>
+        @break
     @case('monitor')
         <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
         @break

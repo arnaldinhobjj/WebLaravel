@@ -9,7 +9,7 @@
 @section('content')
     <a href="{{ route('dashboards.show', $dashboard) }}" class="back-link"><x-icon name="arrow-left" :size="16" /> {{ $dashboard->name }}</a>
 
-    <div class="page-head">
+    <div class="page-head customize-head">
         <div>
             <h2 class="section-title">Customize “{{ $dashboard->name }}”</h2>
             <p class="page-sub" id="customize-help">
@@ -51,7 +51,7 @@
                                     @csrf @method('PATCH')
                                     <input type="hidden" name="size" value="{{ $widget->isWide() ? 'normal' : 'wide' }}">
                                     <button type="submit" class="tool-btn" title="{{ $widget->isWide() ? 'Make half width' : 'Make full width' }}">
-                                        <x-icon name="expand" :size="16" />
+                                        <x-icon :name="$widget->isWide() ? 'narrow' : 'widen'" :size="16" />
                                         <span class="sr-only">{{ $widget->isWide() ? 'Make half width' : 'Make full width' }}</span>
                                     </button>
                                 </form>
