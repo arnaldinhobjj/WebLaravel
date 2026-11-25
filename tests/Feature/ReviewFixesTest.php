@@ -191,19 +191,20 @@ class ReviewFixesTest extends TestCase
         $outsider = User::factory()->withPermissions('files.delete', 'files.empty_trash')->create();
         $hrDept = Department::factory()->create();
         $insider = User::factory()->for($hrDept)->withPermissions('files.delete')->create();
-        $hr = Folder::factory()->create(['name' => 'HR']);
+        // A name random page text (initials, the CSRF token) can't contain by chance.
+        $hr = Folder::factory()->create(['name' => 'Human Resources archive']);
         $hr->access()->create(['department_id' => $hrDept->id, 'abilities' => ['view', 'upload', 'delete']]);
         $payroll = app(FileStore::class)->upload($insider, $hr, UploadedFile::fake()->createWithContent('payroll.txt', 'x'))['file'];
         $hr->delete();
 
         $this->actingAs($outsider);
-        $this->get(route('files.trash'))->assertDontSee('HR');
+        $this->get(route('files.trash'))->assertDontSee('Human Resources archive');
         $this->post(route('files.trash.restore', ['folder', $hr->id]))->assertNotFound();
         $this->post(route('files.trash.empty'), ['area' => 'library']);
         $this->assertNotNull(Folder::withTrashed()->find($hr->id));
         $this->assertNotNull(StoredFile::find($payroll->id));
 
-        $this->actingAs($insider)->get(route('files.trash'))->assertSee('HR');
+        $this->actingAs($insider)->get(route('files.trash'))->assertSee('Human Resources archive');
         $this->post(route('files.trash.restore', ['folder', $hr->id]))->assertRedirect();
         $this->assertFalse($hr->fresh()->trashed());
     }
