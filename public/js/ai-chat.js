@@ -51,12 +51,22 @@
 
     const scroll = () => { list.scrollTop = list.scrollHeight; };
 
+    // The AI's replies are Markdown; what the person typed stays plain text.
+    const show = (div, role, text) => {
+        if (role === 'assistant' && window.FortValeMarkdown) {
+            div.classList.add('is-markdown');
+            window.FortValeMarkdown.render(div, text);
+        } else {
+            div.textContent = text;
+        }
+    };
+
     function bubble(role, text) {
         const item = document.createElement('li');
         item.className = `ai-message ai-message-${role}`;
         const div = document.createElement('div');
         div.className = 'ai-bubble';
-        div.textContent = text;
+        show(div, role, text);
         item.append(div);
         list.append(item);
         empty.hidden = true;
@@ -304,7 +314,7 @@
                 const answer = bubble('assistant', 'Thinking…');
                 answer.classList.add('is-thinking');
                 const tools = skills.abilities.length && !noTools.has(conn.id) && step < MAX_SKILL_CALLS ? adapter.tools() : [];
-                const onText = (sofar) => { answer.classList.remove('is-thinking'); answer.textContent = sofar; scroll(); };
+                const onText = (sofar) => { answer.classList.remove('is-thinking'); show(answer, 'assistant', sofar); scroll(); };
 
                 let reply;
                 try {
