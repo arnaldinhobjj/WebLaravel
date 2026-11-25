@@ -260,7 +260,7 @@ class FileController extends Controller
         $folderIds = $this->access->visibleLibraryFolderIds($me);
         if ($me->hasPermission('my_files.view')) {
             $mine = Folder::personalRootFor($me);
-            array_push($folderIds, ...$this->visibleSubtree($mine));
+            array_push($folderIds, ...$mine->subtreeIds());
         }
 
         $pattern = '%'.mb_strtolower($term).'%';
@@ -383,27 +383,12 @@ class FileController extends Controller
     private function moveTargets(Folder $folder): Collection
     {
         $me = CurrentUser::get();
-        $ids = $folder->isPersonal() ? $this->visibleSubtree(Folder::personalRootFor($me)) : $this->access->visibleLibraryFolderIds($me);
+        $ids = $folder->isPersonal() ? Folder::personalRootFor($me)->subtreeIds() : $this->access->visibleLibraryFolderIds($me);
 
         return Folder::whereIn('id', $ids)->whereKeyNot($folder->id)->get()
             ->filter(fn (Folder $target) => $this->access->allows($me, $target, 'upload'))
             ->sortBy(fn (Folder $target) => $target->path())
             ->values();
-    }
-
-    /**
-     * @return list<int>
-     */
-    private function visibleSubtree(Folder $root): array
-    {
-        $ids = [$root->id];
-        $frontier = [$root->id];
-        while ($frontier !== []) {
-            $frontier = Folder::whereIn('parent_id', $frontier)->pluck('id')->all();
-            array_push($ids, ...$frontier);
-        }
-
-        return $ids;
     }
 
     /**

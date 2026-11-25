@@ -98,6 +98,86 @@ class Ticket extends Model
         $query->where(fn (Builder $q) => $q->where('requester_id', $person->id)->orWhere('assignee_id', $person->id));
     }
 
+    /**
+     * The filters of the ticket list (and of ticket table widgets, which link
+     * to that list): q, priority, category, assignee, requester and
+     * resolved_within. Unknown or invalid values are ignored.
+     *
+     * @param  Builder<Ticket>  $query
+     * @param  array<string, mixed>  $filters
+     */
+    public function scopeFilteredBy(Builder $query, array $filters, User $me): void
+    {
+        $resolvedWithin = filter_var($filters['resolved_within'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 365]]);
+        if ($resolvedWithin !== false) {
+            $query->where('resolved_at', '>=', now()->subDays($resolvedWithin));
+        }
+
+        if ($search = trim((string) ($filters['q'] ?? ''))) {
+            $term = ltrim($search, '#');
+            $query->where(function (Builder $q) use ($search, $term) {
+                // LOWER on both sides: Oracle compares case-sensitively, MySQL doesn't.
+                $pattern = '%'.mb_strtolower($search).'%';
+                $q->whereRaw('lower(subject) like ?', [$pattern])
+                    ->orWhereRaw('lower(description) like ?', [$pattern]);
+                if (ctype_digit($term)) {
+                    $q->orWhere('id', (int) $term);
+                }
+            });
+        }
+
+        if ($priority = TicketPriority::tryFrom((string) ($filters['priority'] ?? ''))) {
+            $query->where('priority', $priority);
+        }
+
+        if (isset(self::CATEGORIES[(string) ($filters['category'] ?? '')])) {
+            $query->where('category', $filters['category']);
+        }
+
+        match ((string) ($filters['assignee'] ?? '')) {
+            '' => null,
+            'me' => $query->where('assignee_id', $me->id),
+            'unassigned' => $query->whereNull('assignee_id'),
+            default => $query->where('assignee_id', (int) $filters['assignee']),
+        };
+
+        if (($filters['requester'] ?? null) === 'me') {
+            $query->where('requester_id', $me->id);
+        }
+    }
+
+    /**
+     * The status tabs of the ticket list: "active" (open, in progress,
+     * waiting), "all", or one status.
+     *
+     * @param  Builder<Ticket>  $query
+     */
+    public function scopeInStatusTab(Builder $query, string $tab): void
+    {
+        if ($tab === 'active') {
+            $query->active();
+        } elseif ($status = TicketStatus::tryFrom($tab)) {
+            $query->where('status', $status);
+        }
+    }
+
+    /**
+     * The sort orders of the ticket list: updated (default), priority, newest, oldest.
+     *
+     * @param  Builder<Ticket>  $query
+     */
+    public function scopeSortedBy(Builder $query, string $sort): void
+    {
+        match ($sort) {
+            'priority' => $query
+                ->orderByRaw("case priority when 'urgent' then 4 when 'high' then 3 when 'normal' then 2 else 1 end desc")
+                ->latest('updated_at'),
+            'newest' => $query->latest('created_at')->latest('id'),
+            'oldest' => $query->oldest('created_at')->oldest('id'),
+            default => $query->latest('updated_at')->latest('id'),
+        };
+    }
+
     public function isVisibleTo(User $person): bool
     {
         return $person->hasPermission('tickets.view_all')

@@ -169,6 +169,13 @@ class DatabaseSeeder extends Seeder
         $team->save();
         $team->addRecommendedWidgets();
         $team->addWidget(DashboardWidgetType::TicketsByCategory, WidgetScope::Everyone);
+        $urgent = $team->addWidget(DashboardWidgetType::Table, WidgetScope::Everyone, 2, [
+            'source' => 'tickets',
+            'columns' => ['number', 'subject', 'assignee', 'updated'],
+            'filters' => ['status' => 'active', 'priority' => 'urgent', 'sort' => 'oldest'],
+            'limit' => 5,
+        ]);
+        $urgent->update(['title' => 'Urgent and still open']);
 
         $mine = new Dashboard(['name' => 'My work', 'visibility' => DashboardVisibility::Personal]);
         $mine->user_id = $alex->id;

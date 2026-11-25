@@ -4,13 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Enums\DashboardVisibility;
 use App\Enums\DashboardWidgetType;
-use App\Enums\WidgetScope;
 use App\Http\Requests\SaveDashboardRequest;
 use App\Models\Dashboard;
 use App\Models\User;
+use App\Services\DashboardTables\TableSource;
+use App\Services\DashboardTables\TableSources;
 use App\Services\DashboardWidgets;
 use App\Support\CurrentUser;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
@@ -70,14 +72,27 @@ class DashboardController extends Controller
             ->with('status', "“{$dashboard->name}” created. Add, remove or reorder its widgets here.");
     }
 
-    public function edit(Dashboard $dashboard): View
+    /**
+     * The customize screen: the widgets as they look, to drag into order,
+     * resize, set up or remove; a library to drag new ones from; and the
+     * dashboard's name and who can see it.
+     */
+    public function edit(Request $request, Dashboard $dashboard, TableSources $tables): View
     {
         $this->authorizeOrHide('update', $dashboard);
 
+        $me = CurrentUser::get();
+        $dashboard->load('widgets');
+        $widgets = new DashboardWidgets($me);
+        $available = $tables->availableTo($me);
+
         return view('dashboards.edit', [
-            'dashboard' => $dashboard->load('widgets'),
-            'types' => DashboardWidgetType::cases(),
-            'scopes' => WidgetScope::cases(),
+            'dashboard' => $dashboard,
+            'data' => $dashboard->widgets->mapWithKeys(fn ($widget): array => [$widget->id => $widgets->dataFor($widget)]),
+            'library' => $this->library($me, $available),
+            'tables' => $available,
+            'me' => $me,
+            'openWidget' => $request->integer('widget') ?: null,
         ]);
     }
 
@@ -115,6 +130,31 @@ class DashboardController extends Controller
             'data' => $dashboard->widgets->mapWithKeys(fn ($widget): array => [$widget->id => $widgets->dataFor($widget)]),
             'isDefault' => $me->default_dashboard_id === $dashboard->id,
         ]);
+    }
+
+    /**
+     * What the person may add: the ticket widgets with access to tickets, and
+     * a table widget for each table they may see.
+     *
+     * @param  array<string, TableSource>  $tables
+     * @return list<array{type: string, source: ?string, label: string, description: string, icon: string}>
+     */
+    private function library(User $me, array $tables): array
+    {
+        $items = [];
+        foreach ($tables as $key => $table) {
+            $items[] = ['type' => DashboardWidgetType::Table->value, 'source' => $key, 'label' => "{$table->label()} table", 'description' => $table->description(), 'icon' => 'table'];
+        }
+
+        if ($me->can('tickets.view')) {
+            foreach (DashboardWidgetType::cases() as $type) {
+                if ($type->isAboutTickets()) {
+                    $items[] = ['type' => $type->value, 'source' => null, 'label' => $type->label(), 'description' => $type->description(), 'icon' => 'chart'];
+                }
+            }
+        }
+
+        return $items;
     }
 
     /**

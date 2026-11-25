@@ -9,7 +9,6 @@ use App\Models\Ticket;
 use App\Models\User;
 use App\Services\Files\FileStore;
 use App\Support\CurrentUser;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -25,7 +24,7 @@ class TicketController extends Controller
         $filters = $request->only(['q', 'status', 'priority', 'category', 'assignee', 'requester', 'resolved_within', 'sort']);
         $status = $filters['status'] ?? 'active';
 
-        $base = Ticket::query()->visibleTo($me)->tap(fn (Builder $query) => $this->applyFilters($query, $filters, $me));
+        $base = Ticket::query()->visibleTo($me)->filteredBy($filters, $me);
 
         $counts = (clone $base)
             ->selectRaw('status, count(*) as total')
@@ -35,9 +34,8 @@ class TicketController extends Controller
         $tickets = (clone $base)
             ->with(['requester', 'assignee'])
             ->withCount('comments')
-            ->when($status === 'active', fn ($q) => $q->active())
-            ->when(TicketStatus::tryFrom($status), fn ($q, $s) => $q->where('status', $s))
-            ->tap(fn (Builder $query) => $this->applySort($query, $filters['sort'] ?? 'updated'))
+            ->inStatusTab($status)
+            ->sortedBy((string) ($filters['sort'] ?? 'updated'))
             ->paginate(15)
             ->withQueryString();
 
@@ -179,57 +177,5 @@ class TicketController extends Controller
     private function ensureVisible(Ticket $ticket): void
     {
         abort_unless($ticket->isVisibleTo(CurrentUser::get()), 404);
-    }
-
-    private function applyFilters(Builder $query, array $filters, User $me): void
-    {
-        $resolvedWithin = filter_var($filters['resolved_within'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 365]]);
-        if ($resolvedWithin !== false) {
-            $query->where('resolved_at', '>=', now()->subDays($resolvedWithin));
-        }
-
-        if ($search = trim($filters['q'] ?? '')) {
-            $term = ltrim($search, '#');
-            $query->where(function (Builder $q) use ($search, $term) {
-                // LOWER on both sides: Oracle compares case-sensitively, MySQL doesn't.
-                $pattern = '%'.mb_strtolower($search).'%';
-                $q->whereRaw('lower(subject) like ?', [$pattern])
-                    ->orWhereRaw('lower(description) like ?', [$pattern]);
-                if (ctype_digit($term)) {
-                    $q->orWhere('id', (int) $term);
-                }
-            });
-        }
-
-        if ($priority = TicketPriority::tryFrom($filters['priority'] ?? '')) {
-            $query->where('priority', $priority);
-        }
-
-        if (isset(Ticket::CATEGORIES[$filters['category'] ?? ''])) {
-            $query->where('category', $filters['category']);
-        }
-
-        match ($filters['assignee'] ?? null) {
-            null, '' => null,
-            'me' => $query->where('assignee_id', $me->id),
-            'unassigned' => $query->whereNull('assignee_id'),
-            default => $query->where('assignee_id', (int) $filters['assignee']),
-        };
-
-        if (($filters['requester'] ?? null) === 'me') {
-            $query->where('requester_id', $me->id);
-        }
-    }
-
-    private function applySort(Builder $query, string $sort): void
-    {
-        match ($sort) {
-            'priority' => $query
-                ->orderByRaw("case priority when 'urgent' then 4 when 'high' then 3 when 'normal' then 2 else 1 end desc")
-                ->latest('updated_at'),
-            'newest' => $query->latest('created_at')->latest('id'),
-            'oldest' => $query->oldest('created_at')->oldest('id'),
-            default => $query->latest('updated_at')->latest('id'),
-        };
     }
 }

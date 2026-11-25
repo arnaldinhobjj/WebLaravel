@@ -85,15 +85,44 @@ class Dashboard extends Model
     }
 
     /**
-     * Adds a widget at the end.
+     * Adds a widget at the end, or at $position (1 = first) moving the ones
+     * from there on down a place.
+     *
+     * @param  array<string, mixed>|null  $settings
      */
-    public function addWidget(DashboardWidgetType $type, WidgetScope $scope = WidgetScope::Everyone): DashboardWidget
+    public function addWidget(DashboardWidgetType $type, WidgetScope $scope = WidgetScope::Everyone, ?int $position = null, ?array $settings = null): DashboardWidget
     {
-        return $this->widgets()->create([
-            'type' => $type,
-            'scope' => $scope,
-            'position' => ((int) $this->widgets()->max('position')) + 1,
-        ]);
+        return $this->getConnection()->transaction(function () use ($type, $scope, $position, $settings): DashboardWidget {
+            $ids = $this->widgets()->pluck('id')->all();
+            $index = $position === null ? count($ids) : max(0, min($position - 1, count($ids)));
+
+            $widget = $this->widgets()->create([
+                'type' => $type,
+                'scope' => $scope,
+                'settings' => $settings,
+                'position' => $index + 1,
+            ]);
+
+            array_splice($ids, $index, 0, [$widget->id]);
+            $this->reorderWidgets($ids);
+
+            return $widget;
+        });
+    }
+
+    /**
+     * Puts the widgets in the order of $ids (every widget of this dashboard,
+     * each once).
+     *
+     * @param  list<int>  $ids
+     */
+    public function reorderWidgets(array $ids): void
+    {
+        $this->getConnection()->transaction(function () use ($ids): void {
+            foreach (array_values($ids) as $index => $id) {
+                $this->widgets()->whereKey($id)->update(['position' => $index + 1]);
+            }
+        });
     }
 
     /**
@@ -127,7 +156,7 @@ class Dashboard extends Model
             $copy->save();
 
             foreach ($this->widgets as $widget) {
-                $copy->widgets()->create($widget->only(['type', 'scope', 'position']));
+                $copy->widgets()->create($widget->only(['type', 'scope', 'position', 'title', 'size', 'settings']));
             }
 
             return $copy;

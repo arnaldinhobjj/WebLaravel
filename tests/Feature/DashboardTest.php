@@ -203,11 +203,8 @@ class DashboardTest extends TestCase
         $types = fn () => $mine->widgets()->get()->map(fn ($w) => $w->type->value)->all();
         $this->assertSame(['ticket_summary', 'recent_activity'], $types());
 
-        $second = $mine->widgets()->get()->last();
-        $this->patch(route('dashboards.widgets.update', [$mine, $second]), ['direction' => 'up'])->assertRedirect();
-        $this->assertSame(['recent_activity', 'ticket_summary'], $types());
-
-        $this->patch(route('dashboards.widgets.update', [$mine, $second]), ['direction' => 'up']);
+        [$first, $second] = $mine->widgets()->get()->all();
+        $this->putJson(route('dashboards.widgets.reorder', $mine), ['order' => [$second->id, $first->id]])->assertOk();
         $this->assertSame(['recent_activity', 'ticket_summary'], $types());
 
         $this->delete(route('dashboards.widgets.destroy', [$mine, $second]));
