@@ -54,11 +54,16 @@
     // The AI's replies are Markdown; what the person typed stays plain text.
     const show = (div, role, text) => {
         if (role === 'assistant' && window.FortValeMarkdown) {
-            div.classList.add('is-markdown');
-            window.FortValeMarkdown.render(div, text);
-        } else {
-            div.textContent = text;
+            try {
+                window.FortValeMarkdown.render(div, text);
+                div.classList.add('is-markdown');
+                return;
+            } catch {
+                // A reply the renderer can't handle (e.g. thousands of nested quotes) still shows, as plain text.
+                div.classList.remove('is-markdown');
+            }
         }
+        div.textContent = text;
     };
 
     function bubble(role, text) {

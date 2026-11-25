@@ -133,7 +133,8 @@ window.FortValeMarkdown = (() => {
                     break;
                 }
                 if (indentOf(line) <= base) break;
-                body.push(line.slice(Math.min(indentOf(line), inner)));
+                const lead = line.match(/^\s*/)[0];
+                body.push(indentOf(line) <= inner ? line.slice(lead.length) : line.slice(Math.min(lead.length, inner)));
             }
             const li = el('li', node);
             blocks(body.join('\n'), li);
