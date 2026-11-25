@@ -16,6 +16,7 @@ A Laravel 13 app that recreates the Fort Vale home screen sketch (a window with 
 - **Favorites and Actions carousels** – page back and forth with the arrow buttons (or the arrow keys when the row has focus).
 - **Sign in** with email and password. Replies and changes are recorded under the person who is signed in.
 - **Profile menu** (the avatar) – your tickets, tickets you opened, new ticket, *My actions*, *Settings* (including your password), *Tags and permissions* (if you may manage them), show/hide sidebar, and *Sign out*.
+- **Dashboards** (`/dashboard`) – ticket numbers, queues and activity at a glance. See [Dashboards](#dashboards).
 - **Tags page** (`/tags`) – permissions, departments and people. See [People, departments and tags](#people-departments-and-tags).
 - **Settings** (`/{username}/settings`) – name, username, email, job title, light/dark/system theme (saved per person), reset the home screen, and the keyboard shortcuts.
 - **Actions page** (`/{username}/actions`) – shared actions from the project, your own YAML actions (write them in the browser, starting from a template), and recent runs with each step's result.
@@ -206,6 +207,29 @@ If you used the app before Oracle support, add the `DB_*` and `TICKETS_DB_CONNEC
 - A small migration renames the `from`/`to` columns of `ticket_activities`, which are reserved words in Oracle.
 - Moving existing tickets into Oracle isn't automatic; start fresh with `php artisan migrate:fresh --seed`.
 
+## Dashboards
+
+`/dashboard` shows a page of widgets about tickets. There are two kinds of dashboard:
+
+- **Personal** dashboards are yours alone. Nobody else can open them; for everyone else they answer "not found". Everyone can make their own out of the box.
+- **Shared** dashboards are seen by everyone who may view dashboards. Making one, sharing a personal one, and changing or deleting shared ones need *Dashboards: Share dashboards with everyone* (administrators have it).
+
+How it works:
+
+- **Which one opens:** `/dashboard` opens the dashboard you chose with *Open this at /dashboard*. Without a choice, it opens your first own dashboard, then the first shared one. Tabs at the top switch between every dashboard you can see.
+- **Widgets:**
+  - *Ticket summary*: open, unassigned, urgent and recently resolved counts.
+  - *Ticket queue*: the most pressing open tickets.
+  - *Tickets by status*, *Open tickets by priority* and *Open tickets by category*: breakdowns.
+  - *Resolved per day*: the last 14 days.
+  - *Recent activity*: the latest replies and changes.
+  Numbers and bars link to the matching ticket list.
+- **Whose tickets:** each widget counts either *Everyone's tickets* or *Just mine* (assigned to you; for activity, tickets you opened or are assigned to). *Just mine* is worked out for whoever is looking, so one shared dashboard shows each person their own work. Widgets never count tickets the viewer couldn't open: without *See everyone's tickets*, "everyone's" means the tickets you opened or are assigned to.
+- **Customize** (on dashboards you may change): add widgets, move them up or down, remove them, rename the dashboard, change who can see it, or delete it.
+- **Make my own copy** turns a shared dashboard into a personal one with the same widgets, to change without affecting anyone else.
+- **New dashboard** starts with recommended widgets (your own work on a personal dashboard, the team's on a shared one) or empty.
+- **Sample data:** the seeder adds a shared *Team overview* and Alex's personal *My work*, which opens at `/dashboard` for Alex.
+
 ## People, departments and tags
 
 Who may do what is set per page on the **Tags** page (`/tags`).
@@ -217,11 +241,12 @@ Who may do what is set per page on the **Tags** page (`/tags`).
   | Tickets | list and open tickets | new ticket | status, priority, category | — | Reply, Assign people, See everyone's tickets |
   | My actions | actions page | new action | edit YAML | delete | Run them |
   | Shared actions | read the YAML | — | save the YAML | — | Run them |
+  | Dashboards | open dashboards | own dashboards, copies | own dashboards | own dashboards | Share dashboards with everyone |
   | Tags / Departments | their section | new | edit | delete | — |
   | People | People section | add person | edit, set password | — | — |
 
   Ticking anything on a page also ticks View. Without *See everyone's tickets*, people only see tickets they opened or are assigned to; other tickets answer "not found".
-- **Everyone** is a built-in tag that every person has. Edit it to set what everyone may do. It can't be deleted or renamed. Out of the box it allows: tickets (view, create, reply), their own actions, viewing and running shared actions, files, and AI chat and web search. Changing a ticket's status, priority or category and reassigning it are for tags that see every ticket (the Helpdesk tag) and administrators. Without any tag, a person can still sign in, see the home screen and change their own settings.
+- **Everyone** is a built-in tag that every person has. Edit it to set what everyone may do. It can't be deleted or renamed. Out of the box it allows: tickets (view, create, reply), their own dashboards, their own actions, viewing and running shared actions, files, and AI chat and web search. Changing a ticket's status, priority or category and reassigning it are for tags that see every ticket (the Helpdesk tag) and administrators. Without any tag, a person can still sign in, see the home screen and change their own settings.
 - **Departments** carry tags: everyone in a department gets its tags. **People** can also get extra tags of their own. The People list shows what each person can do in the end.
 - **You can't lock yourself out.** Any change that would leave nobody able to edit both tags and people is refused.
 - **Adding someone:** *Add person*, with their email and a first password. They can change it under *Settings*.
