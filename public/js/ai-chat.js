@@ -51,23 +51,23 @@
 
     const scroll = () => { list.scrollTop = list.scrollHeight; };
 
-    // Links in AI replies are copied, not opened: a reply can be steered by
-    // pages the AI read, so the person sees (and pastes) the real address.
+    // A plain click on a link in an AI reply copies it (a reply can be steered by
+    // pages the AI read, so the person sees and pastes the real address).
+    // Cmd/Ctrl/Shift/Alt-click, middle click and the context menu open it as usual.
     const copyLink = async (event) => {
-        if (event.type === 'auxclick' && event.button !== 1) return; // middle click only, not right click
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
         const link = event.target.closest('.is-markdown a[href]');
         if (!link) return;
         event.preventDefault();
         const say = (message) => window.FortValeToast?.(message, { position: 'top' });
         try {
-            await navigator.clipboard.writeText(link.href);
+            await navigator.clipboard.writeText(link.getAttribute('href'));
             say('Link copied to the clipboard');
         } catch {
             say('Couldn’t copy the link');
         }
     };
     list.addEventListener('click', copyLink);
-    list.addEventListener('auxclick', copyLink);
 
     // The AI's replies are Markdown; what the person typed stays plain text.
     const show = (div, role, text) => {

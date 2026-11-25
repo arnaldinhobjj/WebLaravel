@@ -11,7 +11,12 @@ window.FortValeMarkdown = (() => {
     // 3000: ~2 min; 1000 "- " on one line: ~2 s), so very deep replies are shown
     // as plain text instead. Leading whitespace sits outside the repeats so a
     // near-miss can't backtrack exponentially.
-    const TOO_DEEP = /^(?:[ \t]{200,}|[ \t]*(?:>[ \t]*){50,}|[ \t]*(?:(?:[-*+>]|\d{1,9}[.)])[ \t]+){30,})/m;
+    // The last pattern catches markers mixed without spaces ('>>- >>- '); a long
+    // '---' rule also matches it, which only means plain text.
+    const TOO_DEEP = /^(?:[ \t]{200,}|[ \t]*(?:>[ \t]*){50,}|[ \t]*(?:(?:[-*+>]|\d{1,9}[.)])[ \t]+){30,}|[ \t>*+-]{100,})/m;
+    // marked's emphasis parsing grows quadratically with length (40 KB of '*a _' ~5 s),
+    // so very long replies are shown as plain text too.
+    const MAX_LENGTH = 20000;
     const escapeHtml = (text) => text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
     // Raw HTML in a reply (e.g. "wrap it in a <div>", List<String>) is shown as text, not dropped.
@@ -31,10 +36,11 @@ window.FortValeMarkdown = (() => {
     return {
         /** Replaces the element's contents with the rendered Markdown. */
         render(target, text) {
-            if (TOO_DEEP.test(String(text ?? ''))) {
-                throw new Error('This reply is nested too deeply to format.');
+            const source = String(text ?? '');
+            if (source.length > MAX_LENGTH || TOO_DEEP.test(source)) {
+                throw new Error('This reply is too long or nested too deeply to format.');
             }
-            const html = marked.parse(String(text ?? ''), { gfm: true, breaks: true, async: false });
+            const html = marked.parse(source, { gfm: true, breaks: true, async: false });
             target.replaceChildren(DOMPurify.sanitize(html, {
                 ALLOWED_TAGS,
                 ALLOWED_ATTR,
