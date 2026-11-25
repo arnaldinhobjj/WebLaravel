@@ -4,6 +4,15 @@
     @case('logo')
         <path d="M4 21V8l2-1V4h2.5v2h2V4h3v2h2V4H18v3l2 1v13h-5.5v-4.5a2.5 2.5 0 0 0-5 0V21z"/>
         @break
+    @case('grip')
+        <circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/>
+        @break
+    @case('table')
+        <rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 10v10"/>
+        @break
+    @case('chart')
+        <path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>
+        @break
     @case('folder')
         <path d="M20 17a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3.9a2 2 0 0 1-1.69-.9l-.81-1.2a2 2 0 0 0-1.67-.9H8a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2Z"/>
         <path d="M2 8v11a2 2 0 0 0 2 2h14"/>
@@ -117,6 +126,12 @@
         @break
     @case('expand')
         <path d="M4 6h16M4 12h16M4 18h10"/>
+        @break
+    @case('widen')
+        <path d="M3 4v16M21 4v16M7 12h10M10 9l-3 3 3 3M14 9l3 3-3 3"/>
+        @break
+    @case('narrow')
+        <path d="M12 4v16M3 12h6M6 9l3 3-3 3M21 12h-6M18 9l-3 3 3 3"/>
         @break
     @case('monitor')
         <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>

@@ -50,17 +50,15 @@
     @else
         <div class="dashboard-grid">
             @foreach ($dashboard->widgets as $widget)
-                <section @class(['card', 'dashboard-widget', 'is-wide' => $widget->type->isWide()]) aria-labelledby="widget-{{ $widget->id }}">
+                <section @class(['card', 'dashboard-widget', 'is-wide' => $widget->isWide()]) aria-labelledby="widget-{{ $widget->id }}">
                     <header class="dashboard-widget-head">
-                        <h3 id="widget-{{ $widget->id }}" class="sub-title">{{ $widget->type->label() }}</h3>
-                        <span class="pill">{{ $widget->scope->label() }}</span>
+                        <h3 id="widget-{{ $widget->id }}" class="sub-title">{{ $widget->displayTitle() }}</h3>
+                        @if ($widget->type->isAboutTickets())
+                            <span class="pill">{{ $widget->scope->label() }}</span>
+                        @endif
                     </header>
 
-                    @if ($data[$widget->id]['denied'] ?? false)
-                        <p class="muted">You don’t have access to tickets.</p>
-                    @else
-                        @include('dashboards.widgets.'.str_replace('_', '-', $widget->type->value), ['data' => $data[$widget->id], 'widget' => $widget])
-                    @endif
+                    @include('dashboards._widget-body', ['data' => $data[$widget->id]])
                 </section>
             @endforeach
         </div>

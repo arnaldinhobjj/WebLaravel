@@ -19,7 +19,9 @@ use Illuminate\Support\Collection;
  *
  * Every ticket query starts from Ticket::visibleTo(), so a shared dashboard
  * never shows anyone tickets they couldn't open themselves. "Just mine"
- * widgets count the viewer's own tickets, whoever made the dashboard.
+ * widgets count the viewer's own tickets, whoever made the dashboard. Table
+ * widgets are worked out by their table (App\Services\DashboardTables), also
+ * for the viewer.
  */
 class DashboardWidgets
 {
@@ -34,8 +36,13 @@ class DashboardWidgets
      */
     public function dataFor(DashboardWidget $widget): array
     {
+        if ($widget->type === DashboardWidgetType::Table) {
+            return $widget->tableSource()?->table($this->viewer, (array) $widget->settings)
+                ?? ['denied' => 'This table is no longer available.'];
+        }
+
         if (! $this->viewer->can('tickets.view')) {
-            return ['denied' => true];
+            return ['denied' => 'You don’t have access to tickets.'];
         }
 
         return match ($widget->type) {
@@ -46,6 +53,7 @@ class DashboardWidgets
             DashboardWidgetType::TicketsByCategory => $this->byCategory($widget->scope),
             DashboardWidgetType::ResolvedTrend => $this->resolvedTrend($widget->scope),
             DashboardWidgetType::RecentActivity => $this->recentActivity($widget->scope),
+            DashboardWidgetType::Table => [],
         };
     }
 

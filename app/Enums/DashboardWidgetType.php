@@ -11,6 +11,7 @@ enum DashboardWidgetType: string
     case TicketsByCategory = 'tickets_by_category';
     case ResolvedTrend = 'resolved_trend';
     case RecentActivity = 'recent_activity';
+    case Table = 'table';
 
     public function label(): string
     {
@@ -22,6 +23,7 @@ enum DashboardWidgetType: string
             self::TicketsByCategory => 'Open tickets by category',
             self::ResolvedTrend => 'Resolved per day',
             self::RecentActivity => 'Recent activity',
+            self::Table => 'Table',
         };
     }
 
@@ -35,12 +37,19 @@ enum DashboardWidgetType: string
             self::TicketsByCategory => 'Open tickets split by category.',
             self::ResolvedTrend => 'Tickets resolved or closed each day for the last 14 days.',
             self::RecentActivity => 'The latest replies and changes on tickets.',
+            self::Table => 'Rows from a table you choose, with your own columns and filters.',
         };
     }
 
-    /** Wide widgets take the full row; the rest sit two to a row. */
+    /** Wide widgets take the full row unless resized; the rest sit two to a row. */
     public function isWide(): bool
     {
-        return in_array($this, [self::TicketSummary, self::ResolvedTrend], true);
+        return in_array($this, [self::TicketSummary, self::ResolvedTrend, self::Table], true);
+    }
+
+    /** Whether the widget shows tickets, and so needs the tickets.view permission and has a scope. */
+    public function isAboutTickets(): bool
+    {
+        return $this !== self::Table;
     }
 }

@@ -209,7 +209,7 @@ If you used the app before Oracle support, add the `DB_*` and `TICKETS_DB_CONNEC
 
 ## Dashboards
 
-`/dashboard` shows a page of widgets about tickets. There are two kinds of dashboard:
+`/dashboard` shows a page of widgets: ticket charts and counts, and tables of tickets, people, files or action runs. There are two kinds of dashboard:
 
 - **Personal** dashboards are yours alone. Nobody else can open them; for everyone else they answer "not found". Everyone can make their own out of the box.
 - **Shared** dashboards are seen by everyone who may view dashboards. Making one, sharing a personal one, and changing or deleting shared ones need *Dashboards: Share dashboards with everyone* (administrators have it).
@@ -223,12 +223,28 @@ How it works:
   - *Tickets by status*, *Open tickets by priority* and *Open tickets by category*: breakdowns.
   - *Resolved per day*: the last 14 days.
   - *Recent activity*: the latest replies and changes.
+  - *Table*: rows from a table you pick (see below).
   Numbers and bars link to the matching ticket list.
 - **Whose tickets:** each widget counts either *Everyone's tickets* or *Just mine* (assigned to you; for activity, tickets you opened or are assigned to). *Just mine* is worked out for whoever is looking, so one shared dashboard shows each person their own work. Widgets never count tickets the viewer couldn't open: without *See everyone's tickets*, "everyone's" means the tickets you opened or are assigned to.
-- **Customize** (on dashboards you may change): add widgets, move them up or down, remove them, rename the dashboard, change who can see it, or delete it.
+- **Customize** (on dashboards you may change) shows the widgets as they look:
+  - **Move** a widget by dragging its grip handle (mouse, pen or touch), or focus the handle and use the arrow keys, Home and End. The new order saves at once.
+  - **Add** a widget by dragging it from *Add widgets* to the spot you want, or press *Add* to put it at the end.
+  - **Resize** with the width button (half or full width), **remove** with the bin.
+  - **Settings** (the cog) set the widget's title and width, whose tickets a ticket widget counts, and for a table: which table, its columns (drag to reorder), filters and how many rows.
+  - Below: rename the dashboard, change who can see it, or delete it.
+- **Table widgets** and permissions:
+
+  | Table | Needs | Columns and filters that need more |
+  | --- | --- | --- |
+  | Tickets | *Tickets: View* | Filtering by a specific assignee needs *See everyone's tickets* |
+  | People | *People: View* | The *Tags* column and the tag filter need *Tags: View* |
+  | Files | *Files (library): View* or *My files: View* | *The library* and *My files* each need their own permission; library folders follow folder access |
+  | Action runs | *My actions: View* | — |
+
+  The customize screen only offers the tables, columns and filter values the person editing has, and the server checks them again on save. Rows are always worked out for **whoever is looking**: a shared table never shows anyone tickets, files or runs they couldn't open themselves. Someone without access to the table sees "You don't have access to People."; a filter value they couldn't pick (another person's name, say) shows "This table uses a filter that isn't available to you." instead of data. Ticket tables filter exactly like the ticket list, and *View all* opens the list with the same filters.
 - **Make my own copy** turns a shared dashboard into a personal one with the same widgets, to change without affecting anyone else.
 - **New dashboard** starts with recommended widgets (your own work on a personal dashboard, the team's on a shared one) or empty.
-- **Sample data:** the seeder adds a shared *Team overview* and Alex's personal *My work*, which opens at `/dashboard` for Alex.
+- **Sample data:** the seeder adds a shared *Team overview* (with an *Urgent and still open* ticket table) and Alex's personal *My work*, which opens at `/dashboard` for Alex.
 
 ## People, departments and tags
 

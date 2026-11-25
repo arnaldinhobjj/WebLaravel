@@ -36,6 +36,23 @@ class Folder extends Model
         return static::firstOrCreate(['parent_id' => null, 'owner_id' => $person->id], ['name' => 'My files', 'created_by' => $person->id]);
     }
 
+    /**
+     * This folder's id and the ids of every folder inside it, at any depth.
+     *
+     * @return list<int>
+     */
+    public function subtreeIds(): array
+    {
+        $ids = [$this->id];
+        $frontier = [$this->id];
+        while ($frontier !== []) {
+            $frontier = static::whereIn('parent_id', $frontier)->pluck('id')->all();
+            array_push($ids, ...$frontier);
+        }
+
+        return $ids;
+    }
+
     public function isRoot(): bool
     {
         return $this->parent_id === null;

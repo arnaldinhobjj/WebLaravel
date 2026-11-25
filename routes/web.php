@@ -179,6 +179,7 @@ Route::middleware('auth')->group(function () {
             Route::post('/default', [DefaultDashboardController::class, 'store'])->name('default');
 
             Route::post('/widgets', [DashboardWidgetController::class, 'store'])->name('widgets.store');
+            Route::put('/widgets/order', [DashboardWidgetController::class, 'reorder'])->name('widgets.reorder');
             Route::patch('/widgets/{widget}', [DashboardWidgetController::class, 'update'])->whereNumber('widget')->name('widgets.update');
             Route::delete('/widgets/{widget}', [DashboardWidgetController::class, 'destroy'])->whereNumber('widget')->name('widgets.destroy');
         });
