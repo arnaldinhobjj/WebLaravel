@@ -32,21 +32,24 @@ class WebPage
         for ($hop = 0; $hop <= self::MAX_REDIRECTS; $hop++) {
             $address = $this->publicAddress($url);
 
+            $tooLarge = false;
             try {
                 $response = Http::withHeaders(['User-Agent' => 'Mozilla/5.0 (compatible; FortVale/1.0)', 'Accept' => 'text/html,text/plain,application/json;q=0.9,*/*;q=0.1'])
                     ->timeout(10)->withoutRedirecting()
                     // Connect to the address that was checked, so DNS can't change in between.
                     ->withOptions(HostResolver::pinnedTo($url, $address) + [
                         // Stop downloading once the page is bigger than we'd read anyway.
-                        'progress' => function ($total, int $downloaded): void {
+                        'progress' => function ($total, int $downloaded) use (&$tooLarge): void {
                             if ($downloaded > self::MAX_DOWNLOAD) {
+                                $tooLarge = true;
                                 throw new RuntimeException('too large');
                             }
                         },
                     ])
                     ->get($url);
             } catch (ConnectionException|RequestException $exception) {
-                if (str_contains($exception->getMessage(), 'too large') || str_contains((string) $exception->getPrevious()?->getMessage(), 'too large')) {
+                // Guzzle wraps the callback's exception a few levels deep, so remember it here instead.
+                if ($tooLarge) {
                     throw new RuntimeException("{$url} is larger than ".(self::MAX_DOWNLOAD / 1_000_000).' MB, too big to read.');
                 }
                 throw new RuntimeException("Couldn't reach {$url}: {$exception->getMessage()}");
