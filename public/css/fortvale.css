@@ -1449,3 +1449,4 @@ fieldset.card { margin: 0; min-width: 0; }
 .dashboard-widget-row-actions .btn:disabled { opacity: .45; cursor: default; pointer-events: none; }
 .dashboard-delete { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; }
 .dashboard-delete .sub-title { margin: 0; }
+.field.check-list legend { padding: 0; }
