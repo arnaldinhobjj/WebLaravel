@@ -141,6 +141,15 @@
         select.addEventListener('change', () => select.form.requestSubmit());
     });
 
+    // A select's chosen option can explain itself in a hint below it.
+    document.querySelectorAll('select[data-describe]').forEach((select) => {
+        const hint = document.getElementById(select.dataset.describe);
+        if (!hint) return;
+        select.addEventListener('change', () => {
+            hint.textContent = select.selectedOptions[0]?.dataset.description ?? '';
+        });
+    });
+
     document.addEventListener('click', (event) => {
         if (isMobile() && root.classList.contains('sidebar-open')
             && !event.target.closest('#sidebar, [data-sidebar-toggle]')) {

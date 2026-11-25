@@ -50,11 +50,13 @@
             @csrf
             <label class="field">
                 <span>Widget</span>
-                <select name="type">
+                @php($selectedType = \App\Enums\DashboardWidgetType::tryFrom((string) old('type')) ?? $types[0])
+                <select name="type" data-describe="widget-type-description" aria-describedby="widget-type-description">
                     @foreach ($types as $type)
-                        <option value="{{ $type->value }}" @selected(old('type') === $type->value)>{{ $type->label() }} — {{ $type->description() }}</option>
+                        <option value="{{ $type->value }}" data-description="{{ $type->description() }}" @selected($selectedType === $type)>{{ $type->label() }}</option>
                     @endforeach
                 </select>
+                <small class="muted" id="widget-type-description">{{ $selectedType->description() }}</small>
                 @error('type') <p class="field-error">{{ $message }}</p> @enderror
             </label>
             <label class="field">
