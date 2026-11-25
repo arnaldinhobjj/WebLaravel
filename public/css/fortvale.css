@@ -1353,6 +1353,8 @@ fieldset.card { margin: 0; min-width: 0; }
 .is-markdown table { border-collapse: collapse; font-size: 14px; }
 .is-markdown th, .is-markdown td { padding: 6px 10px; border: 1px solid var(--border); text-align: left; vertical-align: top; }
 .is-markdown th { background: var(--surface); font-weight: 600; }
+.is-markdown [align="center"] { text-align: center; }
+.is-markdown [align="right"] { text-align: right; }
 .ai-empty { margin: auto; text-align: center; }
 .ai-compose { display: flex; gap: 8px; align-items: flex-end; }
 .ai-compose textarea { flex: 1; resize: vertical; min-height: 44px; }

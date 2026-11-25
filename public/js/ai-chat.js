@@ -54,6 +54,7 @@
     // Links in AI replies are copied, not opened: a reply can be steered by
     // pages the AI read, so the person sees (and pastes) the real address.
     const copyLink = async (event) => {
+        if (event.type === 'auxclick' && event.button !== 1) return; // middle click only, not right click
         const link = event.target.closest('.is-markdown a[href]');
         if (!link) return;
         event.preventDefault();
