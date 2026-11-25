@@ -103,7 +103,8 @@ abstract class TableSource
             return ['denied' => "You don’t have access to {$this->label()}."];
         }
 
-        $filters = $this->resolveFilters($viewer, (array) ($settings['filters'] ?? []));
+        $definitions = $this->filters($viewer);
+        $filters = $this->resolveFilters($definitions, (array) ($settings['filters'] ?? []));
         if ($filters === null) {
             return ['denied' => 'This table uses a filter that isn’t available to you.'];
         }
@@ -128,20 +129,20 @@ abstract class TableSource
             'columns' => array_combine($columns, array_map(fn (string $column): string => $allowed[$column], $columns)),
             'rows' => $rows,
             'url' => $this->listUrl($viewer, $filters),
-            'summary' => $this->summary($viewer, $filters),
+            'summary' => $this->summary($definitions, $filters),
         ];
     }
 
     /**
      * The saved filters with defaults filled in, or null when one of them uses
-     * a value $viewer may not pick.
+     * a value the viewer may not pick.
      *
+     * @param  array<string, array{label: string, options: array<string, string>, default: string}>  $definitions  the viewer's filters
      * @param  array<string, mixed>  $saved
      * @return array<string, string>|null
      */
-    private function resolveFilters(User $viewer, array $saved): ?array
+    private function resolveFilters(array $definitions, array $saved): ?array
     {
-        $definitions = $this->filters($viewer);
         $resolved = array_map(fn (array $filter): string => $filter['default'], $definitions);
 
         foreach ($saved as $key => $value) {
@@ -165,12 +166,13 @@ abstract class TableSource
     /**
      * The chosen filters in words, e.g. "Active · Urgent · Assigned to me".
      *
+     * @param  array<string, array{label: string, options: array<string, string>, default: string, summary?: array<string, string>, in_summary?: bool}>  $definitions
      * @param  array<string, string>  $filters
      */
-    private function summary(User $viewer, array $filters): string
+    private function summary(array $definitions, array $filters): string
     {
         $parts = [];
-        foreach ($this->filters($viewer) as $key => $filter) {
+        foreach ($definitions as $key => $filter) {
             $value = $filters[$key] ?? '';
             if (($filter['in_summary'] ?? true) && $value !== '' && isset($filter['options'][$value])) {
                 $parts[] = $filter['summary'][$value] ?? $filter['options'][$value];
