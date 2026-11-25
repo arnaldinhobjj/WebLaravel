@@ -6,12 +6,16 @@ use App\Http\Controllers\AiController;
 use App\Http\Controllers\AiSkillController;
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DashboardCopyController;
+use App\Http\Controllers\DashboardWidgetController;
+use App\Http\Controllers\DefaultDashboardController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\EmailController;
 use App\Http\Controllers\EmailSettingsController;
 use App\Http\Controllers\EmailTemplateController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\FileSettingsController;
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\PersonController;
 use App\Http\Controllers\SettingsController;
@@ -31,9 +35,9 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
 
-    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/', [HomeController::class, 'index'])->name('dashboard');
 
-    Route::post('/favorites/{module}', [DashboardController::class, 'toggleFavorite'])->name('favorites.toggle');
+    Route::post('/favorites/{module}', [HomeController::class, 'toggleFavorite'])->name('favorites.toggle');
     // Shared actions (actions/*.yml in the project): view and edit the YAML, run.
     Route::get('/actions/shared/{slug}', [SharedActionController::class, 'edit'])->middleware('can:shared_actions.view')->name('actions.shared.show');
     Route::put('/actions/shared/{slug}', [SharedActionController::class, 'update'])->middleware('can:shared_actions.edit')->name('actions.shared.update');
@@ -41,11 +45,11 @@ Route::middleware('auth')->group(function () {
         Route::get('/run', 'createShared')->name('run.form');
         Route::post('/run', 'storeShared')->name('run');
     });
-    Route::post('/mentions/{ticket}/resolve', [DashboardController::class, 'resolveMention'])->whereNumber('ticket')->name('mentions.resolve');
-    Route::post('/mentions/{ticket}/dismiss', [DashboardController::class, 'dismissMention'])->whereNumber('ticket')->name('mentions.dismiss');
-    Route::post('/mentions/restore', [DashboardController::class, 'restoreMentions'])->name('mentions.restore');
+    Route::post('/mentions/{ticket}/resolve', [HomeController::class, 'resolveMention'])->whereNumber('ticket')->name('mentions.resolve');
+    Route::post('/mentions/{ticket}/dismiss', [HomeController::class, 'dismissMention'])->whereNumber('ticket')->name('mentions.dismiss');
+    Route::post('/mentions/restore', [HomeController::class, 'restoreMentions'])->name('mentions.restore');
 
-    Route::post('/settings/reset-home', [DashboardController::class, 'resetHome'])->name('settings.reset-home');
+    Route::post('/settings/reset-home', [HomeController::class, 'resetHome'])->name('settings.reset-home');
 
     Route::prefix('ticket')->name('tickets.')->controller(TicketController::class)->group(function () {
         Route::get('/', 'index')->middleware('can:tickets.view')->name('index');
@@ -158,6 +162,26 @@ Route::middleware('auth')->group(function () {
         Route::get('/{tag}/edit', [TagController::class, 'edit'])->whereNumber('tag')->middleware('can:tags.edit')->name('tags.edit');
         Route::put('/{tag}', [TagController::class, 'update'])->whereNumber('tag')->middleware('can:tags.edit')->name('tags.update');
         Route::delete('/{tag}', [TagController::class, 'destroy'])->whereNumber('tag')->middleware('can:tags.delete')->name('tags.destroy');
+    });
+
+    // Dashboards: shared ones for everyone, plus each person's own.
+    Route::prefix('dashboard')->name('dashboards.')->middleware('can:dashboards.view')->group(function () {
+        Route::get('/', [DashboardController::class, 'index'])->name('index');
+        Route::get('/create', [DashboardController::class, 'create'])->middleware('can:dashboards.create')->name('create');
+        Route::post('/', [DashboardController::class, 'store'])->middleware('can:dashboards.create')->name('store');
+
+        Route::prefix('{dashboard}')->whereNumber('dashboard')->scopeBindings()->group(function () {
+            Route::get('/', [DashboardController::class, 'show'])->name('show');
+            Route::get('/edit', [DashboardController::class, 'edit'])->name('edit');
+            Route::put('/', [DashboardController::class, 'update'])->name('update');
+            Route::delete('/', [DashboardController::class, 'destroy'])->name('destroy');
+            Route::post('/copy', [DashboardCopyController::class, 'store'])->middleware('can:dashboards.create')->name('copy');
+            Route::post('/default', [DefaultDashboardController::class, 'store'])->name('default');
+
+            Route::post('/widgets', [DashboardWidgetController::class, 'store'])->name('widgets.store');
+            Route::patch('/widgets/{widget}', [DashboardWidgetController::class, 'update'])->whereNumber('widget')->name('widgets.update');
+            Route::delete('/widgets/{widget}', [DashboardWidgetController::class, 'destroy'])->whereNumber('widget')->name('widgets.destroy');
+        });
     });
 
     // Personal pages: /{username}/settings and /{username}/actions.

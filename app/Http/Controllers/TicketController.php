@@ -22,7 +22,7 @@ class TicketController extends Controller
     public function index(Request $request): View
     {
         $me = CurrentUser::get();
-        $filters = $request->only(['q', 'status', 'priority', 'category', 'assignee', 'requester', 'sort']);
+        $filters = $request->only(['q', 'status', 'priority', 'category', 'assignee', 'requester', 'resolved_within', 'sort']);
         $status = $filters['status'] ?? 'active';
 
         $base = Ticket::query()->visibleTo($me)->tap(fn (Builder $query) => $this->applyFilters($query, $filters, $me));
@@ -183,6 +183,11 @@ class TicketController extends Controller
 
     private function applyFilters(Builder $query, array $filters, User $me): void
     {
+        $resolvedWithin = filter_var($filters['resolved_within'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 365]]);
+        if ($resolvedWithin !== false) {
+            $query->where('resolved_at', '>=', now()->subDays($resolvedWithin));
+        }
+
         if ($search = trim($filters['q'] ?? '')) {
             $term = ltrim($search, '#');
             $query->where(function (Builder $q) use ($search, $term) {

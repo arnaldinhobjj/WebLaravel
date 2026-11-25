@@ -1,0 +1,70 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Services\Workflows\WorkflowRepository;
+use App\Services\Workspace;
+use App\Support\CurrentUser;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\View\View;
+
+class HomeController extends Controller
+{
+    public function index(Request $request): View
+    {
+        $workspace = new Workspace($request->session());
+        $currentUser = CurrentUser::get();
+
+        return view('dashboard', [
+            'currentUser' => $currentUser,
+            'favorites' => $workspace->favorites(),
+            'otherModules' => $workspace->otherModules(),
+            'homeActions' => app(WorkflowRepository::class)->forHome($currentUser),
+            'mentions' => $workspace->openMentions(),
+            'handledMentions' => $workspace->handledMentionCount(),
+        ]);
+    }
+
+    public function toggleFavorite(Request $request, string $module): RedirectResponse
+    {
+        abort_unless(isset(Workspace::MODULES[$module]), 404);
+
+        $added = (new Workspace($request->session()))->toggleFavorite($module);
+        $name = Workspace::MODULES[$module]['name'];
+
+        return back()->with('status', $added ? "{$name} added to favorites." : "{$name} removed from favorites.");
+    }
+
+    public function resolveMention(Request $request, int $ticket): RedirectResponse
+    {
+        abort_unless(isset(Workspace::MENTIONS[$ticket]), 404);
+
+        (new Workspace($request->session()))->handleMention($ticket, 'resolved');
+
+        return back()->with('status', "Mention on #{$ticket} marked as done.");
+    }
+
+    public function dismissMention(Request $request, int $ticket): RedirectResponse
+    {
+        abort_unless(isset(Workspace::MENTIONS[$ticket]), 404);
+
+        (new Workspace($request->session()))->handleMention($ticket, 'dismissed');
+
+        return back()->with('status', "Mention on #{$ticket} dismissed.");
+    }
+
+    public function restoreMentions(Request $request): RedirectResponse
+    {
+        (new Workspace($request->session()))->restoreMentions();
+
+        return back()->with('status', 'All mentions restored.');
+    }
+
+    public function resetHome(Request $request): RedirectResponse
+    {
+        $request->session()->forget(['favorites', 'handled_mentions']);
+
+        return redirect()->route('dashboard')->with('status', 'Home screen reset to its defaults.');
+    }
+}

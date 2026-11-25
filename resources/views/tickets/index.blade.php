@@ -21,7 +21,9 @@
         <div>
             <h2 class="section-title">Tickets <x-icon name="ticket" :size="26" class="title-icon" /></h2>
             <p class="page-sub">
-                @if (($filters['assignee'] ?? null) === 'me')
+                @if (filter_var($filters['resolved_within'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 365]]))
+                    Resolved or closed in the last {{ (int) $filters['resolved_within'] }} days
+                @elseif (($filters['assignee'] ?? null) === 'me')
                     Tickets assigned to you
                 @elseif (($filters['requester'] ?? null) === 'me')
                     Tickets you opened
@@ -45,7 +47,7 @@
     </nav>
 
     <form method="GET" action="{{ route('tickets.index') }}" class="filters" data-auto-submit>
-        @foreach (['q', 'status', 'requester'] as $keep)
+        @foreach (['q', 'status', 'requester', 'resolved_within'] as $keep)
             @if (! empty($filters[$keep]))
                 <input type="hidden" name="{{ $keep }}" value="{{ $filters[$keep] }}">
             @endif

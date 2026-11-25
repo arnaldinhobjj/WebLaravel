@@ -27,7 +27,7 @@ class User extends Authenticatable
     /**
      * Usernames that would clash with top-level routes such as /ticket.
      */
-    public const RESERVED_USERNAMES = ['ticket', 'favorites', 'actions', 'mentions', 'profile', 'settings', 'up', 'storage', 'css', 'js', 'login', 'logout', 'tags', 'email', 'files', 'my-files', 'workspace', 'workspace-files', 'ai', 'mcp'];
+    public const RESERVED_USERNAMES = ['ticket', 'favorites', 'actions', 'mentions', 'profile', 'settings', 'up', 'storage', 'css', 'js', 'login', 'logout', 'tags', 'email', 'files', 'my-files', 'workspace', 'workspace-files', 'ai', 'mcp', 'dashboard'];
 
     /**
      * Always the people connection (MySQL by default), even when loaded through
@@ -77,6 +77,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'email_preferences' => 'array',
+            'default_dashboard_id' => 'integer',
         ];
     }
 
@@ -94,6 +95,16 @@ class User extends Authenticatable
     public function wantsEmail(string $event): bool
     {
         return (bool) ($this->email_preferences[$event] ?? true);
+    }
+
+    /**
+     * Dashboards this person made (personal and shared).
+     *
+     * @return HasMany<Dashboard, $this>
+     */
+    public function dashboards(): HasMany
+    {
+        return $this->hasMany(Dashboard::class)->orderBy('name');
     }
 
     /**
