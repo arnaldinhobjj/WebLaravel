@@ -88,7 +88,7 @@ class DashboardWidgets
                 ? ['label' => 'Waiting on others', 'value' => $this->tickets($scope)->where('status', TicketStatus::Waiting)->count(), 'url' => $this->ticketsUrl($scope, ['status' => 'waiting'])]
                 : ['label' => 'Unassigned', 'value' => (clone $active)->whereNull('assignee_id')->count(), 'url' => route('tickets.index', ['assignee' => 'unassigned'])],
             ['label' => 'Urgent', 'value' => (clone $active)->where('priority', TicketPriority::Urgent)->count(), 'url' => $this->ticketsUrl($scope, ['priority' => 'urgent']), 'tone' => 'urgent'],
-            ['label' => 'Resolved in 7 days', 'value' => $this->tickets($scope)->where('resolved_at', '>=', $resolvedSince)->count(), 'url' => $this->ticketsUrl($scope, ['status' => 'all'])],
+            ['label' => 'Resolved in 7 days', 'value' => $this->tickets($scope)->where('resolved_at', '>=', $resolvedSince)->count(), 'url' => $this->ticketsUrl($scope, ['status' => 'all', 'resolved_within' => '7'])],
         ];
 
         return ['tiles' => $tiles];

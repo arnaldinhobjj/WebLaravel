@@ -320,4 +320,37 @@ class DashboardTest extends TestCase
         $this->actingAs($person)->post(route('dashboards.store'), ['name' => 'Ours', 'visibility' => 'shared'])->assertSessionHasErrors('visibility');
         $this->assertSame(['Mine'], Dashboard::pluck('name')->all());
     }
+
+    public function test_copying_a_dashboard_with_a_long_name_keeps_the_name_within_60_characters(): void
+    {
+        $longName = str_repeat('Quarterly operations overview ', 2); // 60 characters
+        $shared = $this->dashboardOf($this->colleague, DashboardVisibility::Shared, rtrim($longName).'.');
+
+        $this->post(route('dashboards.copy', $shared))->assertRedirect();
+
+        $copy = Dashboard::where('user_id', $this->me->id)->sole();
+        $this->assertLessThanOrEqual(60, mb_strlen($copy->name));
+        $this->assertStringEndsWith(' (my copy)', $copy->name);
+    }
+
+    public function test_the_resolved_in_7_days_tile_links_to_exactly_the_tickets_it_counts(): void
+    {
+        $everyone = User::factory()->withPermissions(...self::OWN, ...['tickets.view_all'])->create();
+        $mine = $this->dashboardOf($everyone);
+        $mine->addWidget(DashboardWidgetType::TicketSummary, WidgetScope::Everyone);
+
+        Ticket::factory()->create(['subject' => 'Fixed yesterday', 'status' => 'resolved', 'resolved_at' => now()->subDay()]);
+        Ticket::factory()->create(['subject' => 'Fixed last month', 'status' => 'closed', 'resolved_at' => now()->subDays(30)]);
+        Ticket::factory()->create(['subject' => 'Still open', 'status' => 'open']);
+
+        $link = route('tickets.index', ['status' => 'all', 'resolved_within' => '7']);
+        $this->actingAs($everyone)->get(route('dashboards.show', $mine))
+            ->assertSeeInOrder(['href="'.e($link).'"', 'dashboard-tile-value">1<', 'Resolved in 7 days'], false);
+
+        $this->actingAs($everyone)->get($link)
+            ->assertSee('Resolved or closed in the last 7 days')
+            ->assertSee('Fixed yesterday')
+            ->assertDontSee('Fixed last month')
+            ->assertDontSee('Still open');
+    }
 }

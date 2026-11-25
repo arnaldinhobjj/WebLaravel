@@ -6,6 +6,7 @@ use App\Models\Dashboard;
 use App\Support\CurrentUser;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 
 /**
  * Makes a personal copy of a dashboard, typically a shared one, to change
@@ -18,7 +19,9 @@ class DashboardCopyController extends Controller
         abort_unless(Gate::allows('view', $dashboard), 404);
         Gate::authorize('copy', $dashboard);
 
-        $copy = $dashboard->load('widgets')->copyFor(CurrentUser::get(), $dashboard->name.' (my copy)');
+        // Keep the name within the 60-character column: " (my copy)" is 10.
+        $name = Str::limit($dashboard->name, 50, '').' (my copy)';
+        $copy = $dashboard->load('widgets')->copyFor(CurrentUser::get(), $name);
 
         return redirect()
             ->route('dashboards.edit', $copy)
