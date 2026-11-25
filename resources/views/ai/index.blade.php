@@ -205,5 +205,6 @@
 @endsection
 
 @push('scripts')
+    <script src="{{ asset('js/markdown.js') }}?v={{ filemtime(public_path('js/markdown.js')) }}" defer></script>
     <script src="{{ asset('js/ai-chat.js') }}?v={{ filemtime(public_path('js/ai-chat.js')) }}" defer></script>
 @endpush

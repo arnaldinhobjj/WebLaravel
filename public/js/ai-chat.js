@@ -51,12 +51,27 @@
 
     const scroll = () => { list.scrollTop = list.scrollHeight; };
 
+    // The AI's replies are Markdown; what the person typed stays plain text.
+    const show = (div, role, text) => {
+        if (role === 'assistant' && window.FortValeMarkdown) {
+            try {
+                window.FortValeMarkdown.render(div, text);
+                div.classList.add('is-markdown');
+                return;
+            } catch {
+                // A reply the renderer can't handle (e.g. thousands of nested quotes) still shows, as plain text.
+                div.classList.remove('is-markdown');
+            }
+        }
+        div.textContent = text;
+    };
+
     function bubble(role, text) {
         const item = document.createElement('li');
         item.className = `ai-message ai-message-${role}`;
         const div = document.createElement('div');
         div.className = 'ai-bubble';
-        div.textContent = text;
+        show(div, role, text);
         item.append(div);
         list.append(item);
         empty.hidden = true;
@@ -304,7 +319,15 @@
                 const answer = bubble('assistant', 'Thinking…');
                 answer.classList.add('is-thinking');
                 const tools = skills.abilities.length && !noTools.has(conn.id) && step < MAX_SKILL_CALLS ? adapter.tools() : [];
-                const onText = (sofar) => { answer.classList.remove('is-thinking'); answer.textContent = sofar; scroll(); };
+                // Draw at most once per frame: re-rendering on every streamed chunk adds up on long replies.
+                let latest = '', drawing = false;
+                const onText = (sofar) => {
+                    latest = sofar;
+                    answer.classList.remove('is-thinking');
+                    if (drawing) return;
+                    drawing = true;
+                    requestAnimationFrame(() => { drawing = false; show(answer, 'assistant', latest); scroll(); });
+                };
 
                 let reply;
                 try {
@@ -319,7 +342,7 @@
                     }
                 }
 
-                if (!reply.text) answer.parentElement.remove();
+                if (!reply.text) answer.parentElement.remove(); else { show(answer, 'assistant', reply.text); scroll(); }
                 push({ role: 'assistant', content: reply.text, ...(reply.calls.length ? { calls: reply.calls } : {}) });
                 if (!reply.calls.length) break;
 
