@@ -2,6 +2,10 @@
 
 namespace Database\Seeders;
 
+use App\Enums\DashboardVisibility;
+use App\Enums\DashboardWidgetType;
+use App\Enums\WidgetScope;
+use App\Models\Dashboard;
 use App\Models\Department;
 use App\Models\Tag;
 use App\Models\Ticket;
@@ -83,6 +87,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $this->seedAccess($people);
+        $this->seedDashboards($people);
 
         $parser = app(WorkflowParser::class);
         foreach ([self::URGENT_ACTION, self::CAMERA_ACTION, self::WAITING_ACTION] as $yaml) {
@@ -148,6 +153,29 @@ class DatabaseSeeder extends Seeder
             $ticket->updated_at = $at;
             $ticket->saveQuietly();
         }
+    }
+
+    /**
+     * A shared team dashboard and Alex's own, which opens at /dashboard for Alex.
+     *
+     * @param  Collection<string, User>  $people
+     */
+    private function seedDashboards($people): void
+    {
+        $alex = $people['Alex Morgan'];
+
+        $team = new Dashboard(['name' => 'Team overview', 'visibility' => DashboardVisibility::Shared]);
+        $team->user_id = $alex->id;
+        $team->save();
+        $team->addRecommendedWidgets();
+        $team->addWidget(DashboardWidgetType::TicketsByCategory, WidgetScope::Everyone);
+
+        $mine = new Dashboard(['name' => 'My work', 'visibility' => DashboardVisibility::Personal]);
+        $mine->user_id = $alex->id;
+        $mine->save();
+        $mine->addRecommendedWidgets();
+
+        $alex->forceFill(['default_dashboard_id' => $mine->id])->save();
     }
 
     /**

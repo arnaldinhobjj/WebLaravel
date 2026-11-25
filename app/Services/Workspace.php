@@ -31,7 +31,7 @@ class Workspace
     ];
 
     public const NAVIGATION = [
-        ['label' => 'Overview', 'items' => ['Dashboard', 'Activity', 'Calendar']],
+        ['label' => 'Overview', 'items' => [['label' => 'Dashboard', 'route' => 'dashboards.index', 'active' => 'dashboards.*', 'can' => 'dashboards.view'], 'Activity', 'Calendar']],
         ['label' => 'Operations', 'items' => ['Shifts', 'Work orders', 'Incidents']],
         ['label' => 'Logistics', 'items' => ['Shipments', 'Warehouses', 'Suppliers']],
         ['label' => 'Security', 'items' => ['Access control', 'Visitors', 'Patrols']],
