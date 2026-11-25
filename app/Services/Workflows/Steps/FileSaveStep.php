@@ -62,8 +62,11 @@ class FileSaveStep extends BaseStep
         }
 
         $exists = StoredFile::where('folder_id', $folder->id)->where('name', $name)->exists();
-        if (! $this->access->allows($person, $folder, 'view') || ! $this->access->allows($person, $folder, $exists ? 'edit' : 'upload')) {
-            throw new StepFailed("{$person->name} may not ".($exists ? 'change files' : 'add files')." in \"{$with['folder']}\".");
+        // The person it saves as, and whoever pressed Run on a shared action, must both be allowed.
+        foreach (array_filter([$person, $context->runner()]) as $allowed) {
+            if (! $this->access->allows($allowed, $folder, 'view') || ! $this->access->allows($allowed, $folder, $exists ? 'edit' : 'upload')) {
+                throw new StepFailed("{$allowed->name} may not ".($exists ? 'change files' : 'add files')." in \"{$with['folder']}\".");
+            }
         }
 
         $temporary = tempnam(sys_get_temp_dir(), 'fortvale-');

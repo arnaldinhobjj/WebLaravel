@@ -522,7 +522,7 @@ steps:
 - Give a step an `id` to use its outputs later: `${{ steps.<id>.ticket }}`.
 - **Personal actions always act as their owner**, within the owner's permissions: they can only touch tickets the owner can see, and changing, assigning or replying needs the owner's matching ticket permissions. `as:` isn't allowed in personal actions.
 - **Shared actions** act as the person who started the run (Run button, or whoever caused the ticket event), unless they say `as: <username>`. They may only use the *My files* of the person running them.
-- **When someone runs a shared action** (Run button, or an AI as them), its ticket steps and email templates need **that person's** permissions, even with `as:`. Shared actions started by a ticket event or a schedule are trusted, because only people allowed to edit shared actions write them.
+- **When someone runs a shared action** (Run button, or an AI as them), its ticket steps, email templates, sending email (Email: Send emails) and saving into Library folders need **that person's** permissions, even with `as:`. Shared actions started by a ticket event or a schedule are trusted, because only people allowed to edit shared actions write them.
 
 ### Values (`${{ … }}`)
 

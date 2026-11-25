@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Ai\Skills\SkillRegistry;
+use App\Mail\FortValeEmail;
 use App\Models\ActionRun;
 use App\Models\Department;
 use App\Models\EmailTemplate;
@@ -259,5 +260,34 @@ class ReviewFixesTest extends TestCase
     {
         $this->assertFalse(HostResolver::isPublicAddress('::a00:1'));
         $this->assertFalse(HostResolver::isPublicAddress('::7f00:1'));
+    }
+
+    public function test_running_a_shared_action_needs_the_runners_email_and_library_rights(): void
+    {
+        Mail::fake();
+        Storage::fake('files');
+        $folder = storage_path('framework/testing/actions-'.uniqid());
+        File::ensureDirectoryExists($folder);
+        config(['fortvale.actions.path' => $folder]);
+        File::put("{$folder}/notify.yml", "name: Notify\non: { run: }\nsteps:\n  - uses: email/send\n    with: { to: x@example.com, subject: Hi, body: Hello }\n");
+        File::put("{$folder}/save.yml", "name: Save\non: { run: }\nsteps:\n  - uses: file/save\n    with: { folder: Library/HR, name: note.txt, content: hi, as: hr.person }\n");
+        $hrDept = Department::factory()->create();
+        User::factory()->for($hrDept)->withPermissions('files.view', 'files.create')->create(['username' => 'hr.person']);
+        $hr = Folder::factory()->create(['name' => 'HR']);
+        $hr->access()->create(['department_id' => $hrDept->id, 'abilities' => ['view', 'upload']]);
+
+        $this->actingAs(User::factory()->withPermissions('shared_actions.run', 'files.view', 'files.create')->create());
+        $this->post(route('actions.shared.run', 'notify'));
+        $this->post(route('actions.shared.run', 'save'));
+        Mail::assertNothingSent();
+        $this->assertFalse(StoredFile::where('folder_id', $hr->id)->exists(), 'as: someone does not lend their folder rights');
+
+        $this->actingAs(User::factory()->for($hrDept)->withPermissions('shared_actions.run', 'emails.send', 'files.view', 'files.create')->create());
+        $this->post(route('actions.shared.run', 'notify'));
+        $this->post(route('actions.shared.run', 'save'));
+        Mail::assertSent(FortValeEmail::class);
+        $this->assertTrue(StoredFile::where('folder_id', $hr->id)->exists());
+
+        File::deleteDirectory($folder);
     }
 }
