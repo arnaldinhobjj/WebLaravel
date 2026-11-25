@@ -319,7 +319,15 @@
                 const answer = bubble('assistant', 'Thinking…');
                 answer.classList.add('is-thinking');
                 const tools = skills.abilities.length && !noTools.has(conn.id) && step < MAX_SKILL_CALLS ? adapter.tools() : [];
-                const onText = (sofar) => { answer.classList.remove('is-thinking'); show(answer, 'assistant', sofar); scroll(); };
+                // Draw at most once per frame: re-rendering on every streamed chunk adds up on long replies.
+                let latest = '', drawing = false;
+                const onText = (sofar) => {
+                    latest = sofar;
+                    answer.classList.remove('is-thinking');
+                    if (drawing) return;
+                    drawing = true;
+                    requestAnimationFrame(() => { drawing = false; show(answer, 'assistant', latest); scroll(); });
+                };
 
                 let reply;
                 try {
@@ -334,7 +342,7 @@
                     }
                 }
 
-                if (!reply.text) answer.parentElement.remove();
+                if (!reply.text) answer.parentElement.remove(); else { show(answer, 'assistant', reply.text); scroll(); }
                 push({ role: 'assistant', content: reply.text, ...(reply.calls.length ? { calls: reply.calls } : {}) });
                 if (!reply.calls.length) break;
 

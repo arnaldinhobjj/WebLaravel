@@ -8,7 +8,7 @@ window.FortValeMarkdown = (() => {
     const INLINE = /(`+)([\s\S]+?)\1|\*\*(\S(?:[\s\S]*?\S)?)\*\*|(?<!\w)__(\S(?:[\s\S]*?\S)?)__(?!\w)|~~(\S(?:[\s\S]*?\S)?)~~|\*([^\s*](?:[\s\S]*?[^\s*])?)\*|(?<!\w)_([^\s_](?:[\s\S]*?[^\s_])?)_(?!\w)|\[([^\]]+)\]\(([^)\s]+)\)|(https?:\/\/[^\s<>()]*[^\s<>().,;:!?'"])/g;
     const SAFE_LINK = /^(https?:\/\/|mailto:)/i;
 
-    function inline(text, parent) {
+    function inline(text, parent, inLink = false) {
         let last = 0;
         for (const m of text.matchAll(INLINE)) {
             parent.append(text.slice(last, m.index));
@@ -17,15 +17,17 @@ window.FortValeMarkdown = (() => {
             if (code !== undefined) {
                 el('code', parent).textContent = code.trim() || code;
             } else if (bold ?? bold2) {
-                inline(bold ?? bold2, el('strong', parent));
+                inline(bold ?? bold2, el('strong', parent), inLink);
             } else if (strike) {
-                inline(strike, el('del', parent));
+                inline(strike, el('del', parent), inLink);
             } else if (em ?? em2) {
-                inline(em ?? em2, el('em', parent));
+                inline(em ?? em2, el('em', parent), inLink);
             } else if (label && SAFE_LINK.test(href)) {
                 link(href, label, parent);
             } else if (label) {
                 parent.append(m[0]);
+            } else if (bare && inLink) {
+                parent.append(bare);
             } else if (bare) {
                 link(bare, null, parent);
             }
@@ -38,7 +40,7 @@ window.FortValeMarkdown = (() => {
         a.href = href;
         a.target = '_blank';
         a.rel = 'noopener noreferrer';
-        label === null ? (a.textContent = href) : inline(label, a);
+        label === null ? (a.textContent = href) : inline(label, a, true);
     }
 
     const FENCE = /^\s*(```|~~~)/;
@@ -52,7 +54,11 @@ window.FortValeMarkdown = (() => {
     const startsBlock = (line, next) => FENCE.test(line) || HEADING.test(line) || RULE.test(line)
         || QUOTE.test(line) || ITEM.test(line) || (line.includes('|') && TABLE_RULE.test(next ?? ''));
 
-    function blocks(text, parent) {
+    // Past this depth (quotes or lists inside each other) the rest is plain text, so a hostile reply can't exhaust the stack or memory.
+    const MAX_DEPTH = 20;
+
+    function blocks(text, parent, depth = 0) {
+        if (depth > MAX_DEPTH) { el('p', parent).textContent = text; return; }
         const lines = text.replace(/\r\n?/g, '\n').split('\n');
         let i = 0;
         while (i < lines.length) {
@@ -79,12 +85,12 @@ window.FortValeMarkdown = (() => {
             if (QUOTE.test(line)) {
                 const body = [];
                 for (; i < lines.length && lines[i].trim() && QUOTE.test(lines[i]); i++) body.push(lines[i].replace(QUOTE, ''));
-                blocks(body.join('\n'), el('blockquote', parent));
+                blocks(body.join('\n'), el('blockquote', parent), depth + 1);
                 continue;
             }
 
             if ((m = line.match(ITEM))) {
-                i = list(lines, i, parent);
+                i = list(lines, i, parent, depth);
                 continue;
             }
 
@@ -113,7 +119,7 @@ window.FortValeMarkdown = (() => {
     }
 
     // A list and everything indented under its items (more text, nested lists).
-    function list(lines, i, parent) {
+    function list(lines, i, parent, depth) {
         const [, lead, marker] = lines[i].match(ITEM);
         const base = indentOf(lead);
         const ordered = /\d/.test(marker);
@@ -137,7 +143,7 @@ window.FortValeMarkdown = (() => {
                 body.push(indentOf(line) <= inner ? line.slice(lead.length) : line.slice(Math.min(lead.length, inner)));
             }
             const li = el('li', node);
-            blocks(body.join('\n'), li);
+            blocks(body.join('\n'), li, depth + 1);
             // A one-paragraph item reads better without the paragraph's margins.
             if (li.children.length === 1 && li.firstChild.tagName === 'P') li.replaceChildren(...li.firstChild.childNodes);
             // A blank line between items keeps the list going.
