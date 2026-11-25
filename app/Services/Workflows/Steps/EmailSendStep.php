@@ -61,6 +61,8 @@ class EmailSendStep extends BaseStep
             if ($owner === null || ! $owner->hasPermission('emails.send')) {
                 throw new StepFailed('The owner of this action isn’t allowed to send emails (Email: Send emails).');
             }
+        } elseif (($runner = $context->runner()) && ! $runner->hasPermission('emails.send')) {
+            throw new StepFailed("{$runner->name} isn’t allowed to send emails (Email: Send emails).");
         }
 
         $entries = is_array($with['to']) ? $with['to'] : preg_split('/[\s,;]+/', (string) $with['to'], -1, PREG_SPLIT_NO_EMPTY);

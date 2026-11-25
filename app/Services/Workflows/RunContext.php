@@ -70,11 +70,7 @@ class RunContext
      */
     public function ensureAllowed(User $person, array $permissions, ?Ticket $ticket = null): void
     {
-        $person = match (true) {
-            ! $this->workflow->isShared() => $person,
-            $this->trigger === 'run' && $this->actor !== null => $this->actor,
-            default => null,
-        };
+        $person = $this->workflow->isShared() ? $this->runner() : $person;
         if ($person === null) {
             return;
         }
@@ -87,6 +83,16 @@ class RunContext
                 throw new StepFailed("{$person->name} isn't allowed to do that ({$permission}).");
             }
         }
+    }
+
+    /**
+     * Who pressed Run on a shared action (Run button, or an AI as them): their
+     * own permissions limit what it does. Null for personal actions and for
+     * shared actions started by a ticket event or a schedule.
+     */
+    public function runner(): ?User
+    {
+        return $this->workflow->isShared() && $this->trigger === 'run' ? $this->actor : null;
     }
 
     /**
