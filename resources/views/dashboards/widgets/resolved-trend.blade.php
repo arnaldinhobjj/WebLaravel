@@ -1,3 +1,6 @@
+@if ($data['total'] === 0)
+    <p class="muted">Nothing resolved or closed in the last {{ count($data['days']) }} days.</p>
+@else
 <p class="muted small">{{ number_format($data['total']) }} resolved or closed in the last {{ count($data['days']) }} days.</p>
 <ol class="dashboard-columns" aria-label="Tickets resolved per day">
     @foreach ($data['days'] as $day)
@@ -9,3 +12,4 @@
         </li>
     @endforeach
 </ol>
+@endif

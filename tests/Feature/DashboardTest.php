@@ -279,6 +279,17 @@ class DashboardTest extends TestCase
             ->assertDontSee('Anything');
     }
 
+    public function test_the_resolved_trend_says_so_when_nothing_was_resolved(): void
+    {
+        $mine = $this->dashboardOf($this->me);
+        $mine->addWidget(DashboardWidgetType::ResolvedTrend, WidgetScope::Everyone);
+
+        $this->get(route('dashboards.show', $mine))
+            ->assertOk()
+            ->assertSee('Nothing resolved or closed in the last 14 days.')
+            ->assertDontSee('Tickets resolved per day');
+    }
+
     public function test_choosing_which_dashboard_opens_at_slash_dashboard(): void
     {
         $shared = $this->dashboardOf($this->colleague, DashboardVisibility::Shared, 'Team overview');
