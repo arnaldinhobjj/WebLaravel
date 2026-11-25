@@ -51,6 +51,23 @@
 
     const scroll = () => { list.scrollTop = list.scrollHeight; };
 
+    // Links in AI replies are copied, not opened: a reply can be steered by
+    // pages the AI read, so the person sees (and pastes) the real address.
+    const copyLink = async (event) => {
+        const link = event.target.closest('.is-markdown a[href]');
+        if (!link) return;
+        event.preventDefault();
+        const say = (message) => window.FortValeToast?.(message, { position: 'top' });
+        try {
+            await navigator.clipboard.writeText(link.href);
+            say('Link copied to the clipboard');
+        } catch {
+            say('Couldn’t copy the link');
+        }
+    };
+    list.addEventListener('click', copyLink);
+    list.addEventListener('auxclick', copyLink);
+
     // The AI's replies are Markdown; what the person typed stays plain text.
     const show = (div, role, text) => {
         if (role === 'assistant' && window.FortValeMarkdown) {

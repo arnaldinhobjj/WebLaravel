@@ -3,13 +3,6 @@
 @section('title', $conversation?->title ?? 'AI')
 
 @section('content')
-    <div class="page-head">
-        <div>
-            <h2 class="section-title">AI</h2>
-            <p class="page-sub">Chat with your own local AI. Your browser talks to it directly; chats are saved here and only you can see them.</p>
-        </div>
-    </div>
-
     <div class="ai-layout">
         {{-- Saved chats --}}
         <nav class="card ai-chats" aria-label="Your chats">
@@ -205,6 +198,8 @@
 @endsection
 
 @push('scripts')
+    <script src="{{ asset('vendor/marked/marked.umd.js') }}?v=18.2.0" defer></script>
+    <script src="{{ asset('vendor/dompurify/purify.min.js') }}?v=3.4.17" defer></script>
     <script src="{{ asset('js/markdown.js') }}?v={{ filemtime(public_path('js/markdown.js')) }}" defer></script>
     <script src="{{ asset('js/ai-chat.js') }}?v={{ filemtime(public_path('js/ai-chat.js')) }}" defer></script>
 @endpush
