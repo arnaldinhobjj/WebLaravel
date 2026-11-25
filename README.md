@@ -45,7 +45,7 @@ Fort Vale uses two databases at once, both through Laravel's PDO-based connectio
 
 You need:
 
-- **PHP 8.3–8.5** with the `oci8`, `pdo_mysql` and `pdo_sqlite` extensions, plus **Composer**.
+- **PHP 8.4–8.5** with the `oci8`, `pdo_mysql` and `pdo_sqlite` extensions, plus **Composer**.
 - **Oracle Instant Client** (Basic + SDK), which `oci8` is built against.
 - **Docker** to run MySQL and Oracle: Docker Desktop, or [Colima](https://github.com/abiosoft/colima) on macOS.
 
@@ -545,7 +545,7 @@ php artisan test
   ```
 
 - Run one file or test with `php artisan test tests/Feature/TicketTest.php` or `--filter=test_name`.
-- GitHub Actions runs the suite on PHP 8.3, 8.4 and 8.5 against real MySQL 8.4 and Oracle Free 23ai services, plus once on SQLite.
+- GitHub Actions runs the suite on PHP 8.4 and 8.5 against real MySQL 8.4 and Oracle Free 23ai services, plus once on SQLite.
 
 ## Where things are
 
