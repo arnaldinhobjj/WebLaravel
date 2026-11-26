@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\AiTaskController;
 use App\Jobs\RunAiTask;
 use App\Mail\FortValeEmail;
 use App\Models\Action;
@@ -232,6 +233,25 @@ class AiReportActionTest extends TestCase
         (new RunAiTask($running->fresh()))->failed(null);
         $this->assertSame(AiTask::CANCELLED, $running->fresh()->status);
         Queue::assertPushed(RunAiTask::class, fn (RunAiTask $job): bool => $job->task->is($waiting));
+    }
+
+    public function test_stop_pressed_just_as_the_report_finishes_does_not_reopen_it(): void
+    {
+        Queue::fake();
+        $this->connection();
+        $this->runReport(self::REPORT);
+        $task = AiTask::sole();
+        $task->update(['status' => AiTask::WORKING]);
+
+        // The request loaded the task while it ran; the job finished before the stop was saved.
+        $loadedByTheRequest = $task->fresh();
+        $task->update(['status' => AiTask::DONE, 'finished_at' => now()]);
+        $this->actingAs($this->alex);
+        app(AiTaskController::class)->cancel($loadedByTheRequest);
+        app(AiTaskController::class)->dismiss($loadedByTheRequest);
+
+        $this->assertSame(AiTask::DONE, $task->fresh()->status);
+        $this->assertFalse($task->fresh()->isActive());
     }
 
     public function test_shared_actions_need_someone_pressing_run(): void

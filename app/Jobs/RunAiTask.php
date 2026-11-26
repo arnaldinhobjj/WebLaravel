@@ -59,12 +59,13 @@ class RunAiTask implements ShouldQueue
 
     public function handle(ServerAi $ai, SkillRegistry $skills, FileStore $files): void
     {
+        // Only a task still waiting starts (it may have been stopped since it was queued).
+        $started = AiTask::whereKey($this->task->id)->where('status', AiTask::QUEUED)
+            ->update(['status' => AiTask::WORKING, 'started_at' => now()]);
         $task = $this->task->fresh();
-        if ($task === null || $task->status !== AiTask::QUEUED) {
+        if ($started === 0 || $task === null) {
             return;
         }
-
-        $task->update(['status' => AiTask::WORKING, 'started_at' => now()]);
 
         try {
             $report = $this->converse($task, $ai, $skills);
