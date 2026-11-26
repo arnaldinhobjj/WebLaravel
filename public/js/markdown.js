@@ -23,14 +23,18 @@ window.FortValeMarkdown = (() => {
 
     DOMPurify.addHook('afterSanitizeAttributes', (node) => {
         // Links keep their real address on hover; clicking one copies it (see ai-chat.js).
-        if (node.tagName === 'A') {
-            if (node.getAttribute('href')) {
-                node.setAttribute('title', node.getAttribute('href'));
-            } else {
-                node.replaceWith(...node.childNodes);
-            }
+        if (node.tagName === 'A' && node.getAttribute('href')) {
+            node.setAttribute('title', node.getAttribute('href'));
         }
     });
+
+    // Links whose address was rejected become plain text. This runs after DOMPurify has
+    // finished: moving a node's children while DOMPurify still walks the tree makes it
+    // skip them, leaving them unsanitised.
+    const unwrapLinksWithoutAddress = (fragment) => {
+        fragment.querySelectorAll('a:not([href])').forEach((link) => link.replaceWith(...link.childNodes));
+        return fragment;
+    };
 
     return {
         /** Replaces the element's contents with the rendered Markdown. */
@@ -40,14 +44,14 @@ window.FortValeMarkdown = (() => {
                 throw new Error('This reply is too long or nested too deeply to format.');
             }
             const html = marked.parse(source, { gfm: true, breaks: true, async: false });
-            target.replaceChildren(DOMPurify.sanitize(html, {
+            target.replaceChildren(unwrapLinksWithoutAddress(DOMPurify.sanitize(html, {
                 ALLOWED_TAGS,
                 ALLOWED_ATTR,
                 ALLOWED_URI_REGEXP: /^(?:https?:|mailto:)/i,
                 // Otherwise the URI rule above also strips these (table alignment, list start).
                 ADD_URI_SAFE_ATTR: ['align', 'start'],
                 RETURN_DOM_FRAGMENT: true,
-            }));
+            })));
         },
     };
 })();
