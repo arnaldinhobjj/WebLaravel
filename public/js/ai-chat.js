@@ -53,9 +53,10 @@
 
     // A plain click on a link in an AI reply copies it (a reply can be steered by
     // pages the AI read, so the person sees and pastes the real address).
-    // Cmd/Ctrl/Shift/Alt-click, middle click and the context menu open it as usual.
+    // Cmd/Ctrl/Shift-click, middle click and the context menu open it as usual
+    // (Alt-click copies too: in the browser it would download the page).
     const copyLink = async (event) => {
-        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        if (event.metaKey || event.ctrlKey || event.shiftKey) return;
         const link = event.target.closest('.is-markdown a[href]');
         if (!link) return;
         event.preventDefault();

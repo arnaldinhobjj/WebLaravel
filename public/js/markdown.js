@@ -7,15 +7,14 @@ window.FortValeMarkdown = (() => {
         'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
         'table', 'thead', 'tbody', 'tr', 'th', 'td', 'a'];
     const ALLOWED_ATTR = ['href', 'title', 'start', 'align'];
-    // marked slows down sharply with nesting (400 list levels: ~0.3 s per render,
-    // 3000: ~2 min; 1000 "- " on one line: ~2 s), so very deep replies are shown
-    // as plain text instead. Leading whitespace sits outside the repeats so a
-    // near-miss can't backtrack exponentially.
-    // The last pattern catches markers mixed without spaces ('>>- >>- '); a long
-    // '---' rule also matches it, which only means plain text.
-    const TOO_DEEP = /^(?:[ \t]{200,}|[ \t]*(?:>[ \t]*){50,}|[ \t]*(?:(?:[-*+>]|\d{1,9}[.)])[ \t]+){30,}|[ \t>*+-]{100,})/m;
-    // marked's emphasis parsing grows quadratically with length (40 KB of '*a _' ~5 s),
-    // so very long replies are shown as plain text too.
+    // Two inputs make marked slow in real browsers (timed in WebKit and V8, not jsdom,
+    // whose much slower numbers once suggested guarding one-line nesting too):
+    // - deep indentation: a 3000-level list ~1.1 s per render, so lines indented
+    //   200+ characters show as plain text (200 tab-levels still render in ~80 ms);
+    // - emphasis parsing grows quadratically with length (19 KB of '*a _' ~0.7-1.2 s,
+    //   40 KB ~3 s), so replies over 20,000 characters show as plain text.
+    // Other pathological input that makes marked throw also falls back to plain text.
+    const TOO_DEEP = /^[ \t]{200,}/m;
     const MAX_LENGTH = 20000;
     const escapeHtml = (text) => text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
