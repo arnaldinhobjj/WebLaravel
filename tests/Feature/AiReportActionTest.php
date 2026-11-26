@@ -144,6 +144,11 @@ class AiReportActionTest extends TestCase
         Queue::assertPushed(RunAiTask::class, 1);
         Queue::assertPushed(RunAiTask::class, fn (RunAiTask $job): bool => $job->task->is($first));
 
+        // The first is about to start ("Starting…"); only the second waits behind another ("Waiting…").
+        $this->actingAs($this->alex)->getJson(route('ai.tasks.index'))
+            ->assertJsonPath('tasks.0.waiting', false)
+            ->assertJsonPath('tasks.1.waiting', true);
+
         // When the first one finishes, the second starts.
         $first->update(['status' => AiTask::WORKING]);
         RunAiTask::startNext($this->alex->id);

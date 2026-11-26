@@ -126,7 +126,9 @@
 
         stopTask?.addEventListener('click', async () => {
             stopTask.disabled = true;
-            await post(chat.dataset.taskCancelUrl, {});
+            const { body } = await post(chat.dataset.taskCancelUrl, {});
+            // Say so at once; the next poll unlocks the chat when the server has finished.
+            if (body?.badge?.status === 'stopping') noteText.textContent = 'Stopping… finishing what the AI was doing.';
         });
 
         for (;;) {
@@ -144,6 +146,7 @@
                     history.push(message);
                     render(message);
                 }
+                if (body.status === 'queued') noteText.textContent = body.badge?.waiting ? 'Waiting for your other AI tasks to finish…' : 'Starting…';
                 if (body.status === 'working') noteText.textContent = 'Your AI is working on this report… You can watch here; when it’s done, it’s saved in My files and you can carry on chatting.';
                 // Stopping: the server is still writing its last messages, so chatting stays paused.
                 if (body.status === 'stopping') noteText.textContent = 'Stopping… finishing what the AI was doing.';

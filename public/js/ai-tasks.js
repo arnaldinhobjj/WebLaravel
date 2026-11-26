@@ -51,7 +51,7 @@
         text.className = 'ai-task-text';
         const state = document.createElement('strong');
         state.textContent = {
-            queued: 'Waiting…',
+            queued: task.waiting ? 'Waiting…' : 'Starting…',
             working: 'Working…',
             stopping: 'Stopping…',
             done: 'Report ready',

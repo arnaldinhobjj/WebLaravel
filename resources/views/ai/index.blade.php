@@ -84,7 +84,7 @@
             @if ($task?->isActive())
                 <div class="ai-task-note" role="status" data-ai-task>
                     <span class="ai-task-spinner" aria-hidden="true"></span>
-                    <span data-ai-task-text>{{ $task->status === \App\Models\AiTask::QUEUED ? 'Waiting for your other AI tasks to finish…' : 'Your AI is working on this report…' }} You can watch here; when it’s done, it’s saved in My files and you can carry on chatting.</span>
+                    <span data-ai-task-text>{{ match (true) { $task->isWaitingBehindAnother() => 'Waiting for your other AI tasks to finish…', $task->status === \App\Models\AiTask::QUEUED => 'Starting…', $task->status === \App\Models\AiTask::STOPPING => 'Stopping… finishing what the AI was doing.', default => 'Your AI is working on this report…' } }} You can watch here; when it’s done, it’s saved in My files and you can carry on chatting.</span>
                     <button type="button" class="btn" data-ai-task-stop>Stop</button>
                 </div>
             @endif

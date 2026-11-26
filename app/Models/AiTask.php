@@ -77,6 +77,18 @@ class AiTask extends Model
     }
 
     /**
+     * Waiting for an earlier task of the same person to finish (rather than
+     * about to start).
+     */
+    public function isWaitingBehindAnother(): bool
+    {
+        return $this->status === self::QUEUED && self::where('user_id', $this->user_id)
+            ->whereIn('status', [self::QUEUED, self::WORKING, self::STOPPING])
+            ->where('id', '<', $this->id)
+            ->exists();
+    }
+
+    /**
      * The person's tasks that still have a badge: running, waiting, or
      * finished and not closed yet.
      *
@@ -90,7 +102,7 @@ class AiTask extends Model
     /**
      * What the badge shows.
      *
-     * @return array{id: int, title: string, status: string, error: ?string, seen: bool, chat_url: ?string, file_url: ?string, seen_url: string, dismiss_url: string}
+     * @return array{id: int, title: string, status: string, waiting: bool, error: ?string, seen: bool, chat_url: ?string, file_url: ?string, seen_url: string, dismiss_url: string}
      */
     public function toBadge(): array
     {
@@ -98,6 +110,7 @@ class AiTask extends Model
             'id' => $this->id,
             'title' => $this->title,
             'status' => $this->status,
+            'waiting' => $this->isWaitingBehindAnother(),
             'error' => $this->error,
             'seen' => $this->seen_at !== null,
             'chat_url' => $this->conversation_id ? route('ai.index', ['c' => $this->conversation_id]) : null,
