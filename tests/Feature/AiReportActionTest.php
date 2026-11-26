@@ -332,6 +332,23 @@ class AiReportActionTest extends TestCase
         Queue::assertPushed(RunAiTask::class, fn (RunAiTask $job): bool => $job->task->is($third));
     }
 
+    public function test_a_model_that_cannot_use_tools_still_writes_the_report(): void
+    {
+        $this->connection();
+        Http::fakeSequence('localhost:11434/*')
+            ->push('{"error":"registry.ollama.ai/library/gemma:2b does not support tools"}', 400)
+            ->push(['choices' => [['message' => ['content' => '# Report without skills']]]]);
+
+        $this->runReport(self::REPORT);
+
+        $task = AiTask::sole();
+        $this->assertSame(AiTask::DONE, $task->status, (string) $task->error);
+        $this->assertSame('# Report without skills', Storage::disk('files')->get(StoredFile::findOrFail($task->file_id)->currentVersion->path));
+        // Asked once with tools (refused), then again without.
+        $requests = Http::recorded()->map(fn (array $pair): bool => isset($pair[0]['tools']))->values()->all();
+        $this->assertSame([true, false], $requests);
+    }
+
     public function test_shared_actions_need_someone_pressing_run(): void
     {
         $this->connection();

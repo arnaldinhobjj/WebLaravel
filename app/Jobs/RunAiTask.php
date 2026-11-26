@@ -8,6 +8,7 @@ use App\Models\AiMessage;
 use App\Models\AiSetting;
 use App\Models\AiTask;
 use App\Models\Folder;
+use App\Services\Ai\AiProviderError;
 use App\Services\Ai\ServerAi;
 use App\Services\Files\FileStore;
 use DateTimeInterface;
@@ -245,7 +246,16 @@ class RunAiTask implements ShouldQueue
         $system = $this->instructions($task, $tools !== []);
 
         for ($step = 0; $step <= self::MAX_SKILL_CALLS; $step++) {
-            $reply = $ai->turn($connection, $system, $history, $step < self::MAX_SKILL_CALLS ? $tools : []);
+            try {
+                $reply = $ai->turn($connection, $system, $history, $step < self::MAX_SKILL_CALLS ? $tools : []);
+            } catch (AiProviderError $refused) {
+                // Models that can't use tools refuse them: carry on without skills, as /ai's chat does.
+                if ($tools === [] || $step >= self::MAX_SKILL_CALLS || ! $refused->rejectsTools()) {
+                    throw $refused;
+                }
+                $tools = [];
+                $reply = $ai->turn($connection, $system, $history, []);
+            }
 
             $history[] = $this->keep($conversation->id, $connection->model, [
                 'role' => 'assistant', 'content' => $reply['text'], ...($reply['calls'] !== [] ? ['calls' => $reply['calls']] : []),

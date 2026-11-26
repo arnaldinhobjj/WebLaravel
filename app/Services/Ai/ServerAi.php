@@ -208,7 +208,7 @@ class ServerAi
         }
 
         if (! $response->successful()) {
-            throw new RuntimeException("{$connection->name} answered {$response->status()}: ".mb_substr($response->body(), 0, 300));
+            throw new AiProviderError("{$connection->name} answered {$response->status()}: ".mb_substr($response->body(), 0, 300), $response->status(), $response->body());
         }
 
         return (array) $response->json();
