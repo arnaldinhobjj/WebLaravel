@@ -18,10 +18,14 @@
     let tasks = JSON.parse(root.querySelector('[data-ai-tasks-initial]')?.textContent || '[]');
     let timer = null;
     let closed = false;
+    // Badges already on screen: only new ones slide in (the stack is redrawn on every check).
+    const shown = new Set(tasks.map((task) => task.id));
     try { closed = localStorage.getItem(STORE) === 'closed'; } catch { /* private window */ }
 
+    // keepalive: Open navigates away at once, and the request must still arrive.
     const send = (url, method = 'POST') => fetch(url, {
         method,
+        keepalive: true,
         headers: { Accept: 'application/json', 'X-CSRF-TOKEN': csrf },
     }).catch(() => null);
 
@@ -36,7 +40,8 @@
 
     function badge(task) {
         const item = document.createElement('li');
-        item.className = `ai-task is-${task.status}`;
+        item.className = `ai-task is-${task.status}${shown.has(task.id) ? '' : ' is-new'}`;
+        shown.add(task.id);
 
         const active = ACTIVE.includes(task.status);
         // While it runs, the whole badge opens the chat it's writing in.
@@ -78,9 +83,10 @@
             open.className = 'btn btn-primary';
             open.href = task.file_url;
             open.textContent = 'Open';
+            // Once opened, the report has been seen: its badge goes away.
             open.addEventListener('click', () => {
                 task.seen = true;
-                send(task.seen_url);
+                send(task.dismiss_url, 'DELETE');
             });
             buttons.append(open);
         }

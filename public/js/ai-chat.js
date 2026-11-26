@@ -172,7 +172,8 @@
             open.className = 'btn';
             open.href = body.badge.file_url;
             open.textContent = 'Open';
-            open.addEventListener('click', () => post(body.badge.seen_url, {}));
+            // Opened: the badge goes away (keepalive, since this navigates away at once).
+            open.addEventListener('click', () => fetch(body.badge.dismiss_url, { method: 'DELETE', keepalive: true, headers: { Accept: 'application/json', 'X-CSRF-TOKEN': csrf } }));
             note.append(open);
         }
         document.dispatchEvent(new CustomEvent('fortvale:ai-tasks-changed'));
