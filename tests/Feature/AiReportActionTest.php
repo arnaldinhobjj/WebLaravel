@@ -66,7 +66,7 @@ class AiReportActionTest extends TestCase
     /**
      * @param  array<string, string>  $inputs
      */
-    private function run(string $yaml, array $inputs = ['report' => 'Open IT tickets by priority'], string $source = Workflow::PERSONAL, ?User $actor = null, string $trigger = 'run'): ActionRun
+    private function runReport(string $yaml, array $inputs = ['report' => 'Open IT tickets by priority'], string $source = Workflow::PERSONAL, ?User $actor = null, string $trigger = 'run'): ActionRun
     {
         $workflow = app(WorkflowParser::class)->parse($yaml, $source, $source.':test', $source === Workflow::PERSONAL ? $this->alex->id : null);
 
@@ -85,7 +85,7 @@ class AiReportActionTest extends TestCase
             ]]]]])
             ->push(['choices' => [['message' => ['content' => "# IT report\n\nOne open ticket: Printer jam."]]]]);
 
-        $run = $this->run(self::REPORT);
+        $run = $this->runReport(self::REPORT);
 
         $this->assertSame(ActionRun::SUCCESS, $run->status, json_encode($run->steps));
         $task = AiTask::sole();
@@ -116,18 +116,18 @@ class AiReportActionTest extends TestCase
         Queue::fake();
 
         $this->connection('http://intranet.example.com/v1');
-        $run = $this->run(self::REPORT);
+        $run = $this->runReport(self::REPORT);
         $this->assertSame(ActionRun::FAILED, $run->status);
         $this->assertStringContainsString('may not call intranet.example.com', json_encode($run->steps));
 
         AiConnection::query()->update(['base_url' => 'http://localhost:8080/v1']);
-        $this->assertSame(ActionRun::FAILED, $this->run(self::REPORT)->status);
+        $this->assertSame(ActionRun::FAILED, $this->runReport(self::REPORT)->status);
 
         AiConnection::query()->update(['base_url' => 'https://api.example.com/v1']);
-        $this->assertSame(ActionRun::SUCCESS, $this->run(self::REPORT)->status);
+        $this->assertSame(ActionRun::SUCCESS, $this->runReport(self::REPORT)->status);
 
         AiConnection::query()->update(['base_url' => 'http://localhost:11434/v1']);
-        $this->assertSame(ActionRun::SUCCESS, $this->run(self::REPORT)->status);
+        $this->assertSame(ActionRun::SUCCESS, $this->runReport(self::REPORT)->status);
         Queue::assertPushed(RunAiTask::class);
     }
 
@@ -136,8 +136,8 @@ class AiReportActionTest extends TestCase
         Queue::fake();
         $this->connection();
 
-        $this->run(self::REPORT, ['report' => 'First']);
-        $this->run(self::REPORT, ['report' => 'Second']);
+        $this->runReport(self::REPORT, ['report' => 'First']);
+        $this->runReport(self::REPORT, ['report' => 'Second']);
         [$first, $second] = AiTask::orderBy('id')->get()->all();
 
         Queue::assertPushed(RunAiTask::class, 1);
@@ -158,7 +158,7 @@ class AiReportActionTest extends TestCase
         $this->connection();
         Http::fake(['localhost:11434/*' => Http::response('model "qwen3:30b" not found', 404)]);
 
-        $this->run(self::REPORT);
+        $this->runReport(self::REPORT);
 
         $task = AiTask::sole();
         $this->assertSame(AiTask::FAILED, $task->status);
@@ -170,7 +170,7 @@ class AiReportActionTest extends TestCase
     {
         $this->connection();
 
-        $run = $this->run(self::REPORT, source: Workflow::SHARED, trigger: 'schedule', actor: null);
+        $run = $this->runReport(self::REPORT, source: Workflow::SHARED, trigger: 'schedule', actor: null);
 
         $this->assertSame(ActionRun::FAILED, $run->status);
         $this->assertStringContainsString('only do it from the Run button', json_encode($run->steps));
@@ -186,7 +186,7 @@ class AiReportActionTest extends TestCase
     {
         Queue::fake();
         $this->connection();
-        $this->run(self::REPORT);
+        $this->runReport(self::REPORT);
         $task = AiTask::sole();
 
         $this->actingAs($this->alex)->get('/')->assertSee('data-ai-tasks', false)->assertSee('Open IT tickets by priority');
