@@ -168,8 +168,20 @@ class RunAiTask implements ShouldQueue
                 return trim($reply['text']) !== '' ? $reply['text'] : throw new RuntimeException('The AI finished without writing a report.');
             }
 
-            foreach ($reply['calls'] as $call) {
+            foreach ($reply['calls'] as $index => $call) {
                 if ($task->fresh()?->status === AiTask::CANCELLED) {
+                    // Every skill call needs a result, or the chat can't be continued on /ai.
+                    foreach (array_slice($reply['calls'], $index) as $skipped) {
+                        $this->keep($conversation->id, null, [
+                            'role' => 'tool',
+                            'content' => (string) json_encode(['ok' => false, 'summary' => 'Stopped before this skill ran.']),
+                            'name' => $skipped['name'],
+                            'ok' => false,
+                            'call_id' => $skipped['id'],
+                            'by' => 'ai',
+                        ]);
+                    }
+
                     return '';
                 }
 

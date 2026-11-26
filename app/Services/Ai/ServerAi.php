@@ -188,8 +188,13 @@ class ServerAi
         $parts = parse_url($url);
         $port = $parts['port'] ?? (strtolower($parts['scheme'] ?? '') === 'https' ? 443 : 80);
 
-        // Connect to the address that was checked, so DNS can't change in between.
-        $address = $this->isAllowedPrivateHost(strtolower(trim($host, '[]')), $port) ? null : $this->resolver->publicAddress($host);
+        // Connect to the address that was checked, so DNS can't change in between
+        // (a host that looked public in refusal() may not be public any more).
+        $allowedPrivate = $this->isAllowedPrivateHost(strtolower(trim($host, '[]')), $port);
+        $address = $allowedPrivate ? null : $this->resolver->publicAddress($host);
+        if (! $allowedPrivate && $address === null) {
+            throw new RuntimeException("Fort Vale's server may not call {$host}.");
+        }
 
         try {
             $response = Http::withHeaders($headers)

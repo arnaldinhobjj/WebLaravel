@@ -166,6 +166,53 @@ class AiReportActionTest extends TestCase
         $this->assertNull($task->file_id);
     }
 
+    public function test_a_host_that_turns_private_after_the_check_is_not_called(): void
+    {
+        // DNS rebinding: public for the step's and the turn's checks, loopback when the job connects.
+        $this->app->instance(HostResolver::class, new class extends HostResolver
+        {
+            private int $lookups = 0;
+
+            public function addresses(string $host): array
+            {
+                return [++$this->lookups <= 2 ? '93.184.216.34' : '127.0.0.1'];
+            }
+        });
+        $this->connection('https://rebind.example.com/v1');
+        Http::fake();
+
+        $this->runReport(self::REPORT);
+
+        Http::assertNothingSent();
+        $task = AiTask::sole();
+        $this->assertSame(AiTask::FAILED, $task->status);
+        $this->assertStringContainsString('may not call rebind.example.com', $task->error);
+    }
+
+    public function test_stopping_between_skill_calls_still_answers_every_call(): void
+    {
+        $this->connection();
+        Http::fake(['localhost:11434/*' => function () {
+            // The person presses Stop while the AI is answering with two skill calls.
+            AiTask::query()->update(['status' => AiTask::CANCELLED]);
+
+            return Http::response(['choices' => [['message' => ['content' => '', 'tool_calls' => [
+                ['id' => 'call_1', 'type' => 'function', 'function' => ['name' => 'tickets_search', 'arguments' => '{}']],
+                ['id' => 'call_2', 'type' => 'function', 'function' => ['name' => 'people_me', 'arguments' => '{}']],
+            ]]]]]);
+        }]);
+
+        $this->runReport(self::REPORT);
+
+        $task = AiTask::sole();
+        $this->assertSame([AiTask::CANCELLED, null], [$task->status, $task->file_id]);
+        Http::assertSentCount(1);
+
+        $results = $task->conversation->messages->where('role', 'tool')->values();
+        $this->assertSame(['call_1', 'call_2'], $results->pluck('meta.call_id')->all());
+        $this->assertSame([false, false], $results->pluck('meta.ok')->all());
+    }
+
     public function test_shared_actions_need_someone_pressing_run(): void
     {
         $this->connection();
