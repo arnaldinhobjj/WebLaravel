@@ -9,6 +9,7 @@ use App\Models\AiConnection;
 use App\Models\AiConversation;
 use App\Models\AiMessage;
 use App\Models\AiSetting;
+use App\Models\AiTask;
 use App\Models\AiToken;
 use App\Support\CurrentUser;
 use Illuminate\Http\JsonResponse;
@@ -42,6 +43,9 @@ class AiController extends Controller
             'connection' => $connections->firstWhere('id', $conversation?->connection_id ?? $request->integer('connection')) ?? $connections->first(),
             'conversations' => AiConversation::where('user_id', $me->id)->latest('updated_at')->latest('id')->limit(100)->get(),
             'conversation' => $conversation,
+            // An action's AI task writing in this chat (see ai/report), if any.
+            'task' => $conversation ? AiTask::where('conversation_id', $conversation->id)->latest('id')->first() : null,
+            'lastMessageId' => $conversation?->messages->max('id') ?? 0,
             'history' => $conversation?->messages->map(fn (AiMessage $message) => ['role' => $message->role, 'content' => $message->content, 'meta' => $message->meta])->values() ?? collect(),
             'skills' => [
                 'abilities' => array_values(array_map(fn (Skill $skill): array => [

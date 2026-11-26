@@ -31,6 +31,10 @@
     <div class="toast" role="status" data-toast>{{ session('status') }}</div>
 @endif
 
+@can('ai.chat')
+    @include('partials.ai-tasks')
+@endcan
+
 <script src="{{ asset('js/fortvale.js') }}?v={{ filemtime(public_path('js/fortvale.js')) }}" defer></script>
 @stack('scripts')
 </body>

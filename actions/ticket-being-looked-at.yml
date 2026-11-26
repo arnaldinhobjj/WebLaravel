@@ -1,0 +1,21 @@
+# Lets whoever opened a ticket know a team member has picked it up: when a
+# ticket is assigned, or opened already assigned to someone.
+name: Tell the requester their ticket is being looked at
+description: Emails the person who opened a ticket once someone is assigned to it
+on:
+  ticket:
+    types: [created, assigned]
+    if:
+      assignee: anyone
+steps:
+  - name: Email the requester
+    uses: email/send
+    with:
+      to: "${{ ticket.requester }}"
+      subject: "Your ticket #${{ ticket.id }} is being looked at"
+      body: |
+        Hi ${{ recipient.name }},
+
+        A member of our team is having a look at your ticket request "${{ ticket.subject }}".
+
+        You can follow it here: ${{ ticket.url }}

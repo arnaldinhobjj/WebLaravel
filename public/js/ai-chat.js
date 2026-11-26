@@ -109,6 +109,78 @@
 
     history.forEach(render);
 
+    // ---------- Following an action's AI task (the ai/report step) ----------
+    // The server writes this chat in the background; show each message as it
+    // arrives. Chatting is paused until the task ends, then works as usual.
+
+    let following = Boolean(chat.dataset.taskUrl);
+    if (following) followTask();
+
+    async function followTask() {
+        const note = chat.querySelector('[data-ai-task]');
+        const noteText = chat.querySelector('[data-ai-task-text]');
+        const stopTask = chat.querySelector('[data-ai-task-stop]');
+        const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+        let after = Number(chat.dataset.lastMessageId || 0);
+        input.disabled = true;
+
+        stopTask?.addEventListener('click', async () => {
+            stopTask.disabled = true;
+            const { body } = await post(chat.dataset.taskCancelUrl, {});
+            // Say so at once; the next poll unlocks the chat when the server has finished.
+            if (body?.badge?.status === 'stopping') noteText.textContent = 'Stopping… finishing what the AI was doing.';
+            // Not stopped (e.g. the request failed): let the person try again.
+            else if (body?.badge?.status !== 'cancelled') stopTask.disabled = false;
+        });
+
+        for (;;) {
+            let body = null;
+            try {
+                const response = await fetch(`${chat.dataset.taskUrl}?after=${after}`, { headers: { Accept: 'application/json' } });
+                if (response.ok) body = await response.json();
+            } catch {
+                // Offline for a moment: try again.
+            }
+            if (body) {
+                for (const saved of body.messages) {
+                    after = saved.id;
+                    const message = { role: saved.role, content: saved.content || '', ...(saved.meta || {}) };
+                    history.push(message);
+                    render(message);
+                }
+                if (body.status === 'queued') noteText.textContent = body.badge?.waiting ? 'Waiting for your other AI tasks to finish…' : 'Starting…';
+                if (body.status === 'working') noteText.textContent = 'Your AI is working on this report… You can watch here; when it’s done, it’s saved in My files and you can carry on chatting.';
+                // Stopping: the server is still writing its last messages, so chatting stays paused.
+                if (body.status === 'stopping') noteText.textContent = 'Stopping… finishing what the AI was doing.';
+                if (!['queued', 'working', 'stopping'].includes(body.status)) {
+                    finishTask(note, noteText, stopTask, body);
+                    return;
+                }
+            }
+            await wait(2500);
+        }
+    }
+
+    function finishTask(note, noteText, stopTask, body) {
+        following = false;
+        input.disabled = false;
+        stopTask.hidden = true;
+        note.classList.add(body.status === 'done' ? 'is-done' : 'is-failed');
+        noteText.textContent = body.status === 'done'
+            ? 'Done: the report is saved in My files. You can carry on chatting to change it.'
+            : `${body.status === 'cancelled' ? 'Stopped' : 'The report failed'}${body.error && body.error !== 'Stopped.' ? `: ${body.error}` : '.'} You can carry on chatting.`;
+        if (body.status === 'done' && body.badge?.file_url) {
+            const open = document.createElement('a');
+            open.className = 'btn';
+            open.href = body.badge.file_url;
+            open.textContent = 'Open';
+            // Opened: the badge goes away (keepalive, since this navigates away at once).
+            open.addEventListener('click', () => fetch(body.badge.dismiss_url, { method: 'DELETE', keepalive: true, headers: { Accept: 'application/json', 'X-CSRF-TOKEN': csrf } }));
+            note.append(open);
+        }
+        document.dispatchEvent(new CustomEvent('fortvale:ai-tasks-changed'));
+    }
+
     // ---------- Translating the chat for each kind of AI ----------
 
     const systemText = () => {
@@ -385,7 +457,7 @@
     form.addEventListener('submit', (event) => {
         event.preventDefault();
         const text = input.value.trim();
-        if (!text || controller) return;
+        if (!text || controller || following) return;
         if (!menu.hidden && shown.length) { pick(); return; }
         input.value = '';
         dismissed = false;

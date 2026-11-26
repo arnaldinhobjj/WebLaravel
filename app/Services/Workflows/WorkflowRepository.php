@@ -154,7 +154,10 @@ class WorkflowRepository
                 'assignee' => $ticket->assignee_id ? User::whereKey($ticket->assignee_id)->value('username') : 'none',
             };
 
-            if (! in_array($actual, $allowed, true)) {
+            // `assignee: anyone` matches any assigned ticket (the opposite of `none`).
+            $anyAssignee = $field === 'assignee' && $actual !== 'none' && in_array('anyone', $allowed, true);
+
+            if (! $anyAssignee && ! in_array($actual, $allowed, true)) {
                 return false;
             }
         }

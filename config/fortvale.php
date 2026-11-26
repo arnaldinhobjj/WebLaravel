@@ -46,6 +46,25 @@ return [
             ->all(),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | AI work on the server
+    |--------------------------------------------------------------------------
+    |
+    | The `ai/report` action step has Fort Vale's server talk to a person's AI
+    | in the background. It may call public internet addresses, plus these
+    | host:port pairs on this machine or network (comma-separated in .env).
+    | The defaults are Ollama and LM Studio on this computer.
+    |
+    */
+
+    'ai' => [
+        'server_hosts' => array_values(array_filter(array_map('trim', explode(',', (string) env(
+            'FORTVALE_AI_SERVER_HOSTS',
+            'localhost:11434,127.0.0.1:11434,localhost:1234,127.0.0.1:1234',
+        ))))),
+    ],
+
     // Web search for AI skills (web.search): duckduckgo (default, no key),
     // brave, tavily or searxng (your own instance).
     'web_search' => [
