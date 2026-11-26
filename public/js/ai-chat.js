@@ -109,6 +109,70 @@
 
     history.forEach(render);
 
+    // ---------- Following an action's AI task (the ai/report step) ----------
+    // The server writes this chat in the background; show each message as it
+    // arrives. Chatting is paused until the task ends, then works as usual.
+
+    let following = Boolean(chat.dataset.taskUrl);
+    if (following) followTask();
+
+    async function followTask() {
+        const note = chat.querySelector('[data-ai-task]');
+        const noteText = chat.querySelector('[data-ai-task-text]');
+        const stopTask = chat.querySelector('[data-ai-task-stop]');
+        const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+        let after = Number(chat.dataset.lastMessageId || 0);
+        input.disabled = true;
+
+        stopTask?.addEventListener('click', async () => {
+            stopTask.disabled = true;
+            await post(chat.dataset.taskCancelUrl, {});
+        });
+
+        for (;;) {
+            let body = null;
+            try {
+                const response = await fetch(`${chat.dataset.taskUrl}?after=${after}`, { headers: { Accept: 'application/json' } });
+                if (response.ok) body = await response.json();
+            } catch {
+                // Offline for a moment: try again.
+            }
+            if (body) {
+                for (const saved of body.messages) {
+                    after = saved.id;
+                    const message = { role: saved.role, content: saved.content || '', ...(saved.meta || {}) };
+                    history.push(message);
+                    render(message);
+                }
+                if (body.status === 'working') noteText.textContent = 'Your AI is working on this report… You can watch here; when it’s done, it’s saved in My files and you can carry on chatting.';
+                if (body.status !== 'queued' && body.status !== 'working') {
+                    finishTask(note, noteText, stopTask, body);
+                    return;
+                }
+            }
+            await wait(2500);
+        }
+    }
+
+    function finishTask(note, noteText, stopTask, body) {
+        following = false;
+        input.disabled = false;
+        stopTask.hidden = true;
+        note.classList.add(body.status === 'done' ? 'is-done' : 'is-failed');
+        noteText.textContent = body.status === 'done'
+            ? 'Done: the report is saved in My files. You can carry on chatting to change it.'
+            : `${body.status === 'cancelled' ? 'Stopped' : 'The report failed'}${body.error && body.error !== 'Stopped.' ? `: ${body.error}` : '.'} You can carry on chatting.`;
+        if (body.status === 'done' && body.badge?.file_url) {
+            const open = document.createElement('a');
+            open.className = 'btn';
+            open.href = body.badge.file_url;
+            open.textContent = 'Open';
+            open.addEventListener('click', () => post(body.badge.seen_url, {}));
+            note.append(open);
+        }
+        document.dispatchEvent(new CustomEvent('fortvale:ai-tasks-changed'));
+    }
+
     // ---------- Translating the chat for each kind of AI ----------
 
     const systemText = () => {
@@ -385,7 +449,7 @@
     form.addEventListener('submit', (event) => {
         event.preventDefault();
         const text = input.value.trim();
-        if (!text || controller) return;
+        if (!text || controller || following) return;
         if (!menu.hidden && shown.length) { pick(); return; }
         input.value = '';
         dismissed = false;

@@ -15,6 +15,7 @@ class StepRegistry
         'http/request' => HttpRequestStep::class,
         'email/send' => EmailSendStep::class,
         'file/save' => FileSaveStep::class,
+        'ai/report' => AiReportStep::class,
         'message/show' => MessageShowStep::class,
         'page/open' => PageOpenStep::class,
         'ticket/open-form' => TicketOpenFormStep::class,

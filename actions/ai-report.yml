@@ -1,0 +1,20 @@
+# Asks your own AI (see "Your AIs" on the AI page) for a report. It works in
+# the background: a badge at the top right shows progress, and the report is
+# saved in your My files.
+name: Ask the AI for a report
+description: Your AI writes a report in the background and saves it in My files
+on:
+  run:
+    show_on_home: true
+    inputs:
+      report:
+        description: What report do you want? (e.g. "Open IT tickets this week, by priority")
+        required: true
+steps:
+  - name: Ask the AI
+    uses: ai/report
+    with:
+      prompt: "${{ inputs.report }}"
+  - uses: message/show
+    with:
+      text: Your AI is working on it. Follow the badge at the top right; the report will be saved in My files.

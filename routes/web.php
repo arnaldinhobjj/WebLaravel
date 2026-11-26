@@ -4,6 +4,7 @@ use App\Http\Controllers\ActionController;
 use App\Http\Controllers\ActionRunController;
 use App\Http\Controllers\AiController;
 use App\Http\Controllers\AiSkillController;
+use App\Http\Controllers\AiTaskController;
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DashboardCopyController;
@@ -90,6 +91,13 @@ Route::middleware('auth')->group(function () {
             Route::post('/conversations/{conversation}/messages', 'storeMessages')->name('messages.store');
             Route::patch('/conversations/{conversation}', 'renameConversation')->name('conversations.rename');
             Route::delete('/conversations/{conversation}', 'destroyConversation')->name('conversations.destroy');
+        });
+        Route::middleware('can:ai.chat')->controller(AiTaskController::class)->prefix('tasks')->name('tasks.')->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::get('/{task}', 'show')->name('show');
+            Route::post('/{task}/seen', 'seen')->name('seen');
+            Route::post('/{task}/cancel', 'cancel')->name('cancel');
+            Route::delete('/{task}', 'dismiss')->name('dismiss');
         });
         Route::middleware('can:ai.chat')->controller(AiSkillController::class)->group(function () {
             Route::get('/skills', 'index')->name('skills');

@@ -31,7 +31,12 @@
                  data-create-url="{{ route('ai.conversations.store') }}"
                  data-save-url="{{ url('/ai/conversations') }}/{id}/messages"
                  data-run-url="{{ url('/ai/skills') }}/{name}/run"
-                 data-recipe-url="{{ url('/ai/recipes') }}/{name}">
+                 data-recipe-url="{{ url('/ai/recipes') }}/{name}"
+                 @if ($task?->isActive())
+                     data-task-url="{{ route('ai.tasks.show', $task) }}"
+                     data-task-cancel-url="{{ route('ai.tasks.cancel', $task) }}"
+                     data-last-message-id="{{ $lastMessageId }}"
+                 @endif>
             <script type="application/json" data-ai-history>@json($history)</script>
             <script type="application/json" data-ai-skills>@json($skills)</script>
             {{-- Your connections, with keys, for your own browser only. --}}
@@ -76,6 +81,13 @@
                 @endif
             </p>
             <p class="field-error" data-ai-error hidden></p>
+            @if ($task?->isActive())
+                <div class="ai-task-note" role="status" data-ai-task>
+                    <span class="ai-task-spinner" aria-hidden="true"></span>
+                    <span data-ai-task-text>{{ $task->status === \App\Models\AiTask::QUEUED ? 'Waiting for your other AI tasks to finish…' : 'Your AI is working on this report…' }} You can watch here; when it’s done, it’s saved in My files and you can carry on chatting.</span>
+                    <button type="button" class="btn" data-ai-task-stop>Stop</button>
+                </div>
+            @endif
 
             <form class="ai-skill-form card" data-skill-form hidden></form>
 

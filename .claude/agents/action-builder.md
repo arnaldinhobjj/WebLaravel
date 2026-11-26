@@ -41,7 +41,7 @@ on:
       camera: { description: Camera number, required: true, default: "" }
   ticket:                                   # ticket events
     types: [created, status_changed, assigned, replied]
-    if: { category: cctv, priority: [high, urgent] }   # optional: category, priority, status, assignee (username or none)
+    if: { category: cctv, priority: [high, urgent] }   # optional: category, priority, status, assignee (username, none, or anyone)
   schedule:
     - cron: "0 9 * * 1"                     # minute hour day month weekday, app timezone
 steps:
@@ -65,6 +65,7 @@ An action can have any combination of the three triggers, and needs at least one
 | `http/request` | Calls a web address (webhook); outputs `status`, `body` | `url` (required, public http/https only), `method`, `headers`, `body` (text or a map sent as JSON), `timeout` (1–10 s) |
 | `email/send` | Emails people, one copy each; outputs `sent`, `to` | `to` (required: usernames and/or addresses, up to 20), either `template` (an email template's name) or `subject` + `body`, `attachments` (up to 10 paths, 10 MB total) |
 | `file/save` | Saves text as a file (same name: new version); outputs `file`, `version` | `folder` (required, `Library/…` or `My files/…`), `name` (required), `content` (required, ≤ 1 MB), `as` |
+| `ai/report` | Asks the person's AI for a report in the background (badge on every page, saved as Markdown in their My files); output `task` | `prompt` (required), `title`, `ai` (an AI's name under *Your AIs*). Needs a person: personal actions' owner, or whoever presses Run on a shared one |
 | `message/show` | The message shown after a Run-button run | `text` (required) |
 | `page/open` | Sends the person to a page | `url` (required: a Fort Vale path like `/ticket?status=waiting`, or an https address) |
 | `ticket/open-form` | Opens the new-ticket form filled in | `subject`, `description`, `category`, `priority` |

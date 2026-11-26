@@ -101,7 +101,7 @@
                             </tr>
                         @endforeach
                         @foreach ($files as $file)
-                            <tr>
+                            <tr id="file-{{ $file->id }}" class="file-row">
                                 <td>
                                     <a href="{{ route('files.preview', $file) }}" class="file-name"><x-icon name="list-checks" :size="18" /> {{ $file->name }}</a>
                                     @if ($file->versions_count > 1) <a href="{{ route('files.history', $file) }}" class="pill">v{{ $file->versions_count }}</a> @endif

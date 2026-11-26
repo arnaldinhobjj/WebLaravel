@@ -495,7 +495,7 @@ steps:
 | Trigger | What starts it | Settings |
 | --- | --- | --- |
 | `run` | The Run button on the actions page or home screen | `show_on_home: true/false`; `inputs:` with `description`, `required`, `default` per input, asked for in a small form before running |
-| `ticket` | Something happening to a ticket | `types:` any of `created`, `status_changed`, `assigned`, `replied`; optional `if:` on `category`, `priority`, `status`, `assignee` (one value or a list) |
+| `ticket` | Something happening to a ticket | `types:` any of `created`, `status_changed`, `assigned`, `replied`; optional `if:` on `category`, `priority`, `status`, `assignee` (one value or a list; for `assignee`, a username, `none`, or `anyone` for any assigned ticket) |
 | `schedule` | A time, checked every minute | a list of `- cron: "0 9 * * 1"` (minute hour day month weekday, app timezone). Needs `php artisan schedule:work` running |
 
 - Ticket-event actions run right after the page that caused the event has been sent, so pages stay fast.
@@ -512,6 +512,7 @@ steps:
 | `ticket/reply` | Adds a reply | `ticket`, `body` (required), `as` |
 | `email/send` | Sends an email, one copy per recipient. Outputs: `sent`, `to` | `to` (required: usernames and/or addresses, up to 20), and either `template` (an email template's name) or `subject` + `body`. `${{ recipient.name }}` is filled in per person. `attachments`: up to 10 file paths (`Library/…` or `My files/…`), 10 MB in total. Personal actions need their owner to have *Email: Send emails* |
 | `file/save` | Saves text as a file; the same name gets a new version. Outputs: `file` (its path), `version` | `folder` (required, `Library/…` or `My files/…`), `name` (required), `content` (required, up to 1 MB), `as` |
+| `ai/report` | Asks your AI for a report **in the background**: it writes in a new chat on `/ai` (looking things up with skills that don't change anything), and the answer is saved as a Markdown file in *My files*. A badge at the top right of every page shows progress. Output: `task` | `prompt` (required, up to 4000 characters), `title` (the chat and file name; defaults to the prompt), `ai` (one of *Your AIs* by name; defaults to the AI of your latest chat). Needs a person: the owner of a personal action, or whoever presses Run on a shared one, with *AI: Chat with my AI* and *My files* |
 | `http/request` | Calls a web address, e.g. a Slack or Teams webhook. Outputs: `status`, `body` | `url` (required), `method` (GET, POST, PUT, PATCH, DELETE; POST when there's a body), `headers`, `body` (text, or a map sent as JSON), `timeout` (1–10 s) |
 | `message/show` | The message shown after a Run-button run | `text` (required) |
 | `page/open` | Sends you to a Fort Vale page (`/ticket?…`) or a website | `url` (required) |
@@ -520,6 +521,7 @@ steps:
 - Steps run in order. The first failing step stops the run, and the run log shows why.
 - `page/open` and `ticket/open-form` must be the last step, and only work in actions with `on: run`. They are skipped when the action was started by a ticket event or schedule.
 - Give a step an `id` to use its outputs later: `${{ steps.<id>.ticket }}`.
+- **`ai/report`** has Fort Vale's server talk to your AI, unlike the `/ai` chat where your browser does. The server may call public internet addresses, plus the `host:port` pairs in `FORTVALE_AI_SERVER_HOSTS` (default: Ollama and LM Studio on this computer, `localhost:11434,127.0.0.1:11434,localhost:1234,127.0.0.1:1234`). It needs a queue worker (`php artisan queue:work`). A person's AI tasks run one at a time, in order. While one runs, its badge opens the chat so you can watch; when it's done, *Open* goes to the report in *My files*, and you can carry on chatting to change it. Closing the badges leaves a caret with the number of finished reports you haven't opened yet.
 - **Personal actions always act as their owner**, within the owner's permissions: they can only touch tickets the owner can see, and changing, assigning or replying needs the owner's matching ticket permissions. `as:` isn't allowed in personal actions.
 - **Shared actions** act as the person who started the run (Run button, or whoever caused the ticket event), unless they say `as: <username>`. They may only use the *My files* of the person running them.
 - **When someone runs a shared action** (Run button, or an AI as them), its ticket steps, email templates, sending email (Email: Send emails) and saving into Library folders need **that person's** permissions, even with `as:`. Shared actions started by a ticket event or a schedule are trusted, because only people allowed to edit shared actions write them.
