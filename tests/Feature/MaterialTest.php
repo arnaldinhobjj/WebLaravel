@@ -101,6 +101,24 @@ class MaterialTest extends TestCase
         $this->get(route('materials.show', $material))->assertSee('data-model-format="glb"', false);
     }
 
+    public function test_a_gltf_model_must_embed_its_buffers_and_images(): void
+    {
+        $this->actingAs(User::factory()->withPermissions('materials.view', 'materials.edit')->create());
+        $material = Material::factory()->create();
+        $gltf = fn (array $buffers): string => json_encode(['asset' => ['version' => '2.0'], 'buffers' => $buffers]);
+
+        $this->post(route('materials.files.store', [$material, 'model']), ['file' => UploadedFile::fake()->createWithContent('part.gltf', $gltf([['uri' => 'part.bin', 'byteLength' => 12]]))])
+            ->assertSessionHasErrors(['file' => 'This .gltf model uses separate files (part.bin). Upload it as a single .glb, or export the .gltf with embedded data.']);
+        $this->post(route('materials.files.store', [$material, 'model']), ['file' => UploadedFile::fake()->createWithContent('part.gltf', 'not json')])
+            ->assertSessionHasErrors('file');
+        $this->assertNull($material->refresh()->model_file_id);
+        $this->assertSame(0, StoredFile::count());
+
+        $this->post(route('materials.files.store', [$material, 'model']), ['file' => UploadedFile::fake()->createWithContent('part.gltf', $gltf([['uri' => 'data:application/octet-stream;base64,AAAA', 'byteLength' => 3]]))])
+            ->assertSessionHasNoErrors();
+        $this->assertSame('part.gltf', $material->refresh()->modelFile->name);
+    }
+
     public function test_uploads_must_match_their_slot(): void
     {
         $this->actingAs(User::factory()->withPermissions('materials.view', 'materials.edit')->create());
@@ -125,6 +143,18 @@ class MaterialTest extends TestCase
             ->assertForbidden();
 
         $this->assertNull($material->refresh()->image_file_id);
+    }
+
+    public function test_charpy_tests_at_another_temperature_are_not_judged_against_the_spec(): void
+    {
+        $this->actingAs(User::factory()->withPermissions('materials.view')->create());
+        $material = Material::factory()->withTests()->create(['charpy_temperature_c' => -20, 'spec_min_charpy_single_j' => 20]);
+        $material->charpyTests()->update(['temperature_c' => -20]);
+        $colder = MaterialCharpyTest::factory()->for($material)->create(['specimen' => 'C-COLD', 'temperature_c' => -80, 'energy_j' => 8]);
+
+        $this->assertNull($colder->meetsSpec());
+        $this->assertTrue(app(MaterialKpis::class)->verdict($material->load(['elements', 'tensileTests', 'charpyTests'])));
+        $this->get(route('materials.show', $material))->assertSee('C-COLD')->assertDontSee('Out of spec');
     }
 
     public function test_kpis_compute_carbon_equivalents_from_the_measured_chemistry(): void

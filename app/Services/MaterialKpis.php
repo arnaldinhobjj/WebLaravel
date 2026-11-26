@@ -160,11 +160,7 @@ class MaterialKpis
      */
     private function charpyTestsAtSpecTemperature(Material $material): Collection
     {
-        if ($material->charpy_temperature_c === null) {
-            return $material->charpyTests;
-        }
-
-        return $material->charpyTests->filter(fn (MaterialCharpyTest $test): bool => abs($test->temperature_c - $material->charpy_temperature_c) < 0.05)->values();
+        return $material->charpyTests->filter(fn (MaterialCharpyTest $test): bool => $material->isAtCharpyTemperature($test))->values();
     }
 
     /**

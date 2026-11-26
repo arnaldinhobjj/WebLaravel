@@ -21,7 +21,7 @@
 
     $slots = [
         'blueprint' => ['label' => 'Blueprint', 'icon' => 'blueprint', 'file' => $material->blueprintFile, 'accept' => '.png,.jpg,.jpeg,.webp,.pdf', 'hint' => 'PNG, JPG, WebP or PDF'],
-        'model' => ['label' => '3D', 'icon' => 'cube', 'file' => $material->modelFile, 'accept' => '.glb,.gltf,.stl', 'hint' => 'GLB, glTF or STL'],
+        'model' => ['label' => '3D', 'icon' => 'cube', 'file' => $material->modelFile, 'accept' => '.glb,.gltf,.stl', 'hint' => 'GLB, STL, or glTF with embedded data'],
         'image' => ['label' => 'Image', 'icon' => 'image', 'file' => $material->imageFile, 'accept' => '.png,.jpg,.jpeg,.webp', 'hint' => 'PNG, JPG or WebP'],
     ];
     $activeSlot = array_key_exists((string) request('view'), $slots) ? request('view') : 'blueprint';

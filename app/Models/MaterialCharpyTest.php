@@ -43,12 +43,17 @@ class MaterialCharpyTest extends Model
 
     /**
      * Whether this specimen meets the material's minimum single-value impact
-     * energy; null when the material has none.
+     * energy; null when the material has none, or when the specimen was tested
+     * at another temperature than the specification's.
      */
     public function meetsSpec(): ?bool
     {
         $minimum = $this->material->spec_min_charpy_single_j;
 
-        return $minimum === null ? null : $this->energy_j >= $minimum;
+        if ($minimum === null || ! $this->material->isAtCharpyTemperature($this)) {
+            return null;
+        }
+
+        return $this->energy_j >= $minimum;
     }
 }

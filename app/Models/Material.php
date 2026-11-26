@@ -80,6 +80,15 @@ class Material extends Model
     }
 
     /**
+     * Whether a Charpy test counts against the specification: it was tested
+     * at the specified temperature, or the specification names none.
+     */
+    public function isAtCharpyTemperature(MaterialCharpyTest $test): bool
+    {
+        return $this->charpy_temperature_c === null || abs($test->temperature_c - $this->charpy_temperature_c) < 0.05;
+    }
+
+    /**
      * @return BelongsTo<StoredFile, $this>
      */
     public function blueprintFile(): BelongsTo
