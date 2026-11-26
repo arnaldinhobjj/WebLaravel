@@ -108,6 +108,8 @@
             </div>
         @endforeach
         @error('file') <p class="field-error">{{ $message }}</p> @enderror
+        {{-- Size, quota and file-type limits from FileStore. --}}
+        @error('files') <p class="field-error">{{ $message }}</p> @enderror
     </section>
 
     {{-- KPIs --}}

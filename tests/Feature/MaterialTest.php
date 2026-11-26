@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AppSetting;
 use App\Models\Material;
 use App\Models\MaterialCharpyTest;
 use App\Models\MaterialElement;
@@ -132,6 +133,20 @@ class MaterialTest extends TestCase
         $this->assertNull($material->refresh()->image_file_id);
         $this->assertNull($material->model_file_id);
         $this->assertSame(0, StoredFile::count());
+    }
+
+    public function test_an_upload_over_the_size_limit_is_explained_on_the_page(): void
+    {
+        $this->actingAs(User::factory()->withPermissions('materials.view', 'materials.edit')->create());
+        $material = Material::factory()->create();
+        AppSetting::put('files.max_mb', 1);
+
+        $this->from(route('materials.show', $material))
+            ->followingRedirects()
+            ->post(route('materials.files.store', [$material, 'image']), ['file' => UploadedFile::fake()->image('big.png')->size(2048)])
+            ->assertSee('“big.png” is larger than the 1 MB limit.');
+
+        $this->assertNull($material->refresh()->image_file_id);
     }
 
     public function test_uploading_needs_the_edit_permission(): void
