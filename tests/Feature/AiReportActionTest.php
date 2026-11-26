@@ -66,11 +66,11 @@ class AiReportActionTest extends TestCase
     /**
      * @param  array<string, string>  $inputs
      */
-    private function runReport(string $yaml, array $inputs = ['report' => 'Open IT tickets by priority'], string $source = Workflow::PERSONAL, ?User $actor = null, string $trigger = 'run'): ActionRun
+    private function runReport(string $yaml, array $inputs = ['report' => 'Open IT tickets by priority'], string $source = Workflow::PERSONAL, bool $byAlex = true, string $trigger = 'run'): ActionRun
     {
         $workflow = app(WorkflowParser::class)->parse($yaml, $source, $source.':test', $source === Workflow::PERSONAL ? $this->alex->id : null);
 
-        return app(WorkflowRunner::class)->run($workflow, $trigger, $actor ?? $this->alex, $inputs)->run;
+        return app(WorkflowRunner::class)->run($workflow, $trigger, $byAlex ? $this->alex : null, $inputs)->run;
     }
 
     public function test_the_ai_writes_the_report_in_a_chat_using_read_only_skills_and_saves_it_in_my_files(): void
@@ -170,7 +170,7 @@ class AiReportActionTest extends TestCase
     {
         $this->connection();
 
-        $run = $this->runReport(self::REPORT, source: Workflow::SHARED, trigger: 'schedule', actor: null);
+        $run = $this->runReport(self::REPORT, source: Workflow::SHARED, trigger: 'schedule', byAlex: false);
 
         $this->assertSame(ActionRun::FAILED, $run->status);
         $this->assertStringContainsString('only do it from the Run button', json_encode($run->steps));

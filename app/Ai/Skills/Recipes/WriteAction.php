@@ -37,7 +37,7 @@ class WriteAction extends Recipe
     {
         return strtr('Write a Fort Vale action that does this: {what}
 
-Fort Vale actions are YAML: name, on (run with optional inputs and show_on_home, ticket with types and if, or schedule with cron), and steps using ticket/create, ticket/update, ticket/reply, http/request, email/send, file/save, ai/report (asks the person's AI for a report in the background, saved in My files), message/show, page/open or ticket/open-form. Values use ${{ inputs.x }}, ${{ ticket.id }}, ${{ actor.name }}, ${{ steps.<id>.<output> }}.
+Fort Vale actions are YAML: name, on (run with optional inputs and show_on_home, ticket with types and if, or schedule with cron), and steps using ticket/create, ticket/update, ticket/reply, http/request, email/send, file/save, ai/report (asks the AI for a report in the background, saved in My files), message/show, page/open or ticket/open-form. Values use ${{ inputs.x }}, ${{ ticket.id }}, ${{ actor.name }}, ${{ steps.<id>.<output> }}.
 
 1. Write the YAML.
 2. Check it with actions.validate and fix every mistake until it\'s valid.

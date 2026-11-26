@@ -104,7 +104,7 @@ class RunAiTask implements ShouldQueue
      * Starts a new task now if the person has no earlier one running or
      * waiting; otherwise it waits its turn (see startNext()).
      */
-    public static function queue(AiTask $task): void
+    public static function startOrWait(AiTask $task): void
     {
         $earlier = AiTask::where('user_id', $task->user_id)
             ->whereIn('status', [AiTask::QUEUED, AiTask::WORKING])

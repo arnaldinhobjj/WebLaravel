@@ -72,7 +72,7 @@ class AiReportStep extends BaseStep
             'prompt' => $prompt,
             'status' => AiTask::QUEUED,
         ]);
-        RunAiTask::queue($task);
+        RunAiTask::startOrWait($task);
 
         $context->message ??= "Your AI is working on “{$title}”. It will be saved in My files.";
 
