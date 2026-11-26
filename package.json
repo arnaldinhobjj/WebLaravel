@@ -17,6 +17,8 @@
         "@laravel/multiplex": "^0.4.1"
     },
     "dependencies": {
+        "dxf-parser": "^1.1.2",
+        "occt-import-js": "^0.0.23",
         "three": "^0.180.0"
     }
 }

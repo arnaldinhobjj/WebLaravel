@@ -18,9 +18,10 @@ class Material extends Model
     /** @use HasFactory<MaterialFactory> */
     use HasFactory;
 
-    /** The file slots of the viewer: slot => column. */
+    /** The file slots of the viewer: slot => column. Each slot's relation is "{slot}File". */
     public const FILE_SLOTS = [
         'blueprint' => 'blueprint_file_id',
+        'drawing' => 'drawing_file_id',
         'image' => 'image_file_id',
         'model' => 'model_file_id',
     ];
@@ -94,6 +95,14 @@ class Material extends Model
     public function blueprintFile(): BelongsTo
     {
         return $this->belongsTo(StoredFile::class, 'blueprint_file_id');
+    }
+
+    /**
+     * @return BelongsTo<StoredFile, $this>
+     */
+    public function drawingFile(): BelongsTo
+    {
+        return $this->belongsTo(StoredFile::class, 'drawing_file_id');
     }
 
     /**

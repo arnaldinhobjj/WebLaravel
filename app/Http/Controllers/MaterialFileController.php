@@ -20,18 +20,28 @@ class MaterialFileController extends Controller
     /** @var array<string, list<string>> slot => accepted extensions */
     private const ACCEPTED = [
         'blueprint' => ['png', 'jpg', 'jpeg', 'webp', 'pdf'],
+        'drawing' => ['dxf'],
         'image' => ['png', 'jpg', 'jpeg', 'webp'],
-        'model' => ['glb', 'gltf', 'stl'],
+        'model' => ['glb', 'gltf', 'stl', 'obj', '3mf', 'ply', 'step', 'stp', 'iges', 'igs'],
     ];
 
+    /** Slots whose files have no reliable content type, so they are checked by extension only. */
+    private const BY_EXTENSION = ['drawing', 'model'];
+
+    /**
+     * CAD programs' own formats, which a browser can't read without a paid
+     * conversion service: these get a hint to export a neutral format.
+     */
+    private const NATIVE_CAD = ['sldprt', 'sldasm', 'slddrw', 'ipt', 'iam', 'idw', 'catpart', 'catproduct', 'catdrawing', 'prt', 'asm', 'par', 'psm', 'x_t', 'x_b', 'f3d', '3dm', 'dwg', 'skp'];
+
     /** @var array<string, string> */
-    private const LABELS = ['blueprint' => 'Blueprint', 'image' => 'Image', 'model' => '3D model'];
+    private const LABELS = ['blueprint' => 'Blueprint', 'drawing' => '2D drawing', 'image' => 'Image', 'model' => '3D model'];
 
     public function store(Request $request, Material $material, string $slot, FileStore $store): RedirectResponse
     {
         $accepted = self::ACCEPTED[$slot];
-        // 3D models have no reliable content type, so those go by extension only.
-        $rules = $slot === 'model'
+        $this->refuseNativeCad($request->file('file'), $slot);
+        $rules = in_array($slot, self::BY_EXTENSION, true)
             ? ['required', 'file', 'extensions:'.implode(',', $accepted)]
             : ['required', 'file', 'extensions:'.implode(',', $accepted), 'mimes:'.implode(',', $accepted)];
 
@@ -76,5 +86,22 @@ class MaterialFileController extends Controller
         if ($external->isNotEmpty()) {
             throw ValidationException::withMessages(['file' => 'This .gltf model uses separate files ('.$external->take(3)->join(', ').'). Upload it as a single .glb, or export the .gltf with embedded data.']);
         }
+    }
+
+    /**
+     * Native CAD files (SolidWorks, Inventor, CATIA, DWG…) get a message
+     * saying which neutral format to export instead of a bare type error.
+     */
+    private function refuseNativeCad(mixed $upload, string $slot): void
+    {
+        if (! $upload instanceof UploadedFile || ! in_array(strtolower($upload->getClientOriginalExtension()), self::NATIVE_CAD, true)) {
+            return;
+        }
+
+        $export = strtolower($upload->getClientOriginalExtension()) === 'dwg' || $slot === 'drawing'
+            ? 'a DXF for the 2D view'
+            : 'a STEP (.step) or IGES file for the 3D view';
+
+        throw ValidationException::withMessages(['file' => "“{$upload->getClientOriginalName()}” is a native CAD file, which browsers can’t display. Export it from your CAD program as {$export}."]);
     }
 }

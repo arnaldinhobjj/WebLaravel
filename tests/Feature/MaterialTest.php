@@ -51,7 +51,7 @@ class MaterialTest extends TestCase
         $this->get(route('materials.show', $material))
             ->assertOk()
             ->assertSee('ASTM A516 Gr.70')
-            ->assertSee(['Blueprint', '3D', 'Image'])
+            ->assertSeeInOrder(['Blueprint', '2D', '3D', 'Image'])
             ->assertSee(['Checks passed', 'Yield strength (avg)', 'Absorbed energy (avg)', 'Carbon equivalent CE (IIW)'])
             ->assertSee(['Composition and chemical analysis', '0.790–1.300'])
             ->assertSee(['T-SPECIMEN', 'C-SPECIMEN'])
@@ -118,6 +118,39 @@ class MaterialTest extends TestCase
         $this->post(route('materials.files.store', [$material, 'model']), ['file' => UploadedFile::fake()->createWithContent('part.gltf', $gltf([['uri' => 'data:application/octet-stream;base64,AAAA', 'byteLength' => 3]]))])
             ->assertSessionHasNoErrors();
         $this->assertSame('part.gltf', $material->refresh()->modelFile->name);
+    }
+
+    public function test_cad_models_and_dxf_drawings_go_in_their_own_views(): void
+    {
+        $this->actingAs(User::factory()->withPermissions('materials.view', 'materials.edit')->create());
+        $material = Material::factory()->create();
+
+        $this->post(route('materials.files.store', [$material, 'model']), ['file' => UploadedFile::fake()->createWithContent('flange.STEP', "ISO-10303-21;\nHEADER;\nENDSEC;\n")])
+            ->assertSessionHasNoErrors();
+        $this->post(route('materials.files.store', [$material, 'drawing']), ['file' => UploadedFile::fake()->createWithContent('flange.dxf', "0\nSECTION\n2\nENTITIES\n0\nENDSEC\n0\nEOF\n")])
+            ->assertRedirect(route('materials.show', ['material' => $material, 'view' => 'drawing']));
+
+        $material->refresh();
+        $this->assertSame('flange.STEP', $material->modelFile->name);
+        $this->assertSame('flange.dxf', $material->drawingFile->name);
+        $this->get(route('materials.show', $material))
+            ->assertSee('data-model-format="step" data-model-kind="3d"', false)
+            ->assertSee('data-model-format="dxf" data-model-kind="2d"', false);
+    }
+
+    public function test_native_cad_files_are_refused_with_what_to_export_instead(): void
+    {
+        $this->actingAs(User::factory()->withPermissions('materials.view', 'materials.edit')->create());
+        $material = Material::factory()->create();
+
+        $this->post(route('materials.files.store', [$material, 'model']), ['file' => UploadedFile::fake()->createWithContent('bracket.SLDPRT', 'binary')])
+            ->assertSessionHasErrors(['file' => '“bracket.SLDPRT” is a native CAD file, which browsers can’t display. Export it from your CAD program as a STEP (.step) or IGES file for the 3D view.']);
+        $this->post(route('materials.files.store', [$material, 'drawing']), ['file' => UploadedFile::fake()->createWithContent('layout.dwg', 'binary')])
+            ->assertSessionHasErrors(['file' => '“layout.dwg” is a native CAD file, which browsers can’t display. Export it from your CAD program as a DXF for the 2D view.']);
+
+        $this->assertNull($material->refresh()->model_file_id);
+        $this->assertNull($material->drawing_file_id);
+        $this->assertSame(0, StoredFile::count());
     }
 
     public function test_uploads_must_match_their_slot(): void
