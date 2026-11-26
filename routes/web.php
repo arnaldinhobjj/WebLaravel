@@ -17,6 +17,8 @@ use App\Http\Controllers\FileController;
 use App\Http\Controllers\FileSettingsController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LoginController;
+use App\Http\Controllers\MaterialController;
+use App\Http\Controllers\MaterialFileController;
 use App\Http\Controllers\PersonController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\SharedActionController;
@@ -142,6 +144,14 @@ Route::middleware('auth')->group(function () {
         ->whereIn('type', array_keys(Attachables::TYPES))->where('id', '[a-z0-9_-]{1,100}')->name('attachments.store');
     Route::get('/files/settings', [FileSettingsController::class, 'edit'])->middleware('can:file_settings.view')->name('file-settings.edit');
     Route::put('/files/settings', [FileSettingsController::class, 'update'])->middleware('can:file_settings.edit')->name('file-settings.update');
+
+    // Materials: composition, chemical, tensile and Charpy results, with the part's blueprint, photo and 3D model.
+    Route::prefix('materials')->name('materials.')->group(function () {
+        Route::get('/', [MaterialController::class, 'index'])->middleware('can:materials.view')->name('index');
+        Route::get('/{material}', [MaterialController::class, 'show'])->whereNumber('material')->middleware('can:materials.view')->name('show');
+        Route::post('/{material}/files/{slot}', [MaterialFileController::class, 'store'])
+            ->whereNumber('material')->whereIn('slot', ['blueprint', 'image', 'model'])->middleware('can:materials.edit')->name('files.store');
+    });
 
     // Tags page: tags, departments and people, for those allowed to manage them.
     Route::prefix('tags')->group(function () {

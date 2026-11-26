@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\EmailTemplate;
+use App\Models\Material;
 use App\Models\StoredFile;
 use App\Models\Ticket;
 use App\Models\TicketActivity;
@@ -27,6 +28,7 @@ class Attachables
         'ticket_reply' => 'Ticket reply',
         'email_template' => 'Email template',
         'shared_action' => 'Shared action',
+        'material' => 'Material',
     ];
 
     /**
@@ -39,6 +41,7 @@ class Attachables
             'ticket_reply' => ctype_digit($id) ? TicketActivity::where('type', 'comment')->find((int) $id) : null,
             'email_template' => ctype_digit($id) ? EmailTemplate::find((int) $id) : null,
             'shared_action' => app(WorkflowRepository::class)->sharedFilePath($id) !== null ? $id : null,
+            'material' => ctype_digit($id) ? Material::find((int) $id) : null,
             default => null,
         };
     }
@@ -52,6 +55,7 @@ class Attachables
             'ticket_reply' => $person->can('tickets.view') && $record->ticket !== null && $record->ticket->isVisibleTo($person),
             'email_template' => $person->can('email_templates.view'),
             'shared_action' => $person->can('shared_actions.view'),
+            'material' => $person->can('materials.view'),
         };
     }
 
@@ -65,6 +69,7 @@ class Attachables
             'ticket' => $person->can('tickets.reply'),
             'email_template' => $person->can('email_templates.edit'),
             'shared_action' => $person->can('shared_actions.edit'),
+            'material' => $person->can('materials.edit'),
             default => false,
         };
     }
@@ -85,6 +90,7 @@ class Attachables
             'ticket', 'ticket_reply' => $person->can('tickets.edit'),
             'email_template' => $person->can('email_templates.edit'),
             'shared_action' => $person->can('shared_actions.edit'),
+            'material' => $person->can('materials.edit'),
             default => false,
         };
     }
@@ -99,6 +105,7 @@ class Attachables
             'ticket_reply' => ($reply = self::find($type, $id)) ? route('tickets.show', $reply->ticket_id).'#reply-'.$id : route('tickets.index'),
             'email_template' => route('email-templates.edit', (int) $id),
             'shared_action' => route('actions.shared.show', $id),
+            'material' => route('materials.show', (int) $id),
             default => route('dashboard'),
         };
     }
