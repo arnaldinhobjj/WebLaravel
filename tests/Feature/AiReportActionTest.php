@@ -254,6 +254,23 @@ class AiReportActionTest extends TestCase
         $this->assertFalse($task->fresh()->isActive());
     }
 
+    public function test_two_reports_with_the_same_title_in_the_same_minute_get_their_own_files(): void
+    {
+        $this->connection();
+        $this->travelTo(now()->startOfMinute());
+        Http::fakeSequence('localhost:11434/*')
+            ->push(['choices' => [['message' => ['content' => '# First']]]])
+            ->push(['choices' => [['message' => ['content' => '# Second']]]]);
+
+        $this->runReport(self::REPORT);
+        $this->runReport(self::REPORT);
+
+        [$first, $second] = AiTask::orderBy('id')->get()->all();
+        $this->assertNotSame($first->file_id, $second->file_id);
+        $this->assertSame('# First', Storage::disk('files')->get(StoredFile::findOrFail($first->file_id)->currentVersion->path));
+        $this->assertSame('# Second', Storage::disk('files')->get(StoredFile::findOrFail($second->file_id)->currentVersion->path));
+    }
+
     public function test_shared_actions_need_someone_pressing_run(): void
     {
         $this->connection();

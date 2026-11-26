@@ -264,7 +264,8 @@ class RunAiTask implements ShouldQueue
     private function save(AiTask $task, string $report, FileStore $files): void
     {
         $folder = Folder::personalRootFor($task->user);
-        $name = Str::limit(trim((string) preg_replace('/[\\\\\/:*?"<>|\x00-\x1F]+/', ' ', $task->title)), 80, '').' '.now()->format('Y-m-d H.i').'.md';
+        // The task number keeps each report its own file: the same name would add a version instead.
+        $name = Str::limit(trim((string) preg_replace('/[\\\\\/:*?"<>|\x00-\x1F]+/', ' ', $task->title)), 80, '').' '.now()->format('Y-m-d H.i')." (report {$task->id}).md";
         $temporary = (string) tempnam(sys_get_temp_dir(), 'fortvale-ai-');
         file_put_contents($temporary, $report);
 
