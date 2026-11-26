@@ -129,6 +129,8 @@
             const { body } = await post(chat.dataset.taskCancelUrl, {});
             // Say so at once; the next poll unlocks the chat when the server has finished.
             if (body?.badge?.status === 'stopping') noteText.textContent = 'Stopping… finishing what the AI was doing.';
+            // Not stopped (e.g. the request failed): let the person try again.
+            else if (body?.badge?.status !== 'cancelled') stopTask.disabled = false;
         });
 
         for (;;) {

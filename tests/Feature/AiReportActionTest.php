@@ -18,8 +18,10 @@ use App\Services\Workflows\HostResolver;
 use App\Services\Workflows\Workflow;
 use App\Services\Workflows\WorkflowParser;
 use App\Services\Workflows\WorkflowRunner;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
@@ -274,6 +276,26 @@ class AiReportActionTest extends TestCase
         $this->assertNotSame($first->file_id, $second->file_id);
         $this->assertSame('# First', Storage::disk('files')->get(StoredFile::findOrFail($first->file_id)->currentVersion->path));
         $this->assertSame('# Second', Storage::disk('files')->get(StoredFile::findOrFail($second->file_id)->currentVersion->path));
+    }
+
+    public function test_stop_still_works_when_a_waiting_report_starts_in_between(): void
+    {
+        Queue::fake();
+        $this->connection();
+        $this->runReport(self::REPORT);
+        $task = AiTask::sole();
+
+        // The worker picks the task up right after Stop's first update (which looked for a running task).
+        $started = false;
+        DB::listen(function (QueryExecuted $query) use ($task, &$started): void {
+            if (! $started && str_contains($query->sql, 'update') && str_contains($query->sql, 'ai_tasks') && in_array(AiTask::WORKING, $query->bindings, true)) {
+                $started = true;
+                AiTask::whereKey($task->id)->update(['status' => AiTask::WORKING]);
+            }
+        });
+
+        $this->actingAs($this->alex)->postJson(route('ai.tasks.cancel', $task))->assertOk()->assertJsonPath('badge.status', AiTask::STOPPING);
+        $this->assertTrue($started);
     }
 
     public function test_shared_actions_need_someone_pressing_run(): void

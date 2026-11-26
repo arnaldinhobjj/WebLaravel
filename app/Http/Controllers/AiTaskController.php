@@ -93,14 +93,20 @@ class AiTaskController extends Controller
      */
     private function stop(AiTask $task): void
     {
-        if (AiTask::whereKey($task->id)->where('status', AiTask::WORKING)->update(['status' => AiTask::STOPPING]) > 0) {
-            return;
-        }
+        // Twice: a waiting task can start between the two updates, and the
+        // second round then catches it as running. (It can't go back.)
+        for ($round = 0; $round < 2; $round++) {
+            if (AiTask::whereKey($task->id)->where('status', AiTask::WORKING)->update(['status' => AiTask::STOPPING]) > 0) {
+                return;
+            }
 
-        $cancelled = AiTask::whereKey($task->id)->where('status', AiTask::QUEUED)
-            ->update(['status' => AiTask::CANCELLED, 'error' => 'Stopped.', 'finished_at' => now()]);
-        if ($cancelled > 0) {
-            RunAiTask::startNext($task->user_id);
+            $cancelled = AiTask::whereKey($task->id)->where('status', AiTask::QUEUED)
+                ->update(['status' => AiTask::CANCELLED, 'error' => 'Stopped.', 'finished_at' => now()]);
+            if ($cancelled > 0) {
+                RunAiTask::startNext($task->user_id);
+
+                return;
+            }
         }
     }
 
