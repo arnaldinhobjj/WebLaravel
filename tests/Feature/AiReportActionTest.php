@@ -298,6 +298,31 @@ class AiReportActionTest extends TestCase
         $this->assertTrue($started);
     }
 
+    public function test_a_report_whose_worker_died_is_ended_when_the_queue_retries_it(): void
+    {
+        Queue::fake();
+        $this->connection();
+        $this->runReport(self::REPORT, ['report' => 'First']);
+        $this->runReport(self::REPORT, ['report' => 'Second']);
+        $this->runReport(self::REPORT, ['report' => 'Third']);
+        [$first, $second, $third] = AiTask::orderBy('id')->get()->all();
+
+        // The worker running "First" was killed: no failed(), the task is left working.
+        $first->update(['status' => AiTask::WORKING]);
+        app()->call([new RunAiTask($first->fresh()), 'handle']);
+
+        $this->assertSame(AiTask::FAILED, $first->fresh()->status);
+        $this->assertStringContainsString('interrupted', $first->fresh()->error);
+        Queue::assertPushed(RunAiTask::class, fn (RunAiTask $job): bool => $job->task->is($second));
+
+        // Killed while stopping: it ends as stopped.
+        $second->update(['status' => AiTask::STOPPING]);
+        app()->call([new RunAiTask($second->fresh()), 'handle']);
+
+        $this->assertSame(AiTask::CANCELLED, $second->fresh()->status);
+        Queue::assertPushed(RunAiTask::class, fn (RunAiTask $job): bool => $job->task->is($third));
+    }
+
     public function test_shared_actions_need_someone_pressing_run(): void
     {
         $this->connection();

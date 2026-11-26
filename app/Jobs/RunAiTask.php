@@ -63,7 +63,12 @@ class RunAiTask implements ShouldQueue
         $started = AiTask::whereKey($this->task->id)->where('status', AiTask::QUEUED)
             ->update(['status' => AiTask::WORKING, 'started_at' => now()]);
         $task = $this->task->fresh();
-        if ($started === 0 || $task === null) {
+        if ($task === null) {
+            return;
+        }
+        if ($started === 0) {
+            $this->recoverInterrupted($task);
+
             return;
         }
 
@@ -105,6 +110,26 @@ class RunAiTask implements ShouldQueue
             $this->task->update(['status' => AiTask::FAILED, 'error' => 'The AI took too long or the job stopped.', 'finished_at' => now()]);
         }
         self::startNext($this->task->user_id);
+    }
+
+    /**
+     * The job came back (the queue redelivers a job whose worker was killed)
+     * and finds its task still running. Every AI task job of this person
+     * holds their lock (see middleware()), so no other attempt is running:
+     * the one that set it running died without reaching failed(). End the
+     * task so its chat unlocks and the person's next task can start.
+     */
+    private function recoverInterrupted(AiTask $task): void
+    {
+        if ($task->status === AiTask::STOPPING) {
+            $this->markStopped($task);
+        } elseif ($task->status === AiTask::WORKING) {
+            $task->update(['status' => AiTask::FAILED, 'error' => 'The report was interrupted (the queue worker stopped). Run it again.', 'finished_at' => now()]);
+        } else {
+            return;
+        }
+
+        self::startNext($task->user_id);
     }
 
     /**
