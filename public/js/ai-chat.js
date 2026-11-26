@@ -145,7 +145,9 @@
                     render(message);
                 }
                 if (body.status === 'working') noteText.textContent = 'Your AI is working on this report… You can watch here; when it’s done, it’s saved in My files and you can carry on chatting.';
-                if (body.status !== 'queued' && body.status !== 'working') {
+                // Stopping: the server is still writing its last messages, so chatting stays paused.
+                if (body.status === 'stopping') noteText.textContent = 'Stopping… finishing what the AI was doing.';
+                if (!['queued', 'working', 'stopping'].includes(body.status)) {
                     finishTask(note, noteText, stopTask, body);
                     return;
                 }

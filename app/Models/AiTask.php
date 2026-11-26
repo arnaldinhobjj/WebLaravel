@@ -20,6 +20,9 @@ class AiTask extends Model
 
     public const WORKING = 'working';
 
+    /** Stop was pressed while it ran: the job finishes writing the chat, then marks it cancelled. */
+    public const STOPPING = 'stopping';
+
     public const DONE = 'done';
 
     public const FAILED = 'failed';
@@ -70,7 +73,7 @@ class AiTask extends Model
 
     public function isActive(): bool
     {
-        return in_array($this->status, [self::QUEUED, self::WORKING], true);
+        return in_array($this->status, [self::QUEUED, self::WORKING, self::STOPPING], true);
     }
 
     /**

@@ -69,7 +69,9 @@ class RunAiTask implements ShouldQueue
         try {
             $report = $this->converse($task, $ai, $skills);
 
-            if ($task->fresh()?->status === AiTask::CANCELLED) {
+            if ($this->stopRequested($task)) {
+                $this->markStopped($task);
+
                 return;
             }
 
@@ -78,7 +80,9 @@ class RunAiTask implements ShouldQueue
             if (! $failure instanceof RuntimeException) {
                 report($failure);
             }
-            if ($task->fresh()?->status === AiTask::CANCELLED) {
+            if ($this->stopRequested($task)) {
+                $this->markStopped($task);
+
                 return;
             }
             $task->update(['status' => AiTask::FAILED, 'error' => Str::limit($failure->getMessage(), 500), 'finished_at' => now()]);
@@ -94,10 +98,28 @@ class RunAiTask implements ShouldQueue
     public function failed(?Throwable $failure): void
     {
         $this->task->refresh();
-        if ($this->task->isActive()) {
+        if ($this->task->status === AiTask::STOPPING) {
+            $this->markStopped($this->task);
+        } elseif ($this->task->isActive()) {
             $this->task->update(['status' => AiTask::FAILED, 'error' => 'The AI took too long or the job stopped.', 'finished_at' => now()]);
         }
         self::startNext($this->task->user_id);
+    }
+
+    /**
+     * Whether Stop was pressed (the task is stopping, or was cancelled while waiting).
+     */
+    private function stopRequested(AiTask $task): bool
+    {
+        return in_array($task->fresh()?->status, [AiTask::STOPPING, AiTask::CANCELLED], true);
+    }
+
+    /**
+     * Everything is written: now the chat on /ai can be used again.
+     */
+    private function markStopped(AiTask $task): void
+    {
+        $task->update(['status' => AiTask::CANCELLED, 'error' => 'Stopped.', 'finished_at' => now()]);
     }
 
     /**
@@ -107,7 +129,7 @@ class RunAiTask implements ShouldQueue
     public static function startOrWait(AiTask $task): void
     {
         $earlier = AiTask::where('user_id', $task->user_id)
-            ->whereIn('status', [AiTask::QUEUED, AiTask::WORKING])
+            ->whereIn('status', [AiTask::QUEUED, AiTask::WORKING, AiTask::STOPPING])
             ->where('id', '<', $task->id)
             ->exists();
 
@@ -122,7 +144,7 @@ class RunAiTask implements ShouldQueue
      */
     public static function startNext(int $userId): void
     {
-        if (AiTask::where('user_id', $userId)->where('status', AiTask::WORKING)->exists()) {
+        if (AiTask::where('user_id', $userId)->whereIn('status', [AiTask::WORKING, AiTask::STOPPING])->exists()) {
             return;
         }
 
@@ -169,7 +191,7 @@ class RunAiTask implements ShouldQueue
             }
 
             foreach ($reply['calls'] as $index => $call) {
-                if ($task->fresh()?->status === AiTask::CANCELLED) {
+                if ($this->stopRequested($task)) {
                     // Every skill call needs a result, or the chat can't be continued on /ai.
                     foreach (array_slice($reply['calls'], $index) as $skipped) {
                         $this->keep($conversation->id, null, [

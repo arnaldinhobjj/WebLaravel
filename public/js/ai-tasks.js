@@ -13,7 +13,7 @@
     const count = root.querySelector('[data-ai-tasks-count]');
     const csrf = document.querySelector('meta[name="csrf-token"]').content;
     const STORE = 'fv.aiTasks';
-    const ACTIVE = ['queued', 'working'];
+    const ACTIVE = ['queued', 'working', 'stopping'];
 
     let tasks = JSON.parse(root.querySelector('[data-ai-tasks-initial]')?.textContent || '[]');
     let timer = null;
@@ -53,6 +53,7 @@
         state.textContent = {
             queued: 'Waiting…',
             working: 'Working…',
+            stopping: 'Stopping…',
             done: 'Report ready',
             failed: 'Report failed',
             cancelled: 'Stopped',

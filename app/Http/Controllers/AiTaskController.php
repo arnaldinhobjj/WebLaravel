@@ -83,17 +83,20 @@ class AiTaskController extends Controller
     }
 
     /**
-     * A running task's job notices at its next step and starts the next task
-     * itself when it ends; a waiting one is simply skipped.
+     * A running task becomes "stopping": its job notices at its next step,
+     * finishes writing the chat (so /ai stays locked until then), marks it
+     * cancelled and starts the next task. A waiting one is cancelled at once.
      */
     private function stop(AiTask $task): void
     {
-        $wasWorking = $task->status === AiTask::WORKING;
-        $task->update(['status' => AiTask::CANCELLED, 'error' => 'Stopped.', 'finished_at' => now()]);
+        if ($task->status !== AiTask::QUEUED) {
+            $task->update(['status' => AiTask::STOPPING]);
 
-        if (! $wasWorking) {
-            RunAiTask::startNext($task->user_id);
+            return;
         }
+
+        $task->update(['status' => AiTask::CANCELLED, 'error' => 'Stopped.', 'finished_at' => now()]);
+        RunAiTask::startNext($task->user_id);
     }
 
     private function own(AiTask $task): void

@@ -194,7 +194,7 @@ class AiReportActionTest extends TestCase
         $this->connection();
         Http::fake(['localhost:11434/*' => function () {
             // The person presses Stop while the AI is answering with two skill calls.
-            AiTask::query()->update(['status' => AiTask::CANCELLED]);
+            AiTask::query()->update(['status' => AiTask::STOPPING]);
 
             return Http::response(['choices' => [['message' => ['content' => '', 'tool_calls' => [
                 ['id' => 'call_1', 'type' => 'function', 'function' => ['name' => 'tickets_search', 'arguments' => '{}']],
@@ -211,6 +211,27 @@ class AiReportActionTest extends TestCase
         $results = $task->conversation->messages->where('role', 'tool')->values();
         $this->assertSame(['call_1', 'call_2'], $results->pluck('meta.call_id')->all());
         $this->assertSame([false, false], $results->pluck('meta.ok')->all());
+    }
+
+    public function test_stopping_a_running_report_keeps_the_chat_locked_until_the_job_has_finished(): void
+    {
+        Queue::fake();
+        $this->connection();
+        $this->runReport(self::REPORT, ['report' => 'First']);
+        $this->runReport(self::REPORT, ['report' => 'Second']);
+        [$running, $waiting] = AiTask::orderBy('id')->get()->all();
+        $running->update(['status' => AiTask::WORKING]);
+
+        // Still active ("Stopping…"), so /ai keeps polling and the next task waits.
+        $this->actingAs($this->alex)->postJson(route('ai.tasks.cancel', $running))->assertOk()->assertJsonPath('badge.status', AiTask::STOPPING);
+        $this->assertTrue($running->fresh()->isActive());
+        $this->assertSame(AiTask::QUEUED, $waiting->fresh()->status);
+        Queue::assertPushed(RunAiTask::class, 1);
+
+        // The job's failure handler (or its normal end) finishes the stop and starts the next one.
+        (new RunAiTask($running->fresh()))->failed(null);
+        $this->assertSame(AiTask::CANCELLED, $running->fresh()->status);
+        Queue::assertPushed(RunAiTask::class, fn (RunAiTask $job): bool => $job->task->is($waiting));
     }
 
     public function test_shared_actions_need_someone_pressing_run(): void
