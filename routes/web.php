@@ -25,6 +25,7 @@ use App\Http\Controllers\SharedActionController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\TicketController;
 use App\Http\Middleware\EnsureCurrentUser;
+use App\Models\Material;
 use App\Support\Attachables;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -150,7 +151,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/', [MaterialController::class, 'index'])->middleware('can:materials.view')->name('index');
         Route::get('/{material}', [MaterialController::class, 'show'])->whereNumber('material')->middleware('can:materials.view')->name('show');
         Route::post('/{material}/files/{slot}', [MaterialFileController::class, 'store'])
-            ->whereNumber('material')->whereIn('slot', ['blueprint', 'image', 'model'])->middleware('can:materials.edit')->name('files.store');
+            ->whereNumber('material')->whereIn('slot', array_keys(Material::FILE_SLOTS))->middleware('can:materials.edit')->name('files.store');
     });
 
     // Tags page: tags, departments and people, for those allowed to manage them.

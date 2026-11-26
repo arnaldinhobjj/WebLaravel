@@ -26,7 +26,7 @@ class MaterialController extends Controller
     {
         $material->load([
             'elements', 'tensileTests', 'charpyTests',
-            'blueprintFile.currentVersion', 'imageFile.currentVersion', 'modelFile.currentVersion',
+            'blueprintFile.currentVersion', 'drawingFile.currentVersion', 'imageFile.currentVersion', 'modelFile.currentVersion',
         ]);
 
         return view('materials.show', [

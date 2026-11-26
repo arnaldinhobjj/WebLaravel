@@ -187,6 +187,9 @@
     @case('blueprint')
         <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9M13 13h4M13 17h4"/>
         @break
+    @case('drawing')
+        <path d="M3 21h18M5 17 9 7l4 6 3-4 3 8"/><circle cx="9" cy="7" r="1.5"/>
+        @break
     @case('image')
         <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/>
         @break

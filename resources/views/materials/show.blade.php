@@ -20,9 +20,10 @@
         : ($min === null || $value >= $min) && ($max === null || $value <= $max);
 
     $slots = [
-        'blueprint' => ['label' => 'Blueprint', 'icon' => 'blueprint', 'file' => $material->blueprintFile, 'accept' => '.png,.jpg,.jpeg,.webp,.pdf', 'hint' => 'PNG, JPG, WebP or PDF'],
-        'model' => ['label' => '3D', 'icon' => 'cube', 'file' => $material->modelFile, 'accept' => '.glb,.gltf,.stl', 'hint' => 'GLB, STL, or glTF with embedded data'],
-        'image' => ['label' => 'Image', 'icon' => 'image', 'file' => $material->imageFile, 'accept' => '.png,.jpg,.jpeg,.webp', 'hint' => 'PNG, JPG or WebP'],
+        'blueprint' => ['label' => 'Blueprint', 'noun' => 'blueprint', 'icon' => 'blueprint', 'file' => $material->blueprintFile, 'accept' => '.png,.jpg,.jpeg,.webp,.pdf', 'hint' => 'PNG, JPG, WebP or PDF'],
+        'drawing' => ['label' => '2D', 'noun' => '2D drawing', 'icon' => 'drawing', 'file' => $material->drawingFile, 'accept' => '.dxf', 'hint' => 'DXF (export DWG drawings as DXF)'],
+        'model' => ['label' => '3D', 'noun' => '3D model', 'icon' => 'cube', 'file' => $material->modelFile, 'accept' => '.step,.stp,.iges,.igs,.glb,.gltf,.stl,.obj,.3mf,.ply', 'hint' => 'STEP, IGES, GLB, STL, OBJ, 3MF, PLY, or glTF with embedded data'],
+        'image' => ['label' => 'Image', 'noun' => 'image', 'icon' => 'image', 'file' => $material->imageFile, 'accept' => '.png,.jpg,.jpeg,.webp', 'hint' => 'PNG, JPG or WebP'],
     ];
     $activeSlot = array_key_exists((string) request('view'), $slots) ? request('view') : 'blueprint';
     $canUpload = auth()->user()->can('materials.edit');
@@ -72,11 +73,11 @@
                     @if ($file === null)
                         <div class="viewer-empty">
                             <x-icon :name="$info['icon']" :size="32" />
-                            <p>No {{ $slot === 'model' ? '3D model' : strtolower($info['label']) }} yet.</p>
+                            <p>No {{ $info['noun'] }} yet.</p>
                         </div>
-                    @elseif ($slot === 'model')
-                        <div class="viewer-3d" data-model-url="{{ $url }}" data-model-format="{{ strtolower(pathinfo($file->name, PATHINFO_EXTENSION)) }}">
-                            <p class="viewer-3d-status muted" data-model-status>Loading 3D model…</p>
+                    @elseif ($slot === 'model' || $slot === 'drawing')
+                        <div class="viewer-3d" data-model-url="{{ $url }}" data-model-format="{{ strtolower(pathinfo($file->name, PATHINFO_EXTENSION)) }}" data-model-kind="{{ $slot === 'drawing' ? '2d' : '3d' }}">
+                            <p class="viewer-3d-status muted" data-model-status>Loading {{ $info['noun'] }}…</p>
                         </div>
                     @elseif ($mime === 'application/pdf')
                         <object data="{{ $url }}" type="application/pdf" class="viewer-pdf" aria-label="{{ $file->name }}">
@@ -97,7 +98,7 @@
                             @csrf
                             <x-icon name="plus" :size="16" />
                             <label>
-                                <span>Drop a file or <u>choose one</u> to {{ $file ? 'replace' : 'add' }} the {{ $slot === 'model' ? '3D model' : strtolower($info['label']) }}</span>
+                                <span>Drop a file or <u>choose one</u> to {{ $file ? 'replace' : 'add' }} the {{ $info['noun'] }}</span>
                                 <input type="file" name="file" accept="{{ $info['accept'] }}" class="sr-only" data-drop-input>
                             </label>
                             <small class="muted">{{ $info['hint'] }}</small>
