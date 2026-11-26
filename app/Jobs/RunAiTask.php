@@ -91,7 +91,7 @@ class RunAiTask implements ShouldQueue
 
                 return;
             }
-            $task->update(['status' => AiTask::FAILED, 'error' => Str::limit($failure->getMessage(), 500), 'finished_at' => now()]);
+            $this->markFailed($task, Str::limit($failure->getMessage(), 500));
         } finally {
             self::startNext($task->user_id);
         }
@@ -107,7 +107,7 @@ class RunAiTask implements ShouldQueue
         if ($this->task->status === AiTask::STOPPING) {
             $this->markStopped($this->task);
         } elseif ($this->task->isActive()) {
-            $this->task->update(['status' => AiTask::FAILED, 'error' => 'The AI took too long or the job stopped.', 'finished_at' => now()]);
+            $this->markFailed($this->task, 'The AI took too long or the job stopped.');
         }
         self::startNext($this->task->user_id);
     }
@@ -124,7 +124,7 @@ class RunAiTask implements ShouldQueue
         if ($task->status === AiTask::STOPPING) {
             $this->markStopped($task);
         } elseif ($task->status === AiTask::WORKING) {
-            $task->update(['status' => AiTask::FAILED, 'error' => 'The report was interrupted (the queue worker stopped). Run it again.', 'finished_at' => now()]);
+            $this->markFailed($task, 'The report was interrupted (the queue worker stopped). Run it again.');
         } else {
             return;
         }
@@ -145,7 +145,46 @@ class RunAiTask implements ShouldQueue
      */
     private function markStopped(AiTask $task): void
     {
+        $this->answerOutstandingCalls($task, 'Stopped before this skill ran.');
         $task->update(['status' => AiTask::CANCELLED, 'error' => 'Stopped.', 'finished_at' => now()]);
+    }
+
+    private function markFailed(AiTask $task, string $error): void
+    {
+        $this->answerOutstandingCalls($task, 'Not run: the report failed.');
+        $task->update(['status' => AiTask::FAILED, 'error' => $error, 'finished_at' => now()]);
+    }
+
+    /**
+     * Saves a result for every skill call in the chat that has none yet (the
+     * task ended part-way through a batch: stopped, failed or interrupted).
+     * Every call needs a result, or AIs reject the chat when it is continued
+     * on /ai.
+     */
+    private function answerOutstandingCalls(AiTask $task, string $summary): void
+    {
+        if ($task->conversation_id === null) {
+            return;
+        }
+
+        $messages = AiMessage::where('conversation_id', $task->conversation_id)->orderBy('id')->get();
+        $answered = $messages->where('role', 'tool')->map(fn (AiMessage $message): mixed => $message->meta['call_id'] ?? null)->filter()->all();
+
+        foreach ($messages->where('role', 'assistant') as $message) {
+            foreach ($message->meta['calls'] ?? [] as $call) {
+                if (in_array($call['id'], $answered, true)) {
+                    continue;
+                }
+                $this->keep($task->conversation_id, null, [
+                    'role' => 'tool',
+                    'content' => (string) json_encode(['ok' => false, 'summary' => $summary]),
+                    'name' => $call['name'],
+                    'ok' => false,
+                    'call_id' => $call['id'],
+                    'by' => 'ai',
+                ]);
+            }
+        }
     }
 
     /**
@@ -216,20 +255,9 @@ class RunAiTask implements ShouldQueue
                 return trim($reply['text']) !== '' ? $reply['text'] : throw new RuntimeException('The AI finished without writing a report.');
             }
 
-            foreach ($reply['calls'] as $index => $call) {
+            foreach ($reply['calls'] as $call) {
                 if ($this->stopRequested($task)) {
-                    // Every skill call needs a result, or the chat can't be continued on /ai.
-                    foreach (array_slice($reply['calls'], $index) as $skipped) {
-                        $this->keep($conversation->id, null, [
-                            'role' => 'tool',
-                            'content' => (string) json_encode(['ok' => false, 'summary' => 'Stopped before this skill ran.']),
-                            'name' => $skipped['name'],
-                            'ok' => false,
-                            'call_id' => $skipped['id'],
-                            'by' => 'ai',
-                        ]);
-                    }
-
+                    // handle() then marks it stopped, which answers the calls not run yet.
                     return '';
                 }
 

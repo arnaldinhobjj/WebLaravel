@@ -9,6 +9,7 @@ use App\Models\Action;
 use App\Models\ActionRun;
 use App\Models\AiConnection;
 use App\Models\AiConversation;
+use App\Models\AiMessage;
 use App\Models\AiTask;
 use App\Models\Folder;
 use App\Models\StoredFile;
@@ -307,12 +308,20 @@ class AiReportActionTest extends TestCase
         $this->runReport(self::REPORT, ['report' => 'Third']);
         [$first, $second, $third] = AiTask::orderBy('id')->get()->all();
 
-        // The worker running "First" was killed: no failed(), the task is left working.
+        // The worker running "First" was killed mid-batch: no failed(), the task is left working
+        // and one of the AI's two skill calls has no result.
         $first->update(['status' => AiTask::WORKING]);
+        AiMessage::create(['conversation_id' => $first->conversation_id, 'role' => 'assistant', 'content' => '', 'meta' => ['calls' => [
+            ['id' => 'call_a', 'name' => 'tickets_search', 'input' => []],
+            ['id' => 'call_b', 'name' => 'people_me', 'input' => []],
+        ]]]);
+        AiMessage::create(['conversation_id' => $first->conversation_id, 'role' => 'tool', 'content' => '{"ok":true}', 'meta' => ['call_id' => 'call_a', 'name' => 'tickets_search', 'ok' => true]]);
         app()->call([new RunAiTask($first->fresh()), 'handle']);
 
         $this->assertSame(AiTask::FAILED, $first->fresh()->status);
         $this->assertStringContainsString('interrupted', $first->fresh()->error);
+        // Every call now has exactly one result, so the chat can be continued.
+        $this->assertSame(['call_a', 'call_b'], AiMessage::where('conversation_id', $first->conversation_id)->where('role', 'tool')->orderBy('id')->get()->pluck('meta.call_id')->all());
         Queue::assertPushed(RunAiTask::class, fn (RunAiTask $job): bool => $job->task->is($second));
 
         // Killed while stopping: it ends as stopped.
