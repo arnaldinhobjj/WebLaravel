@@ -38,6 +38,7 @@ class PagePermissions
             'abilities' => ['view', 'create', 'edit', 'delete'],
             'extras' => ['share' => 'Share dashboards with everyone'],
         ],
+        'materials' => ['label' => 'Materials', 'abilities' => ['view', 'edit']],
         'tags' => ['label' => 'Tags', 'abilities' => ['view', 'create', 'edit', 'delete']],
         'departments' => ['label' => 'Departments', 'abilities' => ['view', 'create', 'edit', 'delete']],
         'people' => ['label' => 'People', 'abilities' => ['view', 'create', 'edit']],
@@ -65,6 +66,7 @@ class PagePermissions
         'shared_actions.view', 'shared_actions.run',
         'dashboards.view', 'dashboards.create', 'dashboards.edit', 'dashboards.delete',
         'files.view', 'files.create', 'files.edit',
+        'materials.view',
         'my_files.view', 'my_files.create', 'my_files.edit', 'my_files.delete',
         'ai.chat', 'ai.web',
     ];

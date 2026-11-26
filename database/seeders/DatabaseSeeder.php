@@ -7,6 +7,7 @@ use App\Enums\DashboardWidgetType;
 use App\Enums\WidgetScope;
 use App\Models\Dashboard;
 use App\Models\Department;
+use App\Models\Material;
 use App\Models\Tag;
 use App\Models\Ticket;
 use App\Models\User;
@@ -88,6 +89,7 @@ class DatabaseSeeder extends Seeder
 
         $this->seedAccess($people);
         $this->seedDashboards($people);
+        $this->seedMaterials();
 
         $parser = app(WorkflowParser::class);
         foreach ([self::URGENT_ACTION, self::CAMERA_ACTION, self::WAITING_ACTION] as $yaml) {
@@ -214,5 +216,70 @@ class DatabaseSeeder extends Seeder
         }
 
         $people['Alex Morgan']->tags()->syncWithoutDetaching([$administrator->id]);
+    }
+
+    /**
+     * Four materials with their test results. The S355J2 flange fails its
+     * Charpy minimum, so the out-of-spec state is visible.
+     */
+    private function seedMaterials(): void
+    {
+        $materials = [
+            [
+                'material' => ['code' => 'MAT-1001', 'name' => 'Carbon steel plate', 'part_name' => 'Pressure vessel shell plate, 40 mm', 'grade' => 'ASTM A516 Gr.70', 'heat_number' => 'H24A3317',
+                    'description' => 'Normalised plate for moderate- and lower-temperature pressure vessels.',
+                    'spec_min_yield_mpa' => 260, 'spec_min_uts_mpa' => 485, 'spec_max_uts_mpa' => 620, 'spec_min_elongation_pct' => 21,
+                    'spec_min_charpy_avg_j' => 27, 'spec_min_charpy_single_j' => 20, 'charpy_temperature_c' => -46],
+                'elements' => ['C' => [null, 0.27, 0.19], 'Mn' => [0.79, 1.30, 1.12], 'Si' => [0.13, 0.45, 0.31], 'P' => [null, 0.025, 0.012], 'S' => [null, 0.025, 0.004],
+                    'Cr' => [null, 0.30, 0.05], 'Ni' => [null, 0.40, 0.08], 'Mo' => [null, 0.12, 0.02], 'Cu' => [null, 0.40, 0.11], 'V' => [null, 0.03, 0.004]],
+                'tensile' => [['T1', 'Transverse', 342, 538, 27.5, 64.0], ['T2', 'Transverse', 351, 545, 26.0, 62.5], ['T3', 'Longitudinal', 358, 549, 28.5, 66.0]],
+                'charpy' => [['C1', -46, 112, 1.21, 55], ['C2', -46, 98, 1.08, 50], ['C3', -46, 125, 1.33, 60]],
+            ],
+            [
+                'material' => ['code' => 'MAT-1002', 'name' => 'Line pipe steel', 'part_name' => 'Seamless pipe, 12" sch 80', 'grade' => 'API 5L X65 PSL2', 'heat_number' => 'H24B0581',
+                    'description' => 'Quenched and tempered line pipe for sour service.',
+                    'spec_min_yield_mpa' => 450, 'spec_min_uts_mpa' => 535, 'spec_max_uts_mpa' => 760, 'spec_min_elongation_pct' => 18,
+                    'spec_min_charpy_avg_j' => 40, 'spec_min_charpy_single_j' => 30, 'charpy_temperature_c' => -20],
+                'elements' => ['C' => [null, 0.18, 0.08], 'Mn' => [null, 1.70, 1.42], 'Si' => [null, 0.45, 0.24], 'P' => [null, 0.025, 0.010], 'S' => [null, 0.015, 0.002],
+                    'Cr' => [null, 0.50, 0.12], 'Ni' => [null, 0.50, 0.15], 'Mo' => [null, 0.50, 0.10], 'Cu' => [null, 0.50, 0.14], 'V' => [null, 0.10, 0.04], 'Nb' => [null, 0.05, 0.03], 'Ti' => [null, 0.04, 0.015]],
+                'tensile' => [['T1', 'Transverse', 512, 604, 31.0, 74.0], ['T2', 'Transverse', 498, 596, 30.5, 72.5]],
+                'charpy' => [['C1', -20, 236, 1.92, 100], ['C2', -20, 241, 1.98, 100], ['C3', -20, 228, 1.85, 95]],
+            ],
+            [
+                'material' => ['code' => 'MAT-1003', 'name' => 'Structural steel', 'part_name' => 'Weld neck flange, DN200', 'grade' => 'EN 10025-2 S355J2', 'heat_number' => 'H24C1290',
+                    'description' => 'Forged flange; Charpy results below the single-value minimum, held for review.',
+                    'spec_min_yield_mpa' => 355, 'spec_min_uts_mpa' => 470, 'spec_max_uts_mpa' => 630, 'spec_min_elongation_pct' => 20,
+                    'spec_min_charpy_avg_j' => 27, 'spec_min_charpy_single_j' => 19, 'charpy_temperature_c' => -20],
+                'elements' => ['C' => [null, 0.20, 0.18], 'Mn' => [null, 1.60, 1.48], 'Si' => [null, 0.55, 0.38], 'P' => [null, 0.025, 0.021], 'S' => [null, 0.025, 0.011],
+                    'Cu' => [null, 0.55, 0.28], 'Ni' => [null, 0.30, 0.10], 'Cr' => [null, 0.30, 0.09]],
+                'tensile' => [['T1', 'Longitudinal', 372, 528, 23.0, 58.0], ['T2', 'Longitudinal', 366, 521, 22.5, 56.5]],
+                'charpy' => [['C1', -20, 31, 0.42, 20], ['C2', -20, 17, 0.25, 10], ['C3', -20, 34, 0.47, 25]],
+            ],
+            [
+                'material' => ['code' => 'MAT-1004', 'name' => 'Chromium-molybdenum alloy steel', 'part_name' => 'Pump shaft bar, Ø80 mm', 'grade' => 'AISI 4140 QT', 'heat_number' => 'H24D0742',
+                    'description' => 'Quenched and tempered bar for rotating equipment.',
+                    'spec_min_yield_mpa' => 655, 'spec_min_uts_mpa' => 860, 'spec_max_uts_mpa' => 1000, 'spec_min_elongation_pct' => 16,
+                    'spec_min_charpy_avg_j' => 40, 'spec_min_charpy_single_j' => 32, 'charpy_temperature_c' => 20],
+                'elements' => ['C' => [0.38, 0.43, 0.41], 'Mn' => [0.75, 1.00, 0.88], 'Si' => [0.15, 0.35, 0.26], 'P' => [null, 0.035, 0.014], 'S' => [null, 0.040, 0.018],
+                    'Cr' => [0.80, 1.10, 0.97], 'Mo' => [0.15, 0.25, 0.21], 'Ni' => [null, 0.25, 0.09]],
+                'tensile' => [['T1', 'Longitudinal', 712, 905, 19.0, 55.0], ['T2', 'Longitudinal', 698, 892, 18.5, 53.0]],
+                'charpy' => [['C1', 20, 68, 0.71, 45], ['C2', 20, 74, 0.78, 50], ['C3', 20, 62, 0.66, 40]],
+            ],
+        ];
+
+        foreach ($materials as $index => $data) {
+            $material = Material::create($data['material']);
+            $testedAt = Carbon::now()->subWeeks(10 - $index * 2);
+
+            foreach ($data['elements'] as $element => [$min, $max, $measured]) {
+                $material->elements()->create(['element' => $element, 'spec_min_pct' => $min, 'spec_max_pct' => $max, 'measured_pct' => $measured]);
+            }
+            foreach ($data['tensile'] as [$specimen, $orientation, $yield, $uts, $elongation, $reduction]) {
+                $material->tensileTests()->create(['specimen' => $specimen, 'orientation' => $orientation, 'tested_at' => $testedAt, 'yield_mpa' => $yield, 'uts_mpa' => $uts, 'elongation_pct' => $elongation, 'reduction_of_area_pct' => $reduction]);
+            }
+            foreach ($data['charpy'] as [$specimen, $temperature, $energy, $expansion, $shear]) {
+                $material->charpyTests()->create(['specimen' => $specimen, 'notch' => 'V', 'temperature_c' => $temperature, 'energy_j' => $energy, 'lateral_expansion_mm' => $expansion, 'shear_pct' => $shear, 'tested_at' => $testedAt->copy()->addDay()]);
+            }
+        }
     }
 }
