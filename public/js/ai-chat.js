@@ -51,24 +51,57 @@
 
     const scroll = () => { list.scrollTop = list.scrollHeight; };
 
-    // A plain click on a link in an AI reply copies it (a reply can be steered by
-    // pages the AI read, so the person sees and pastes the real address).
-    // Cmd/Ctrl/Shift-click, middle click and the context menu open it as usual
-    // (Alt-click copies too: in the browser it would download the page).
-    const copyLink = async (event) => {
+    // A plain click on a link in an AI reply asks first: a reply can be steered by
+    // pages the AI read, so the person sees the real address and chooses to open
+    // or copy it. Cmd/Ctrl/Shift-click, middle click and the context menu open it
+    // as usual (Alt-click asks too: in the browser it would download the page).
+    let linkDialog = null;
+    const linkWarning = () => {
+        if (linkDialog) return linkDialog;
+        linkDialog = document.createElement('dialog');
+        linkDialog.className = 'dialog link-dialog';
+        linkDialog.setAttribute('aria-labelledby', 'link-dialog-title');
+        linkDialog.innerHTML = `
+            <div class="link-dialog-body">
+                <svg class="link-dialog-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                    <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/>
+                </svg>
+                <p id="link-dialog-title" class="link-dialog-title">You are about to go to an outside website.</p>
+                <p class="link-dialog-url" data-link-url></p>
+            </div>
+            <div class="link-dialog-actions">
+                <button type="button" class="btn btn-primary btn-pill" data-link-go>Go to website</button>
+                <button type="button" class="btn btn-pill" data-link-copy>Copy link</button>
+            </div>`;
+        linkDialog.addEventListener('click', (event) => { if (event.target === linkDialog) linkDialog.close(); });
+        linkDialog.querySelector('[data-link-go]').addEventListener('click', () => {
+            window.open(linkDialog.dataset.href, '_blank', 'noopener,noreferrer');
+            linkDialog.close();
+        });
+        linkDialog.querySelector('[data-link-copy]').addEventListener('click', async () => {
+            // Close first: an open modal sits above the toast and would hide it.
+            linkDialog.close();
+            const say = (message) => window.FortValeToast?.(message, { position: 'top' });
+            try {
+                await navigator.clipboard.writeText(linkDialog.dataset.href);
+                say('Link copied to the clipboard');
+            } catch {
+                say('Couldn’t copy the link');
+            }
+        });
+        document.body.append(linkDialog);
+        return linkDialog;
+    };
+    list.addEventListener('click', (event) => {
         if (event.metaKey || event.ctrlKey || event.shiftKey) return;
         const link = event.target.closest('.is-markdown a[href]');
         if (!link) return;
         event.preventDefault();
-        const say = (message) => window.FortValeToast?.(message, { position: 'top' });
-        try {
-            await navigator.clipboard.writeText(link.getAttribute('href'));
-            say('Link copied to the clipboard');
-        } catch {
-            say('Couldn’t copy the link');
-        }
-    };
-    list.addEventListener('click', copyLink);
+        const dialog = linkWarning();
+        dialog.dataset.href = link.getAttribute('href');
+        dialog.querySelector('[data-link-url]').textContent = link.getAttribute('href');
+        dialog.showModal();
+    });
 
     // The AI's replies are Markdown; what the person typed stays plain text.
     const show = (div, role, text) => {

@@ -14,6 +14,7 @@
     --star: #e2a514;
     --success: #1f8a5b;
     --danger: #c43d3d;
+    --warning: #b7791f;
     --badge: #d6382f;
     --shadow: 0 1px 2px rgba(20, 30, 50, .06), 0 8px 24px rgba(20, 30, 50, .08);
     --radius: 14px;
@@ -41,6 +42,7 @@
         --star: #f2bf3a;
         --success: #4cc38a;
         --danger: #ff7a7a;
+        --warning: #f0b44c;
         --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .35);
         --y-key: #7aa2ff;
         --y-str: #7ee2a8;
@@ -65,6 +67,7 @@
     --star: #f2bf3a;
     --success: #4cc38a;
     --danger: #ff7a7a;
+    --warning: #f0b44c;
     --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .35);
     --y-key: #7aa2ff;
     --y-str: #7ee2a8;
@@ -542,6 +545,14 @@ kbd {
 }
 .dialog::backdrop { background: rgba(10, 15, 25, .45); }
 
+/* "You are about to go to an outside website." (links in AI replies, ai-chat.js) */
+.link-dialog { width: min(380px, calc(100vw - 32px)); }
+.link-dialog-body { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 22px 22px 6px; text-align: center; }
+.link-dialog-icon { color: var(--warning); }
+.link-dialog-title { margin: 0; font-weight: 600; font-size: 15.5px; }
+.link-dialog-url { margin: 0; max-width: 100%; color: var(--text-muted); font-size: 13px; overflow-wrap: anywhere; }
+.link-dialog-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; padding: 14px 22px 20px; }
+
 .dialog-head {
     display: flex;
     align-items: center;
@@ -721,6 +732,7 @@ kbd {
 .btn-success .icon { color: var(--success); }
 .btn-block { width: 100%; justify-content: center; padding: 8px 12px; }
 .btn.is-disabled { opacity: .45; pointer-events: none; }
+.btn-pill { border-radius: 999px; padding: 7px 16px; }
 a.btn { text-decoration: none; color: inherit; }
 a.btn-primary { color: #fff; }
 
