@@ -22,7 +22,7 @@ window.FortValeMarkdown = (() => {
     marked.use({ renderer: { html: ({ text }) => escapeHtml(text) } });
 
     DOMPurify.addHook('afterSanitizeAttributes', (node) => {
-        // Links keep their real address on hover; clicking one copies it (see ai-chat.js).
+        // Links keep their real address on hover; clicking one asks before leaving (see ai-chat.js).
         if (node.tagName === 'A' && node.getAttribute('href')) {
             node.setAttribute('title', node.getAttribute('href'));
         }
