@@ -1219,7 +1219,10 @@ fieldset.card { margin: 0; min-width: 0; }
 .files-main { min-width: 0; display: flex; flex-direction: column; gap: 14px; }
 .breadcrumbs { font-size: 14px; color: var(--text-muted); display: flex; flex-wrap: wrap; gap: 6px; }
 .breadcrumbs a { color: var(--text-muted); }
-.page-head-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.page-head-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+/* File preview and version history: space between the header and the card below it. */
+.page-head + .file-preview, .page-head + .file-history { margin-top: 16px; }
+.file-history td { vertical-align: middle; }
 .files-actions { display: flex; gap: 12px; align-items: stretch; flex-wrap: wrap; }
 .drop-zone { flex: 1; min-width: 240px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 14px 16px; border: 2px dashed var(--border-strong); border-radius: 12px; background: var(--surface); cursor: pointer; }
 .drop-zone label { cursor: pointer; }

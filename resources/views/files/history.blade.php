@@ -16,7 +16,7 @@
         </div>
     </div>
 
-    <div class="card table-scroll">
+    <div class="card table-scroll file-history">
         <table class="access-table">
             <thead><tr><th>Version</th><th>Uploaded</th><th>By</th><th>Size</th><th><span class="sr-only">Actions</span></th></tr></thead>
             <tbody>
