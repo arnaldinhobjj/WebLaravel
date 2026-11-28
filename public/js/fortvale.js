@@ -231,10 +231,10 @@
     });
 
     // Toasts.
-    function toast(message) {
+    function toast(message, { position = 'bottom' } = {}) {
         document.querySelectorAll('[data-toast]').forEach((el) => el.remove());
         const el = document.createElement('div');
-        el.className = 'toast';
+        el.className = position === 'top' ? 'toast toast-top' : 'toast';
         el.setAttribute('role', 'status');
         el.dataset.toast = '';
         el.textContent = message;
@@ -250,6 +250,9 @@
     }
 
     document.querySelectorAll('[data-toast]').forEach(dismissLater);
+
+    // For page scripts (e.g. the AI chat): FortValeToast('Saved', { position: 'top' }).
+    window.FortValeToast = toast;
 })();
 
 /**

@@ -205,6 +205,8 @@
 @endsection
 
 @push('scripts')
+    <script src="{{ asset('vendor/marked/marked.umd.js') }}?v=18.2.0" defer></script>
+    <script src="{{ asset('vendor/dompurify/purify.min.js') }}?v=3.4.17" defer></script>
     <script src="{{ asset('js/markdown.js') }}?v={{ filemtime(public_path('js/markdown.js')) }}" defer></script>
     <script src="{{ asset('js/ai-chat.js') }}?v={{ filemtime(public_path('js/ai-chat.js')) }}" defer></script>
 @endpush
