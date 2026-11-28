@@ -55,6 +55,7 @@
     // pages the AI read, so the person sees the real address and chooses to open
     // or copy it. Cmd/Ctrl/Shift-click, middle click and the context menu open it
     // as usual (Alt-click asks too: in the browser it would download the page).
+    // Email (mailto:) links skip the warning.
     let linkDialog = null;
     const linkWarning = () => {
         if (linkDialog) return linkDialog;
@@ -96,7 +97,7 @@
     list.addEventListener('click', (event) => {
         if (event.metaKey || event.ctrlKey || event.shiftKey) return;
         const link = event.target.closest('.is-markdown a[href]');
-        if (!link) return;
+        if (!link || link.protocol === 'mailto:') return; // email links open the mail app, no warning
         event.preventDefault();
         const dialog = linkWarning();
         dialog.dataset.href = link.getAttribute('href');
