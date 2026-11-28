@@ -61,17 +61,18 @@
         linkDialog = document.createElement('dialog');
         linkDialog.className = 'dialog link-dialog';
         linkDialog.setAttribute('aria-labelledby', 'link-dialog-title');
+        linkDialog.setAttribute('aria-describedby', 'link-dialog-url');
         linkDialog.innerHTML = `
             <div class="link-dialog-body">
                 <svg class="link-dialog-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
                     <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/>
                 </svg>
                 <p id="link-dialog-title" class="link-dialog-title">You are about to go to an outside website.</p>
-                <p class="link-dialog-url" data-link-url></p>
+                <p id="link-dialog-url" class="link-dialog-url" data-link-url></p>
             </div>
             <div class="link-dialog-actions">
                 <button type="button" class="btn btn-primary btn-pill" data-link-go>Go to website</button>
-                <button type="button" class="btn btn-pill" data-link-copy>Copy link</button>
+                <button type="button" class="btn btn-pill" data-link-copy autofocus>Copy link</button>
             </div>`;
         linkDialog.addEventListener('click', (event) => { if (event.target === linkDialog) linkDialog.close(); });
         linkDialog.querySelector('[data-link-go]').addEventListener('click', () => {
